@@ -6,13 +6,6 @@ DOTFILES_FILES    := $(filter-out $(DOTFILES_EXCLUDES), $(DOTFILES_TARGET))
 
 all: install
 
-help:
-	@echo "make list           #=> List the files"
-	@echo "make update         #=> Fetch changes"
-	@echo "make deploy         #=> Create symlink"
-	@echo "make init           #=> Setup environment"
-	@echo "make install        #=> Updating, deploying and initializng"
-
 list:
 	@$(foreach val, $(DOTFILES_FILES), ls -dF $(val);)
 
@@ -26,7 +19,7 @@ deploy:
 	@echo 'Start deploy dotfiles current directory.'
 	@echo 'If this is "dotdir", curretly it is ignored and copy your hand.'
 	@echo ''
-	@ln -sfnv ~/dotfiles/custom.zsh ~/.oh-my-zsh/custom/custom.zsh
+	@ln -sfnv ~/dotfiles/custom.zsh ~/dotfiles/.oh-my-zsh/custom/custom.zsh
 	@ln -sfnv ~/dotfiles/bluehigh.zsh-theme/bluehigh.zsh-theme ~/.oh-my-zsh/themes/bluehigh.zsh-theme
 	@ln -sfnv ~/dotfiles/bluehigh.zsh-theme/bluehigh-components ~/.oh-my-zsh/themes/bluehigh-components
 
