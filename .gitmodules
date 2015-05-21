@@ -1,0 +1,6 @@
+[submodule "oh-my-zsh"]
+	path = oh-my-zsh
+	url = git@github.com:robbyrussell/oh-my-zsh.git
+[submodule "bluehigh.zsh-theme"]
+	path = bluehigh.zsh-theme
+	url = git@github.com:abouthiroppy/bluehigh.zsh-theme.git
