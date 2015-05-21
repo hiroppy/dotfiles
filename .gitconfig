@@ -7,3 +7,5 @@
 	pushinsteadof = https://github.com/
 [core]
 	editor = vim
+[merge]
+	ff = false
