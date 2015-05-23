@@ -45,6 +45,7 @@ inoremap (<Enter> ()<Left><CR><ESC><S-o>
 nmap <CR> a<CR><space><ESC>
 noremap <Space>h  0
 noremap <Space>l  $
+nnoremap n nzz
 nnoremap ; :
 " ESCを二回押すことでハイライトを消す
 nmap <silent> <Esc><Esc> :nohlsearch<CR>
