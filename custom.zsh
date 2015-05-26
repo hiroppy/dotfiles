@@ -13,7 +13,7 @@ alias bc="bc -l"
 alias open="open ." # bugあり
 alias hue="node ~/Programming/hue/index.js"
 alias vps="ssh 153.121.57.47 -p 10022 -l about_hiroppy"
-
+alias deploy-myvocabs="ansible-playbook $HOME/Programming/deploy2Server/deploy/myVocabs.yml -i $HOME/Programming/deploy2Server/hosts --ask-pass --ask-sudo-pass"
 setopt auto_menu
 setopt complete_in_word      # 語の途中でもカーソル位置で補完
 setopt always_last_prompt    # カーソル位置は保持したままファイル名一覧を順次その場で表示
