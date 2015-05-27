@@ -3,6 +3,10 @@ export PATH=/usr/local/php5/bin:$PATH
 export PATH=$HOME/.nodebrew/current/bin:$PATH
 export HOMEBREW_CASK_OPTS="--appdir=/Applications"
 
+# rbenv
+eval "$(rbenv init -)"
+export PATH="$HOME/.rbenv/shims:$PATH"
+
 # go
 export GOPATH=$HOME/gopath
 export PATH=$PATH:$GOROOT/bin:$GOPATH/bin
@@ -18,6 +22,8 @@ setopt auto_menu
 setopt complete_in_word      # 語の途中でもカーソル位置で補完
 setopt always_last_prompt    # カーソル位置は保持したままファイル名一覧を順次その場で表示
 
+bindkey "^L" backward-delete-word
+ 
 ############################################
 function cdls() {
     # cdがaliasでループするので\をつける
