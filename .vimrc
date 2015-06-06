@@ -38,6 +38,10 @@ nnoremap j gj
 nnoremap k gk
 nnoremap gj j
 nnoremap gk k
+nnoremap x "_x
+"nnoremap d "_d
+nnoremap D "_D
+
 inoremap jj <Esc>
 inoremap {<Enter> {}<Left><CR><ESC><S-o>
 inoremap [<Enter> []<Left><CR><ESC><S-o>
