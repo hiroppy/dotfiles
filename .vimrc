@@ -7,8 +7,9 @@ set nu
 set ruler
 set autoindent
 set tabstop=2
+set expandtab
 set shiftwidth=2
-set softtabstop=2
+" set softtabstop=2
 set showmatch
 set matchtime=4
 set incsearch
