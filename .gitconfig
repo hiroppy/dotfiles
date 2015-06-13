@@ -8,4 +8,6 @@
 [core]
 	editor = vim
 [merge]
-	ff = false
+  ff = false
+[http]
+  sslVerify = false
