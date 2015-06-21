@@ -6,8 +6,22 @@
 [url "git@github.com:"]
 	pushinsteadof = https://github.com/
 [core]
-	editor = vim
+  editor = vim
+  autocrlf = input
 [merge]
-  ff = false
+  ff = true
 [http]
   sslVerify = false
+[alias]
+  st = status
+  co = checkout
+  so = remote show origin
+  ft = fetch
+  wc = whatchanged
+  ci = commit
+  br = branch
+  cp = cherry-pick
+  rb = rebase
+
+[push]
+  default = tracking 
