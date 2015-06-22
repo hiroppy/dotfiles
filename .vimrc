@@ -163,6 +163,7 @@ inoremap <expr><C-y>  neocomplcache#close_popup()
 inoremap <expr><C-e>  neocomplcache#cancel_popup()
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
+
 NeoBundle 'jpalardy/vim-slime'
 NeoBundle 'scrooloose/syntastic'
 NeoBundle 'scrooloose/nerdtree'
@@ -207,10 +208,8 @@ NeoBundle 'jQuery'
 NeoBundle 'nginx.vim'
 NeoBundle 'JSON.vim'
 " NeoBundle ‘5t111111/neat-json.vim’
-NeoBundle 'yuroyoro/vim-python'
-" NeoBundle 'yuroyoro/vim-scala'
 
-NeoBundle 'fatih/vim-go'
+NeoBundle 'tpope/vim-endwise'
 NeoBundle 'nathanaelkane/vim-indent-guides'
 NeoBundle 'https://github.com/junegunn/vim-easy-align.git'
 
