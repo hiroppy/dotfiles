@@ -1,10 +1,10 @@
 [user]
-	name = abouthiroppy
-	email = git@about-hiroppy.com
+  name = abouthiroppy
+  email = yuta_hiroto@dwango.co.jp
 [help]
-	autocorrect = 1
+  autocorrect = 1
 [url "git@github.com:"]
-	pushinsteadof = https://github.com/
+  pushinsteadof = https://github.com/
 [core]
   editor = vim
   autocrlf = input
@@ -23,6 +23,9 @@
   cp = cherry-pick
   rb = rebase
   # alias = !"f(){ git config --get-regexp alias|cut -d'.' -f2|if [ -z $1 ];then cut -d' ' -f1|column; else grep $1' '; fi }; f"
-   
+
 [push]
   default = tracking 
+  editor = vim
+[hub]
+  host = github.o-in.dwango.co.jp
