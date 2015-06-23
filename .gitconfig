@@ -26,6 +26,3 @@
 
 [push]
   default = tracking 
-  editor = vim
-[hub]
-  host = github.o-in.dwango.co.jp
