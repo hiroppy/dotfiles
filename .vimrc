@@ -32,6 +32,12 @@ set switchbuf=useopen
 set showcmd
 set clipboard+=unnamed
 
+if expand("%:t") =~ ".*\.go"
+  set noexpandtab
+  set tabstop=8
+  set shiftwidth=8
+endif
+
 syntax enable
 colorscheme torte
 
@@ -194,7 +200,7 @@ NeoBundle 'JSON.vim'
 NeoBundle 'yuroyoro/vim-python'
 NeoBundle 'yuroyoro/vim-scala'
 
-
+NeoBundle 'fatih/vim-go'
 NeoBundle 'nathanaelkane/vim-indent-guides'
 
 call neobundle#end()
