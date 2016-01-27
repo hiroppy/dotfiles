@@ -31,6 +31,9 @@ set matchtime=3
 set switchbuf=useopen
 set showcmd
 set clipboard+=unnamed
+set guifont=FiraMono-Regular:h14
+set linespace=4
+set t_Co=256
 
 if expand("%:t") =~ ".*\.go"
   set noexpandtab
@@ -38,8 +41,15 @@ if expand("%:t") =~ ".*\.go"
   set shiftwidth=8
 endif
 
-syntax enable
+
+" syntax enable
+set background=dark
 colorscheme torte
+" colorscheme base16-duotone-darksea
+" colorscheme base16-duotone-dark
+" colorscheme base16-duotone-darksea
+" colorscheme base16-duotone-darkpool
+syntax enable
 
 nnoremap j gj
 nnoremap k gk
@@ -198,14 +208,15 @@ NeoBundle 'nginx.vim'
 NeoBundle 'JSON.vim'
 " NeoBundle ‘5t111111/neat-json.vim’
 NeoBundle 'yuroyoro/vim-python'
-NeoBundle 'yuroyoro/vim-scala'
+" NeoBundle 'yuroyoro/vim-scala'
 
 NeoBundle 'fatih/vim-go'
 NeoBundle 'nathanaelkane/vim-indent-guides'
+NeoBundle 'https://github.com/junegunn/vim-easy-align.git'
+
+vmap <Enter> <Plug>(EasyAlign)
 
 call neobundle#end()
-
-
 
 " Required:
 filetype plugin indent on
