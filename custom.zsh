@@ -2,6 +2,7 @@ export PATH=/usr/local/bin:$PATH
 export PATH=/usr/local/php5/bin:$PATH
 export PATH=$HOME/.nodebrew/current/bin:$PATH
 export HOMEBREW_CASK_OPTS="--appdir=/Applications"
+export PATH=$PATH:/Users/about_hiroppy/Library/Android/sdk/platform-tools
 
 # rbenv
 eval "$(rbenv init -)"
@@ -20,7 +21,9 @@ alias vps="ssh 153.121.57.47 -p 10022 -l about_hiroppy"
 alias deploy-myvocabs="ansible-playbook $HOME/Programming/deploy2Server/deploy/myVocabs.yml -i $HOME/Programming/deploy2Server/hosts --ask-pass --ask-sudo-pass"
 alias git=hub
 # for hub
-compdef hub=git
+# compdef hub=git
+
+alias postgres="postgres -D /usr/local/var/postgres"
 
 setopt auto_menu
 setopt complete_in_word      # 語の途中でもカーソル位置で補完
