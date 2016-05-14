@@ -223,3 +223,4 @@ preexec() {
 
 setopt no_beep
 setopt no_tify
+setopt nonomatch
