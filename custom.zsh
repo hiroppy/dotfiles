@@ -2,15 +2,14 @@ export PATH=/usr/local/bin:$PATH
 export PATH=/usr/local/php5/bin:$PATH
 export PATH=$HOME/.nodebrew/current/bin:$PATH
 export HOMEBREW_CASK_OPTS="--appdir=/Applications"
-export PATH=$PATH:/Users/about_hiroppy/Library/Android/sdk/platform-tools
+export PATH=$PATH:~/Library/Android/sdk/platform-tools
+export GOPATH=$HOME/go
+export GOROOT=/usr/local/opt/go/libexec
+export PATH=$GOPATH/bin:$GOROOT/bin:$PATH
 
 # rbenv
 eval "$(rbenv init -)"
 export PATH="$HOME/.rbenv/shims:$PATH"
-
-# go
-export GOPATH=$HOME/gopath
-export PATH=$PATH:$GOROOT/bin:$GOPATH/bin
 
 alias mongodd="mongod -dbpath /usr/local/var/mongodb/ --logpath /usr/local/var/log/mongodb/mongodb.log &"
 alias a="./a.out"
@@ -20,6 +19,8 @@ alias hue="node ~/Programming/hue/index.js"
 alias vps="ssh 153.121.57.47 -p 10022 -l about_hiroppy"
 alias deploy-myvocabs="ansible-playbook $HOME/Programming/deploy2Server/deploy/myVocabs.yml -i $HOME/Programming/deploy2Server/hosts --ask-pass --ask-sudo-pass"
 alias git=hub
+alias dynamodb="/usr/local/bin/dynamodb-local"
+
 # for hub
 # compdef hub=git
 

@@ -41,7 +41,6 @@ if expand("%:t") =~ ".*\.go"
   set shiftwidth=8
 endif
 
-
 " syntax enable
 set background=dark
 colorscheme torte
@@ -194,6 +193,14 @@ NeoBundleLazy 'Shougo/vimshell', {
   \   'mappings' : ['<Plug>(vimshell_switch)']
   \ }}
 
+NeoBundleLazy 'jason0x43/vim-js-indent', {
+\ 'autoload' : {
+\   'filetypes' : ['javascript', 'typescript', 'html'],
+\}}
+let g:js_indent_typescript = 1
+
+NeoBundle 'leafgarland/typescript-vim'
+
 " color theme
 NeoBundle 'JavaScript-syntax'
 NeoBundle 'kchmck/vim-coffee-script'
@@ -203,6 +210,7 @@ NeoBundle 'digitaltoad/vim-jade'
 NeoBundle 'pbrisbin/html-template-syntax'
 NeoBundle 'joker1007/vim-markdown-quote-syntax'
 NeoBundle 'hail2u/vim-css3-syntax'
+NeoBundle 'slim-template/vim-slim'
 " NeoBundle 'taichouchou2/html5.vim'
 NeoBundle 'jQuery'
 NeoBundle 'nginx.vim'
@@ -212,6 +220,9 @@ NeoBundle 'JSON.vim'
 NeoBundle 'tpope/vim-endwise'
 NeoBundle 'nathanaelkane/vim-indent-guides'
 NeoBundle 'https://github.com/junegunn/vim-easy-align.git'
+NeoBundle 'fatih/vim-go'
+NeoBundle 'tpope/vim-abolish'
+NeoBundle 'editorconfig/editorconfig-vim'
 
 vmap <Enter> <Plug>(EasyAlign)
 

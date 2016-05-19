@@ -1,11 +1,17 @@
 [user]
   name = abouthiroppy
-  email = yuta_hiroto@dwango.co.jp
+  email = git@about-hiroppy.com
 [help]
   autocorrect = 1
 [url "git@github.com:"]
   pushinsteadof = https://github.com/
+[url "git@github.o-in.dwango.co.jp:"]
+  pushinsteadof = http://github.o-in.dwango.co.jp/
 [core]
+  editor = vim
+  excludesfile = ~/.gitignore_global
+[hub]
+	host = github.o-in.dwango.co.jp
   editor = vim
   autocrlf = input
 [merge]
@@ -22,7 +28,10 @@
   br = branch
   cp = cherry-pick
   rb = rebase
+  pr = pull --rebase
   # alias = !"f(){ git config --get-regexp alias|cut -d'.' -f2|if [ -z $1 ];then cut -d' ' -f1|column; else grep $1' '; fi }; f"
 
 [push]
   default = tracking 
+[commit]
+	template = ~/.gitmessage.txt
