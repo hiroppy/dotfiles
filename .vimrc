@@ -177,6 +177,7 @@ NeoBundle 'https://github.com/mattn/webapi-vim.git'
 NeoBundle 'https://github.com/tyru/open-browser.vim.git'
 NeoBundle 'https://github.com/yomi322/neco-tweetvim.git'
 NeoBundle 'https://github.com/yomi322/unite-tweetvim.git'
+NeoBundle 'https://github.com/leafgarland/typescript-vim.git'
 
 NeoBundle 'Shougo/vimproc.vim', {
   \ 'build' : {
