@@ -30,6 +30,7 @@
   cp = cherry-pick
   rb = rebase
   pr = pull --rebase
+  site = browse
   # alias = !"f(){ git config --get-regexp alias|cut -d'.' -f2|if [ -z $1 ];then cut -d' ' -f1|column; else grep $1' '; fi }; f"
 
 [push]
