@@ -162,6 +162,7 @@ inoremap <expr><C-y>  neocomplcache#close_popup()
 inoremap <expr><C-e>  neocomplcache#cancel_popup()
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
+autocmd BufRead,BufNewFile *.js set filetype=javascript
 
 NeoBundle 'jpalardy/vim-slime'
 NeoBundle 'scrooloose/syntastic'
@@ -178,6 +179,7 @@ NeoBundle 'https://github.com/tyru/open-browser.vim.git'
 NeoBundle 'https://github.com/yomi322/neco-tweetvim.git'
 NeoBundle 'https://github.com/yomi322/unite-tweetvim.git'
 NeoBundle 'https://github.com/leafgarland/typescript-vim.git'
+NeoBundle 'https://github.com/heavenshell/vim-jsdoc.git'
 
 NeoBundle 'Shougo/vimproc.vim', {
   \ 'build' : {
