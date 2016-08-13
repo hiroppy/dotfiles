@@ -34,6 +34,8 @@ set clipboard+=unnamed
 set guifont=FiraMono-Regular:h14
 set linespace=4
 set t_Co=256
+set modifiable
+set write
 
 if expand("%:t") =~ ".*\.go"
   set noexpandtab
@@ -44,10 +46,6 @@ endif
 " syntax enable
 set background=dark
 colorscheme torte
-" colorscheme base16-duotone-darksea
-" colorscheme base16-duotone-dark
-" colorscheme base16-duotone-darksea
-" colorscheme base16-duotone-darkpool
 syntax enable
 
 nnoremap j gj
@@ -85,6 +83,9 @@ nnoremap <silent><C-e> :NERDTreeToggle<CR>
 " caw.vim
 nmap <C-K> <Plug>(caw:i:toggle)
 vmap <C-K> <Plug>(caw:i:toggle)
+nmap ff :TernDef<CR>
+nmap fff :TernRefs<CR>
+vmap <Enter> <Plug>(EasyAlign)
 
 " NeoBundle
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""
@@ -169,15 +170,8 @@ NeoBundle 'scrooloose/syntastic'
 NeoBundle 'scrooloose/nerdtree'
 NeoBundle 'Townk/vim-autoclose'
 
-" tweetvim
-NeoBundle 'https://github.com/basyura/bitly.vim.git'
-NeoBundle 'https://github.com/basyura/TweetVim.git'
-NeoBundle 'https://github.com/basyura/twibill.vim.git'
 NeoBundle 'https://github.com/h1mesuke/unite-outline.git'
-NeoBundle 'https://github.com/mattn/webapi-vim.git'
 NeoBundle 'https://github.com/tyru/open-browser.vim.git'
-NeoBundle 'https://github.com/yomi322/neco-tweetvim.git'
-NeoBundle 'https://github.com/yomi322/unite-tweetvim.git'
 NeoBundle 'https://github.com/leafgarland/typescript-vim.git'
 NeoBundle 'https://github.com/heavenshell/vim-jsdoc.git'
 
@@ -202,23 +196,25 @@ NeoBundleLazy 'jason0x43/vim-js-indent', {
 \}}
 let g:js_indent_typescript = 1
 
+NeoBundleLazy 'heavenshell/vim-jsdoc' , {'autoload': {'filetypes': ['javascript']}}
+
 NeoBundle 'leafgarland/typescript-vim'
 
 " color theme
-NeoBundle 'JavaScript-syntax'
-NeoBundle 'kchmck/vim-coffee-script'
-NeoBundle 'carlosvillu/coffeScript-VIM-Snippets'
+NeoBundle 'othree/yajs.vim'
+NeoBundle 'othree/es.next.syntax.vim'
+NeoBundle 'mxw/vim-jsx'
+let g:jsx_ext_required = 0
+let g:jsx_pragma_required = 0
+
 NeoBundle 'tpope/vim-haml'
 NeoBundle 'digitaltoad/vim-jade'
 NeoBundle 'pbrisbin/html-template-syntax'
 NeoBundle 'joker1007/vim-markdown-quote-syntax'
 NeoBundle 'hail2u/vim-css3-syntax'
 NeoBundle 'slim-template/vim-slim'
-" NeoBundle 'taichouchou2/html5.vim'
-NeoBundle 'jQuery'
 NeoBundle 'nginx.vim'
 NeoBundle 'JSON.vim'
-" NeoBundle ‘5t111111/neat-json.vim’
 
 NeoBundle 'tpope/vim-endwise'
 NeoBundle 'nathanaelkane/vim-indent-guides'
@@ -226,8 +222,13 @@ NeoBundle 'https://github.com/junegunn/vim-easy-align.git'
 NeoBundle 'fatih/vim-go'
 NeoBundle 'tpope/vim-abolish'
 NeoBundle 'editorconfig/editorconfig-vim'
+NeoBundle 'moll/vim-node'
 
-vmap <Enter> <Plug>(EasyAlign)
+" tern
+NeoBundle 'marijnh/tern_for_vim'
+" %cd ~/.vim/bundle/tern_for_vim
+" %npm install
+" command
 
 call neobundle#end()
 
