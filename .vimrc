@@ -37,16 +37,13 @@ set t_Co=256
 set modifiable
 set write
 
+syntax enable
+
 if expand("%:t") =~ ".*\.go"
   set noexpandtab
   set tabstop=8
   set shiftwidth=8
 endif
-
-" syntax enable
-set background=dark
-colorscheme torte
-syntax enable
 
 nnoremap j gj
 nnoremap k gk
@@ -61,6 +58,8 @@ inoremap {<Enter> {}<Left><CR><ESC><S-o>
 inoremap [<Enter> []<Left><CR><ESC><S-o>
 inoremap (<Enter> ()<Left><CR><ESC><S-o>
 nmap <CR> a<CR><space><ESC>
+
+nnoremap m <C-z>
 noremap <Space>h  0
 noremap <Space>l  $
 nnoremap n nzz
@@ -113,17 +112,17 @@ NeoBundle "tyru/caw.vim.git"
 NeoBundle 'tpope/vim-fugitive'
 NeoBundle 'airblade/vim-gitgutter'
 NeoBundle 'itchyny/lightline.vim'
-	let g:lightline = {
-	      \ 'colorscheme': 'wombat',
-        \ 'component': {
-        \  'readonly': '%{&readonly?"x":""}',
-        \ },
-        \ 'separator': { 'left': '', 'right': '' },
-        \ 'subseparator': { 'left': '|', 'right': '|' }
-        \ }
-  let g:gitgutter_sign_added = '✚'
-  let g:gitgutter_sign_modified = '➜'
-  let g:gitgutter_sign_removed = '✘'
+let g:lightline = {
+      \ 'colorscheme': 'wombat',
+      \ 'component': {
+      \  'readonly': '%{&readonly?"x":""}',
+      \ },
+      \ 'separator': { 'left': '', 'right': '' },
+      \ 'subseparator': { 'left': '|', 'right': '|' }
+      \ }
+let g:gitgutter_sign_added = '✚'
+let g:gitgutter_sign_modified = '➜'
+let g:gitgutter_sign_removed = '✘'
 
 NeoBundle 'Shougo/vimshell'
 
@@ -145,8 +144,8 @@ let g:neocomplcache_dictionary_filetype_lists = {
     \ }
 
 " Plugin key-mappings.
-inoremap <expr><C-g>     neocomplcache#undo_completion()
-inoremap <expr><C-l>     neocomplcache#complete_common_string()
+inoremap <expr><C-g> neocomplcache#undo_completion()
+inoremap <expr><C-l> neocomplcache#complete_common_string()
 
 " Recommended key-mappings.
 " <CR>: close popup and save indent.
@@ -172,7 +171,6 @@ NeoBundle 'Townk/vim-autoclose'
 
 NeoBundle 'https://github.com/h1mesuke/unite-outline.git'
 NeoBundle 'https://github.com/tyru/open-browser.vim.git'
-NeoBundle 'https://github.com/leafgarland/typescript-vim.git'
 NeoBundle 'https://github.com/heavenshell/vim-jsdoc.git'
 
 NeoBundle 'Shougo/vimproc.vim', {
@@ -191,9 +189,9 @@ NeoBundleLazy 'Shougo/vimshell', {
   \ }}
 
 NeoBundleLazy 'jason0x43/vim-js-indent', {
-\ 'autoload' : {
-\   'filetypes' : ['javascript', 'typescript', 'html'],
-\}}
+  \ 'autoload' : {
+  \   'filetypes' : ['javascript', 'typescript', 'html'],
+  \}}
 let g:js_indent_typescript = 1
 
 NeoBundleLazy 'heavenshell/vim-jsdoc' , {'autoload': {'filetypes': ['javascript']}}
@@ -201,11 +199,19 @@ NeoBundleLazy 'heavenshell/vim-jsdoc' , {'autoload': {'filetypes': ['javascript'
 NeoBundle 'leafgarland/typescript-vim'
 
 " color theme
+NeoBundle 'vim-scripts/Lucius'
+
 NeoBundle 'othree/yajs.vim'
 NeoBundle 'othree/es.next.syntax.vim'
 NeoBundle 'mxw/vim-jsx'
 let g:jsx_ext_required = 0
 let g:jsx_pragma_required = 0
+
+" NeoBundle 'othree/html5.vim'
+augroup MyXML
+  autocmd!
+  autocmd Filetype html inoremap <buffer> </ </<C-x><C-o>
+augroup END
 
 NeoBundle 'tpope/vim-haml'
 NeoBundle 'digitaltoad/vim-jade'
@@ -236,3 +242,11 @@ call neobundle#end()
 filetype plugin indent on
 
 NeoBundleCheck
+
+" colorscheme torte
+colorscheme lucius
+" https://github.com/vim-scripts/Lucius
+let g:lucius_contrast = 'light'
+let g:lucius_contrast_bg = 'high'
+
+set background=dark
