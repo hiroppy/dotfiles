@@ -250,3 +250,6 @@ let g:lucius_contrast = 'light'
 let g:lucius_contrast_bg = 'high'
 
 set background=dark
+
+hi LineNr ctermfg=darkcyan ctermbg=black
+hi CursorLine ctermbg=black cterm=underline
