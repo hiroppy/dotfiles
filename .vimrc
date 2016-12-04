@@ -190,9 +190,8 @@ NeoBundleLazy 'Shougo/vimshell', {
 
 NeoBundleLazy 'jason0x43/vim-js-indent', {
   \ 'autoload' : {
-  \   'filetypes' : ['javascript', 'typescript', 'html'],
+  \   'filetypes' : ['javascript', 'html'],
   \}}
-let g:js_indent_typescript = 1
 
 NeoBundleLazy 'heavenshell/vim-jsdoc' , {'autoload': {'filetypes': ['javascript']}}
 
