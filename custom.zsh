@@ -6,11 +6,13 @@ export PATH=$PATH:~/Library/Android/sdk/platform-tools
 export GOPATH=$HOME/go
 export GOROOT=/usr/local/opt/go/libexec
 export PATH=$GOPATH/bin:$GOROOT/bin:$PATH
+# export XDG_CONFIG_HOME=~/.config # for neovim
 
 # rbenv
 eval "$(rbenv init -)"
 export PATH="$HOME/.rbenv/shims:$PATH"
 
+# alias vim=nvim
 alias f="fg"
 alias mongodd="mongod -dbpath /usr/local/var/mongodb/ --logpath /usr/local/var/log/mongodb/mongodb.log &"
 alias a="./a.out"

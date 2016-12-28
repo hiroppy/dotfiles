@@ -1,0 +1,10 @@
+{
+  "plugins": [
+    {
+      "name": "syntax-flow and transform-flow-strip-types",
+      "value": "syntax-flow,transform-flow-strip-types"
+    },
+    "lodash",
+    "transform-runtime"
+  ]
+}
