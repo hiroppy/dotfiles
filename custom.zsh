@@ -50,7 +50,7 @@ setopt auto_cd
 ## cdで移動してもpushdと同じようにディレクトリスタックに追加する
 setopt auto_pushd
 ## カレントディレクトリ中に指定されたディレクトリが見つからなかった場合に移動先を検索するリスト
-cdpath=(.. ~ ~/Programming)
+# cdpath=(.. ~ ~/Programming)
 ## ディレクトリが変わったらディレクトリスタックを表示
 chpwd_functions=($chpwd_functions dirs)
 
@@ -174,6 +174,13 @@ update_title() {
     echo -n "(${command})"
     print -n -P "%n@%m:%~\a"
 }
+
+export PYENV_ROOT=${HOME}/.pyenv
+if [ -d "${PYENV_ROOT}" ]; then
+    export PATH=${PYENV_ROOT}/bin:$PATH
+    eval "$(pyenv init -)"
+    eval "$(pyenv virtualenv-init -)"
+fi
 
 ## X環境上でだけウィンドウタイトルを変える。
 if [ -n "$DISPLAY" ]; then

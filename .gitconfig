@@ -1,6 +1,7 @@
 [user]
-  name = abouthiroppy
+  name = Yuta Hiroto
   email = git@about-hiroppy.com
+  signingkey = E2B165C2
 [help]
   autocorrect = 1
 [url "git@github.com:"]
@@ -10,6 +11,7 @@
 [core]
   editor = vim
   excludesfile = ~/.gitignore_global
+	whitespace = fix
 [hub]
 	host = github.o-in.dwango.co.jp
   editor = vim
@@ -37,5 +39,8 @@
   default = tracking 
 [commit]
 	template = ~/.gitmessage.txt
+	gpgsign = true
 [color]
 	ui = true
+[gpg]
+	program = gpg
