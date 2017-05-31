@@ -44,12 +44,6 @@ set wildmenu
 
 syntax enable
 
-if expand("%:t") =~ ".*\.go"
-  set noexpandtab
-  set tabstop=8
-  set shiftwidth=8
-endif
-
 nnoremap j gj
 nnoremap k gk
 nnoremap gj j
@@ -90,6 +84,18 @@ vmap <C-K> <Plug>(caw:i:toggle)
 nmap ff :TernDef<CR>
 nmap fff :TernRefs<CR>
 vmap <Enter> <Plug>(EasyAlign)
+
+
+"----------------------------------------------------------------------------"
+" autocmd
+"----------------------------------------------------------------------------"
+augroup hiroppy
+    autocmd!
+
+    " Filetype local settings.
+    autocmd FileType go setlocal noexpandtab tabstop=8 shiftwidth=8
+augroup END
+
 
 " NeoBundle
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""
