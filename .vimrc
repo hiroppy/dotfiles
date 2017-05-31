@@ -139,9 +139,12 @@ if dein#load_state(s:DEIN_BASE_PATH)
   call dein#add('Townk/vim-autoclose')
   call dein#add('airblade/vim-gitgutter')
   call dein#add('editorconfig/editorconfig-vim')
+  call dein#add('haya14busa/vim-operator-flashy', { 'lazy': 1, 'on_map': [ [ 'nx', '<Plug>' ] ] })
   call dein#add('itchyny/lightline.vim')
+  call dein#add('itchyny/vim-parenmatch')
   call dein#add('jpalardy/vim-slime')
   call dein#add('junegunn/vim-easy-align')
+  call dein#add('kana/vim-operator-user')
   call dein#add('nathanaelkane/vim-indent-guides')
   call dein#add('scrooloose/nerdtree')
   call dein#add('scrooloose/syntastic')
@@ -243,6 +246,15 @@ if dein#tap('neocomplete.vim') && !has('nvim')
   inoremap <expr><C-y> "\<C-y>"
   inoremap <expr><C-e> "\<C-e>"
 endif
+
+" vim-operator-flashy
+map y <Plug>(operator-flashy)
+map Y <Plug>(operator-flashy)$
+let g:operator#flashy#group = 'Error'
+
+" vim-parenmatch
+let g:parenmatch_highlight = 0
+hi link ParenMatch MatchParen
 
 " caw.vim
 nmap <C-K> <Plug>(caw:i:toggle)
