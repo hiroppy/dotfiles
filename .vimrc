@@ -1,41 +1,46 @@
-set sessionoptions-=options
-" cursorline
+" Indent.
+set autoindent
+set expandtab
+set shiftwidth=2
+set tabstop=2
+
+" Encoding.
+if has('vim_starting')
+    " Changing encoding in Vim at runtime is undefined behavior.
+    set encoding=utf-8
+    set fileencodings=utf-8,sjis,cp932,euc-jp
+    set fileformats=unix,mac,dos
+endif
+
+" Appearance.
 set cursorline
-" status
 set laststatus=2
 set nu
 set ruler
-set autoindent
-set tabstop=2
-set expandtab
-set shiftwidth=2
-" set softtabstop=2
+set showcmd
 set showmatch
-set matchtime=4
-set incsearch
-set ignorecase
-set hlsearch
-set smartcase
-set wildmenu
-set t_kD=^?
-set backspace=indent,eol,start
-set encoding=utf8
-set fileencoding=utf-8
 set title
 set wrap
-set noswapfile
-set nowritebackup
-set nobackup
-set matchpairs& matchpairs+=<:>
-set matchtime=3
-set switchbuf=useopen
-set showcmd
+
+" Others.
+set backspace=indent,eol,start
 set clipboard+=unnamed
 set guifont=FiraMono-Regular:h14
+set hlsearch
+set ignorecase
+set incsearch
 set linespace=4
+set matchpairs& matchpairs+=<:>
+set matchtime=3
+set nobackup
+set noswapfile
+set nowritebackup
+set sessionoptions-=options
+set smartcase
+set switchbuf=useopen
 set t_Co=256
-set modifiable
-set write
+set t_kD=^?
+set wildmenu
 
 syntax enable
 
