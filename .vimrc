@@ -25,7 +25,6 @@ set wrap
 " Others.
 set backspace=indent,eol,start
 set clipboard+=unnamed
-set guifont=FiraMono-Regular:h14
 set hlsearch
 set ignorecase
 set incsearch
@@ -93,6 +92,14 @@ augroup hiroppy
     " Filetype local settings.
     autocmd FileType go setlocal noexpandtab tabstop=8 shiftwidth=8
 augroup END
+
+
+"----------------------------------------------------------------------------"
+" GUI
+"----------------------------------------------------------------------------"
+if has('gui_running')
+    set guifont=FiraMono-Regular:h14
+endif
 
 
 " NeoBundle
