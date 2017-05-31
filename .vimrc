@@ -29,7 +29,7 @@ set hlsearch
 set ignorecase
 set incsearch
 set linespace=4
-set matchpairs& matchpairs+=<:>
+set matchpairs+=<:>
 set matchtime=3
 set nobackup
 set noswapfile
