@@ -59,7 +59,7 @@ inoremap [<Enter> []<Left><CR><ESC><S-o>
 inoremap (<Enter> ()<Left><CR><ESC><S-o>
 
 " Adding blank lines.
-nnoremap <silent> <CR> :<C-u>for i in range(1, v:count1) \| call append(line('.'),   '') \| endfor<CR>
+nnoremap <silent> <CR> :<C-u>for i in range(1, v:count1) \| call append(line('.'),   '') \| endfor <CR>
 
 nnoremap m <C-z>
 noremap <Space>h  0
@@ -89,6 +89,7 @@ augroup hiroppy
 
     " Filetype local settings.
     autocmd FileType go setlocal noexpandtab tabstop=8 shiftwidth=8
+    autocmd BufWinEnter *.html nested inoremap <buffer> </ </<C-x><C-o>
 augroup END
 
 
@@ -128,13 +129,49 @@ if dein#load_state(s:DEIN_BASE_PATH)
     call dein#add('Shougo/deoplete.nvim', { 'lazy': 1, 'on_event': 'InsertEnter', 'if': has('nvim') })
     call dein#add('Shougo/neocomplete.vim', { 'lazy': 1, 'on_event': 'InsertEnter', 'if': (has('lua') && !has('nvim')) })
 
+		call dein#add('h1mesuke/unite-outline')
     call dein#add('Shougo/neomru.vim')
     call dein#add('Shougo/unite.vim')
-    call dein#add('Shougo/vimshell')
+
+		call dein#add('tyru/open-browser.vim')
+    call dein#add('Shougo/vimproc.vim', { 'build': 'make' })
+    call dein#add('Shougo/vimshell', { 'lazy': 1, 'on_cmd': ['VimShell', 'VimShellExecute', 'VimShellInteractive', 'VimShellTerminal', 'VimShellPop'], 'on_map': ['<Plug>(vimshell_switch)'] } )
+    call dein#add('Townk/vim-autoclose')
     call dein#add('airblade/vim-gitgutter')
     call dein#add('itchyny/lightline.vim')
+    call dein#add('jpalardy/vim-slime')
+    call dein#add('scrooloose/nerdtree')
+    call dein#add('scrooloose/syntastic')
     call dein#add('tpope/vim-fugitive')
     call dein#add('tyru/caw.vim')
+call dein#add('tpope/vim-endwise')
+call dein#add('nathanaelkane/vim-indent-guides')
+call dein#add('junegunn/vim-easy-align')
+call dein#add('tpope/vim-abolish')
+call dein#add('editorconfig/editorconfig-vim')
+
+    call dein#add('jason0x43/vim-js-indent')
+    call dein#add('heavenshell/vim-jsdoc')
+    call dein#add('leafgarland/typescript-vim')
+    call dein#add('othree/yajs.vim')
+    call dein#add('othree/es.next.syntax.vim')
+    call dein#add('mxw/vim-jsx')
+    call dein#add('tpope/vim-haml')
+    call dein#add('digitaltoad/vim-jade')
+    call dein#add('pbrisbin/html-template-syntax')
+    call dein#add('joker1007/vim-markdown-quote-syntax')
+    call dein#add('hail2u/vim-css3-syntax')
+    call dein#add('slim-template/vim-slim')
+    call dein#add('vim-scripts/nginx.vim')
+    call dein#add('vim-scripts/JSON.vim')
+  call dein#add('fatih/vim-go')
+  call dein#add('moll/vim-node')
+  call dein#add('marijnh/tern_for_vim')
+
+  call dein#add('vim-scripts/Lucius')
+
+
+
 
     call dein#end()
     call dein#save_state()
@@ -150,17 +187,30 @@ filetype plugin indent on
 if dein#tap('deoplete.nvim') && has('nvim')
     let g:deoplete#enable_at_startup = 1
     let g:deoplete#enable_smart_case = 1
-    inoremap <expr><C-g> deoplete#undo_completion()
 
-    " <C-h>, <BS>: close popup and delete backword char.
-    inoremap <expr><C-h> deoplete#smart_close_popup()."\<C-h>"
-    inoremap <expr><BS>  deoplete#smart_close_popup()."\<C-h>"
+    inoremap <expr><C-g> deoplete#undo_completion()
 
     " <CR>: close popup and save indent.
     inoremap <silent> <CR> <C-r>=<SID>my_cr_function()<CR>
     function! s:my_cr_function() abort
         return deoplete#close_popup() . "\<CR>"
     endfunction
+
+    " <TAB>: completion.
+		inoremap <silent><expr> <TAB>
+					\ pumvisible() ? "\<C-n>" :
+					\ <SID>check_back_space() ? "\<TAB>" :
+					\ deoplete#mappings#manual_complete()
+		function! s:check_back_space() abort "{{{
+			let col = col('.') - 1
+			return !col || getline('.')[col - 1]  =~ '\s'
+		endfunction"}}}
+
+    " <C-h>, <BS>: close popup and delete backword char.
+    inoremap <expr><C-h> deoplete#smart_close_popup()."\<C-h>"
+    inoremap <expr><BS>  deoplete#smart_close_popup()."\<C-h>"
+    inoremap <expr><C-y> "\<C-y>"
+    inoremap <expr><C-e> "\<C-e>"
 endif
 
 " neocomplete.vim
@@ -216,167 +266,23 @@ let g:gitgutter_sign_added = '✚'
 let g:gitgutter_sign_modified = '➜'
 let g:gitgutter_sign_removed = '✘'
 
+" nerdtree
+nnoremap <silent><C-e> :NERDTreeToggle<CR>
+
 " vimshell
 nmap <silent> vs :<C-u>VimShell<CR>
 nmap <silent> vp :<C-u>VimShellPop<CR>
 
-
-finish
-""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-
-syntax enable
-
-NeoBundle 'tpope/vim-fugitive'
-NeoBundle 'airblade/vim-gitgutter'
-NeoBundle 'itchyny/lightline.vim'
-let g:lightline = {
-      \ 'colorscheme': 'wombat',
-      \ 'component': {
-      \  'readonly': '%{&readonly?"x":""}',
-      \ },
-      \ 'separator': { 'left': '', 'right': '' },
-      \ 'subseparator': { 'left': '|', 'right': '|' }
-      \ }
-let g:gitgutter_sign_added = '✚'
-let g:gitgutter_sign_modified = '➜'
-let g:gitgutter_sign_removed = '✘'
-
-NeoBundle 'Shougo/vimshell'
-
-" open shell
-nmap <silent> vs :<C-u>VimShell<CR>
-nmap <silent> vp :<C-u>VimShellPop<CR>
-
-
-""""""""""""""""""""""""""""""""""""""""""" neocomplcache
-NeoBundle 'Shougo/neocomplcache'
-" Disable AutoComplPop.
-let g:acp_enableAtStartup = 0
-" Use neocomplcache.
-let g:neocomplcache_enable_at_startup = 1
-" Use smartcase.
-let g:neocomplcache_enable_smart_case = 1
-" Set minimum syntax keyword length.
-let g:neocomplcache_min_syntax_length = 3
-let g:neocomplcache_lock_buffer_name_pattern = '\*ku\*'
-
-" Define dictionary.
-let g:neocomplcache_dictionary_filetype_lists = {
-    \ 'default' : ''
-    \ }
-
-" Plugin key-mappings.
-inoremap <expr><C-g> neocomplcache#undo_completion()
-inoremap <expr><C-l> neocomplcache#complete_common_string()
-
-" Recommended key-mappings.
-" <CR>: close popup and save indent.
-inoremap <silent> <CR> <C-r>=<SID>my_cr_function()<CR>
-function! s:my_cr_function()
-  return neocomplcache#smart_close_popup() . "\<CR>"
-endfunction
-" <TAB>: completion.
-inoremap <expr><TAB>  pumvisible() ? "\<C-n>" : "\<TAB>"
-" <C-h>, <BS>: close popup and delete backword char.
-inoremap <expr><C-h> neocomplcache#smart_close_popup()."\<C-h>"
-inoremap <expr><BS> neocomplcache#smart_close_popup()."\<C-h>"
-inoremap <expr><C-y>  neocomplcache#close_popup()
-inoremap <expr><C-e>  neocomplcache#cancel_popup()
-""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-
-autocmd BufRead,BufNewFile *.js set filetype=javascript
-
-NeoBundle 'jpalardy/vim-slime'
-NeoBundle 'scrooloose/syntastic'
-NeoBundle 'scrooloose/nerdtree'
-
-" nerdtree
-nnoremap <silent><C-e> :NERDTreeToggle<CR>
-
-NeoBundle 'Townk/vim-autoclose'
-
-NeoBundle 'https://github.com/h1mesuke/unite-outline.git'
-NeoBundle 'https://github.com/tyru/open-browser.vim.git'
-NeoBundle 'https://github.com/heavenshell/vim-jsdoc.git'
-
-NeoBundle 'Shougo/vimproc.vim', {
-  \ 'build' : {
-  \     'mac' : 'make -f make_mac.mak',
-  \    }
-  \ }
-
-NeoBundleLazy 'Shougo/vimshell', {
-  \ 'depends' : 'Shougo/vimproc',
-  \ 'autoload' : {
-  \   'commands' : [{ 'name' : 'VimShell', 'complete' : 'customlist,vimshell#complete'},
-  \                 'VimShellExecute', 'VimShellInteractive',
-  \                 'VimShellTerminal', 'VimShellPop'],
-  \   'mappings' : ['<Plug>(vimshell_switch)']
-  \ }}
-
-NeoBundleLazy 'jason0x43/vim-js-indent', {
-  \ 'autoload' : {
-  \   'filetypes' : ['javascript', 'html'],
-  \}}
-
-NeoBundleLazy 'heavenshell/vim-jsdoc' , {'autoload': {'filetypes': ['javascript']}}
-
-NeoBundle 'leafgarland/typescript-vim'
-
-" color theme
-NeoBundle 'vim-scripts/Lucius'
-
-NeoBundle 'othree/yajs.vim'
-NeoBundle 'othree/es.next.syntax.vim'
-NeoBundle 'mxw/vim-jsx'
+" vim-jsx
 let g:jsx_ext_required = 0
 let g:jsx_pragma_required = 0
 
-" NeoBundle 'othree/html5.vim'
-augroup MyXML
-  autocmd!
-  autocmd Filetype html inoremap <buffer> </ </<C-x><C-o>
-augroup END
-
-NeoBundle 'tpope/vim-haml'
-NeoBundle 'digitaltoad/vim-jade'
-NeoBundle 'pbrisbin/html-template-syntax'
-NeoBundle 'joker1007/vim-markdown-quote-syntax'
-NeoBundle 'hail2u/vim-css3-syntax'
-NeoBundle 'slim-template/vim-slim'
-NeoBundle 'nginx.vim'
-NeoBundle 'JSON.vim'
-
-NeoBundle 'tpope/vim-endwise'
-NeoBundle 'nathanaelkane/vim-indent-guides'
-NeoBundle 'https://github.com/junegunn/vim-easy-align.git'
-NeoBundle 'fatih/vim-go'
-NeoBundle 'tpope/vim-abolish'
-NeoBundle 'editorconfig/editorconfig-vim'
-NeoBundle 'moll/vim-node'
-
-" tern
-NeoBundle 'marijnh/tern_for_vim'
-" %cd ~/.vim/bundle/tern_for_vim
-" %npm install
-" command
-
-call neobundle#end()
-
-" Required:
-filetype plugin indent on
-
-NeoBundleCheck
-
-" colorscheme torte
-colorscheme lucius
-" https://github.com/vim-scripts/Lucius
+" lucius
 let g:lucius_contrast = 'light'
 let g:lucius_contrast_bg = 'high'
-
 set background=dark
-
 hi LineNr ctermfg=darkcyan ctermbg=black
 hi CursorLine ctermbg=black cterm=underline
+
+syntax enable
+colorscheme lucius
