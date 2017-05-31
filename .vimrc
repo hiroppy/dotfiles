@@ -6,10 +6,10 @@ set tabstop=2
 
 " Encoding.
 if has('vim_starting')
-    " Changing encoding in Vim at runtime is undefined behavior.
-    set encoding=utf-8
-    set fileencodings=utf-8,sjis,cp932,euc-jp
-    set fileformats=unix,mac,dos
+  " Changing encoding in Vim at runtime is undefined behavior.
+  set encoding=utf-8
+  set fileencodings=utf-8,sjis,cp932,euc-jp
+  set fileformats=unix,mac,dos
 endif
 
 " Appearance.
@@ -86,11 +86,11 @@ nnoremap <C-l> <C-w>l
 " autocmd
 "----------------------------------------------------------------------------"
 augroup hiroppy
-    autocmd!
+  autocmd!
 
-    " Filetype local settings.
-    autocmd FileType go setlocal noexpandtab tabstop=8 shiftwidth=8
-    autocmd BufWinEnter *.html nested inoremap <buffer> </ </<C-x><C-o>
+  " Filetype local settings.
+  autocmd FileType go setlocal noexpandtab tabstop=8 shiftwidth=8
+  autocmd BufWinEnter *.html nested inoremap <buffer> </ </<C-x><C-o>
 augroup END
 
 
@@ -98,7 +98,7 @@ augroup END
 " GUI
 "----------------------------------------------------------------------------"
 if has('gui_running')
-    set guifont=FiraMono-Regular:h14
+  set guifont=FiraMono-Regular:h14
 endif
 
 
@@ -108,143 +108,140 @@ endif
 let s:DEIN_BASE_PATH = '~/.vim/bundle/'
 let s:DEIN_PATH      = expand(s:DEIN_BASE_PATH . 'repos/github.com/Shougo/dein.vim')
 if !isdirectory(s:DEIN_PATH)
-    let answer = confirm('Would you like to download all plugins ?', "&Yes\n&No", 2)
-    if (answer == 1) && (executable('git') == 1)
-        execute '!git clone --depth=1 https://github.com/Shougo/dein.vim' s:DEIN_PATH
-    else
-        syntax enable
-        colorscheme desert
-        finish
-    endif
+  let answer = confirm('Would you like to download all plugins ?', "&Yes\n&No", 2)
+  if (answer == 1) && (executable('git') == 1)
+    execute '!git clone --depth=1 https://github.com/Shougo/dein.vim' s:DEIN_PATH
+  else
+    syntax enable
+    colorscheme desert
+    finish
+  endif
 endif
 
 " dein.vim
 execute 'set runtimepath+=' . s:DEIN_PATH
 
 if dein#load_state(s:DEIN_BASE_PATH)
-    call dein#begin(s:DEIN_BASE_PATH)
+  call dein#begin(s:DEIN_BASE_PATH)
 
-    call dein#add('Shougo/dein.vim')
-    call dein#add('haya14busa/dein-command.vim')
+  call dein#add('Shougo/dein.vim')
+  call dein#add('haya14busa/dein-command.vim')
 
-    call dein#add('Shougo/deoplete.nvim', { 'lazy': 1, 'on_event': 'InsertEnter', 'if': has('nvim') })
-    call dein#add('Shougo/neocomplete.vim', { 'lazy': 1, 'on_event': 'InsertEnter', 'if': (has('lua') && !has('nvim')) })
+  call dein#add('Shougo/deoplete.nvim', { 'lazy': 1, 'on_event': 'InsertEnter', 'if': has('nvim') })
+  call dein#add('Shougo/neocomplete.vim', { 'lazy': 1, 'on_event': 'InsertEnter', 'if': (has('lua') && !has('nvim')) })
 
-		call dein#add('h1mesuke/unite-outline')
-    call dein#add('Shougo/neomru.vim')
-    call dein#add('Shougo/unite.vim')
+  call dein#add('Shougo/neomru.vim')
+  call dein#add('Shougo/unite.vim')
+  call dein#add('h1mesuke/unite-outline')
 
-		call dein#add('tyru/open-browser.vim')
-    call dein#add('Shougo/vimproc.vim', { 'build': 'make' })
-    call dein#add('Shougo/vimshell', { 'lazy': 1, 'on_cmd': ['VimShell', 'VimShellExecute', 'VimShellInteractive', 'VimShellTerminal', 'VimShellPop'], 'on_map': ['<Plug>(vimshell_switch)'] } )
-    call dein#add('Townk/vim-autoclose')
-    call dein#add('airblade/vim-gitgutter')
-    call dein#add('itchyny/lightline.vim')
-    call dein#add('jpalardy/vim-slime')
-    call dein#add('scrooloose/nerdtree')
-    call dein#add('scrooloose/syntastic')
-    call dein#add('tpope/vim-fugitive')
-    call dein#add('tyru/caw.vim')
-call dein#add('tpope/vim-endwise')
-call dein#add('nathanaelkane/vim-indent-guides')
-call dein#add('junegunn/vim-easy-align')
-call dein#add('tpope/vim-abolish')
-call dein#add('editorconfig/editorconfig-vim')
+  call dein#add('Shougo/vimproc.vim', { 'build': 'make' })
+  call dein#add('Shougo/vimshell', { 'lazy': 1, 'on_cmd': ['VimShell', 'VimShellExecute', 'VimShellInteractive', 'VimShellTerminal', 'VimShellPop'], 'on_map': ['<Plug>(vimshell_switch)'] } )
+  call dein#add('Townk/vim-autoclose')
+  call dein#add('airblade/vim-gitgutter')
+  call dein#add('editorconfig/editorconfig-vim')
+  call dein#add('itchyny/lightline.vim')
+  call dein#add('jpalardy/vim-slime')
+  call dein#add('junegunn/vim-easy-align')
+  call dein#add('nathanaelkane/vim-indent-guides')
+  call dein#add('scrooloose/nerdtree')
+  call dein#add('scrooloose/syntastic')
+  call dein#add('tpope/vim-abolish')
+  call dein#add('tpope/vim-endwise')
+  call dein#add('tpope/vim-fugitive')
+  call dein#add('tyru/caw.vim')
+  call dein#add('tyru/open-browser.vim')
 
-    call dein#add('jason0x43/vim-js-indent')
-    call dein#add('heavenshell/vim-jsdoc')
-    call dein#add('leafgarland/typescript-vim')
-    call dein#add('othree/yajs.vim')
-    call dein#add('othree/es.next.syntax.vim')
-    call dein#add('mxw/vim-jsx')
-    call dein#add('tpope/vim-haml')
-    call dein#add('digitaltoad/vim-jade')
-    call dein#add('pbrisbin/html-template-syntax')
-    call dein#add('joker1007/vim-markdown-quote-syntax')
-    call dein#add('hail2u/vim-css3-syntax')
-    call dein#add('slim-template/vim-slim')
-    call dein#add('vim-scripts/nginx.vim')
-    call dein#add('vim-scripts/JSON.vim')
+  call dein#add('digitaltoad/vim-jade')
   call dein#add('fatih/vim-go')
-  call dein#add('moll/vim-node')
+  call dein#add('hail2u/vim-css3-syntax')
+  call dein#add('heavenshell/vim-jsdoc')
+  call dein#add('jason0x43/vim-js-indent')
+  call dein#add('joker1007/vim-markdown-quote-syntax')
+  call dein#add('leafgarland/typescript-vim')
   call dein#add('marijnh/tern_for_vim')
+  call dein#add('moll/vim-node')
+  call dein#add('mxw/vim-jsx')
+  call dein#add('othree/es.next.syntax.vim')
+  call dein#add('othree/yajs.vim')
+  call dein#add('pbrisbin/html-template-syntax')
+  call dein#add('slim-template/vim-slim')
+  call dein#add('tpope/vim-haml')
+  call dein#add('vim-scripts/JSON.vim')
+  call dein#add('vim-scripts/nginx.vim')
 
   call dein#add('vim-scripts/Lucius')
 
-
-
-
-    call dein#end()
-    call dein#save_state()
+  call dein#end()
+  call dein#save_state()
 endif
 
 if dein#check_install()
-    call dein#install()
+  call dein#install()
 endif
 
 filetype plugin indent on
 
 " deoplete.nvim
 if dein#tap('deoplete.nvim') && has('nvim')
-    let g:deoplete#enable_at_startup = 1
-    let g:deoplete#enable_smart_case = 1
+  let g:deoplete#enable_at_startup = 1
+  let g:deoplete#enable_smart_case = 1
 
-    inoremap <expr><C-g> deoplete#undo_completion()
+  inoremap <expr><C-g> deoplete#undo_completion()
 
-    " <CR>: close popup and save indent.
-    inoremap <silent> <CR> <C-r>=<SID>my_cr_function()<CR>
-    function! s:my_cr_function() abort
-        return deoplete#close_popup() . "\<CR>"
-    endfunction
+  " <CR>: close popup and save indent.
+  inoremap <silent> <CR> <C-r>=<SID>my_cr_function()<CR>
+  function! s:my_cr_function() abort
+    return deoplete#close_popup() . "\<CR>"
+  endfunction
 
-    " <TAB>: completion.
-		inoremap <silent><expr> <TAB>
-					\ pumvisible() ? "\<C-n>" :
-					\ <SID>check_back_space() ? "\<TAB>" :
-					\ deoplete#mappings#manual_complete()
-		function! s:check_back_space() abort "{{{
-			let col = col('.') - 1
-			return !col || getline('.')[col - 1]  =~ '\s'
-		endfunction"}}}
+  " <TAB>: completion.
+  inoremap <silent><expr> <TAB>
+        \ pumvisible() ? "\<C-n>" :
+        \ <SID>check_back_space() ? "\<TAB>" :
+        \ deoplete#mappings#manual_complete()
+  function! s:check_back_space() abort "{{{
+    let col = col('.') - 1
+    return !col || getline('.')[col - 1]  =~ '\s'
+  endfunction"}}}
 
-    " <C-h>, <BS>: close popup and delete backword char.
-    inoremap <expr><C-h> deoplete#smart_close_popup()."\<C-h>"
-    inoremap <expr><BS>  deoplete#smart_close_popup()."\<C-h>"
-    inoremap <expr><C-y> "\<C-y>"
-    inoremap <expr><C-e> "\<C-e>"
+  " <C-h>, <BS>: close popup and delete backword char.
+  inoremap <expr><C-h> deoplete#smart_close_popup()."\<C-h>"
+  inoremap <expr><BS>  deoplete#smart_close_popup()."\<C-h>"
+  inoremap <expr><C-y> "\<C-y>"
+  inoremap <expr><C-e> "\<C-e>"
 endif
 
 " neocomplete.vim
 if dein#tap('neocomplete.vim') && !has('nvim')
-    let g:neocomplete#enable_at_startup = 1
-    let g:neocomplete#enable_smart_case = 1
-    let g:neocomplete#min_keyword_length = 3
-    let g:neocomplete#lock_buffer_name_pattern = '\*ku\*'
+  let g:neocomplete#enable_at_startup = 1
+  let g:neocomplete#enable_smart_case = 1
+  let g:neocomplete#min_keyword_length = 3
+  let g:neocomplete#lock_buffer_name_pattern = '\*ku\*'
 
-    inoremap <expr><C-g> neocomplete#undo_completion()
-    inoremap <expr><C-l> neocomplete#complete_common_string()
+  inoremap <expr><C-g> neocomplete#undo_completion()
+  inoremap <expr><C-l> neocomplete#complete_common_string()
 
-    " <CR>: close popup and save indent.
-    inoremap <silent> <CR> <C-r>=<SID>my_cr_function()<CR>
-    function! s:my_cr_function()
-        return neocomplete#smart_close_popup() . "\<CR>"
-    endfunction
+  " <CR>: close popup and save indent.
+  inoremap <silent> <CR> <C-r>=<SID>my_cr_function()<CR>
+  function! s:my_cr_function()
+    return neocomplete#smart_close_popup() . "\<CR>"
+  endfunction
 
-    " <TAB>: completion.
-    inoremap <silent><expr> <TAB>
-                \ pumvisible() ? "\<C-n>" :
-                \ <SID>check_back_space() ? "\<TAB>" :
-                \ neocomplete#start_manual_complete()
-    function! s:check_back_space() abort
-        let col = col('.') - 1
-        return !col || getline('.')[col - 1]  =~ '\s'
-    endfunction
+  " <TAB>: completion.
+  inoremap <silent><expr> <TAB>
+        \ pumvisible() ? "\<C-n>" :
+        \ <SID>check_back_space() ? "\<TAB>" :
+        \ neocomplete#start_manual_complete()
+  function! s:check_back_space() abort
+    let col = col('.') - 1
+    return !col || getline('.')[col - 1]  =~ '\s'
+  endfunction
 
-    " <C-h>, <BS>: close popup and delete backword char.
-    inoremap <expr><C-h> neocomplete#smart_close_popup()."\<C-h>"
-    inoremap <expr><BS> neocomplete#smart_close_popup()."\<C-h>"
-    inoremap <expr><C-y> "\<C-y>"
-    inoremap <expr><C-e> "\<C-e>"
+  " <C-h>, <BS>: close popup and delete backword char.
+  inoremap <expr><C-h> neocomplete#smart_close_popup()."\<C-h>"
+  inoremap <expr><BS> neocomplete#smart_close_popup()."\<C-h>"
+  inoremap <expr><C-y> "\<C-y>"
+  inoremap <expr><C-e> "\<C-e>"
 endif
 
 " caw.vim
@@ -256,13 +253,13 @@ vmap <Enter> <Plug>(EasyAlign)
 
 " lightline.vim
 let g:lightline = {
-    \ 'colorscheme': 'wombat',
-    \ 'component': {
-    \   'readonly': '%{&readonly?"x":""}',
-    \ },
-    \ 'separator': { 'left': '', 'right': '' },
-    \ 'subseparator': { 'left': '|', 'right': '|' }
-    \ }
+      \ 'colorscheme': 'wombat',
+      \ 'component': {
+      \   'readonly': '%{&readonly?"x":""}',
+      \ },
+      \ 'separator': { 'left': '', 'right': '' },
+      \ 'subseparator': { 'left': '|', 'right': '|' }
+      \ }
 let g:gitgutter_sign_added = '✚'
 let g:gitgutter_sign_modified = '➜'
 let g:gitgutter_sign_removed = '✘'
