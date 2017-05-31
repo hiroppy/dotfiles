@@ -41,11 +41,9 @@ set t_Co=256
 set t_kD=^?
 set wildmenu
 
-syntax enable
-
 
 "----------------------------------------------------------------------------"
-" mappings
+" Mapping
 "----------------------------------------------------------------------------"
 nnoremap j gj
 nnoremap k gk
@@ -102,28 +100,101 @@ if has('gui_running')
 endif
 
 
-" NeoBundle
-""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-if has('vim_starting')
-  set nocompatible  " Be iMproved
-
-  " Required:
-  set runtimepath+=~/.vim/bundle/neobundle.vim/
+"----------------------------------------------------------------------------"
+" Plugin
+"----------------------------------------------------------------------------"
+let s:DEIN_BASE_PATH = '~/.vim/bundle/'
+let s:DEIN_PATH      = expand(s:DEIN_BASE_PATH . 'repos/github.com/Shougo/dein.vim')
+if !isdirectory(s:DEIN_PATH)
+    let answer = confirm('Would you like to download all plugins ?', "&Yes\n&No", 2)
+    if (answer == 1) && (executable('git') == 1)
+        execute '!git clone --depth=1 https://github.com/Shougo/dein.vim' s:DEIN_PATH
+    else
+        syntax enable
+        colorscheme desert
+        finish
+    endif
 endif
 
-" Required:
-call neobundle#begin(expand('~/.vim/bundle/'))
+" dein.vim
+execute 'set runtimepath+=' . s:DEIN_PATH
 
-" Let NeoBundle manage NeoBundle
-" Required:
-NeoBundleFetch 'Shougo/neobundle.vim'
-" filer
-NeoBundle 'Shougo/unite.vim'
-" Unite.vimで最近使ったファイルを表示できるようにする
-NeoBundle 'Shougo/neomru.vim'
+if dein#load_state(s:DEIN_BASE_PATH)
+    call dein#begin(s:DEIN_BASE_PATH)
 
-" comment-out
-NeoBundle "tyru/caw.vim.git"
+    call dein#add('Shougo/dein.vim')
+    call dein#add('haya14busa/dein-command.vim')
+
+    call dein#add('Shougo/deoplete.nvim', { 'lazy': 1, 'on_event': 'InsertEnter', 'if': has('nvim') })
+    call dein#add('Shougo/neocomplete.vim', { 'lazy': 1, 'on_event': 'InsertEnter', 'if': (has('lua') && !has('nvim')) })
+
+    call dein#add('Shougo/neomru.vim')
+    call dein#add('Shougo/unite.vim')
+    call dein#add('Shougo/vimshell')
+    call dein#add('airblade/vim-gitgutter')
+    call dein#add('itchyny/lightline.vim')
+    call dein#add('tpope/vim-fugitive')
+    call dein#add('tyru/caw.vim')
+
+    call dein#end()
+    call dein#save_state()
+endif
+
+if dein#check_install()
+    call dein#install()
+endif
+
+filetype plugin indent on
+
+" deoplete.nvim
+if dein#tap('deoplete.nvim') && has('nvim')
+    let g:deoplete#enable_at_startup = 1
+    let g:deoplete#enable_smart_case = 1
+    inoremap <expr><C-g> deoplete#undo_completion()
+
+    " <C-h>, <BS>: close popup and delete backword char.
+    inoremap <expr><C-h> deoplete#smart_close_popup()."\<C-h>"
+    inoremap <expr><BS>  deoplete#smart_close_popup()."\<C-h>"
+
+    " <CR>: close popup and save indent.
+    inoremap <silent> <CR> <C-r>=<SID>my_cr_function()<CR>
+    function! s:my_cr_function() abort
+        return deoplete#close_popup() . "\<CR>"
+    endfunction
+endif
+
+" neocomplete.vim
+if dein#tap('neocomplete.vim') && !has('nvim')
+    let g:neocomplete#enable_at_startup = 1
+    let g:neocomplete#enable_smart_case = 1
+    let g:neocomplete#min_keyword_length = 3
+    let g:neocomplete#lock_buffer_name_pattern = '\*ku\*'
+
+    inoremap <expr><C-g> neocomplete#undo_completion()
+    inoremap <expr><C-l> neocomplete#complete_common_string()
+
+    " <CR>: close popup and save indent.
+    inoremap <silent> <CR> <C-r>=<SID>my_cr_function()<CR>
+    function! s:my_cr_function()
+        return neocomplete#smart_close_popup() . "\<CR>"
+    endfunction
+
+    " <TAB>: completion.
+    inoremap <silent><expr> <TAB>
+                \ pumvisible() ? "\<C-n>" :
+                \ <SID>check_back_space() ? "\<TAB>" :
+                \ neocomplete#start_manual_complete()
+    function! s:check_back_space() abort
+        let col = col('.') - 1
+        return !col || getline('.')[col - 1]  =~ '\s'
+    endfunction
+
+    " <C-h>, <BS>: close popup and delete backword char.
+    inoremap <expr><C-h> neocomplete#smart_close_popup()."\<C-h>"
+    inoremap <expr><BS> neocomplete#smart_close_popup()."\<C-h>"
+    inoremap <expr><C-y> "\<C-y>"
+    inoremap <expr><C-e> "\<C-e>"
+endif
 
 " caw.vim
 nmap <C-K> <Plug>(caw:i:toggle)
@@ -131,6 +202,31 @@ vmap <C-K> <Plug>(caw:i:toggle)
 nmap ff :TernDef<CR>
 nmap fff :TernRefs<CR>
 vmap <Enter> <Plug>(EasyAlign)
+
+" lightline.vim
+let g:lightline = {
+    \ 'colorscheme': 'wombat',
+    \ 'component': {
+    \   'readonly': '%{&readonly?"x":""}',
+    \ },
+    \ 'separator': { 'left': '', 'right': '' },
+    \ 'subseparator': { 'left': '|', 'right': '|' }
+    \ }
+let g:gitgutter_sign_added = '✚'
+let g:gitgutter_sign_modified = '➜'
+let g:gitgutter_sign_removed = '✘'
+
+" vimshell
+nmap <silent> vs :<C-u>VimShell<CR>
+nmap <silent> vp :<C-u>VimShellPop<CR>
+
+
+finish
+""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+syntax enable
 
 NeoBundle 'tpope/vim-fugitive'
 NeoBundle 'airblade/vim-gitgutter'
