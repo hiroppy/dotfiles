@@ -65,7 +65,8 @@ nnoremap m <C-z>
 noremap <Space>h  0
 noremap <Space>l  $
 nnoremap n nzz
-nnoremap ; :
+noremap ; :
+noremap : ;
 
 " ESCを二回押すことでハイライトを消す
 nnoremap <silent> <Esc><Esc> :<C-u>nohlsearch<CR>
