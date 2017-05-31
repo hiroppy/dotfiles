@@ -44,6 +44,10 @@ set wildmenu
 
 syntax enable
 
+
+"----------------------------------------------------------------------------"
+" mappings
+"----------------------------------------------------------------------------"
 nnoremap j gj
 nnoremap k gk
 nnoremap gj j
@@ -63,27 +67,19 @@ noremap <Space>h  0
 noremap <Space>l  $
 nnoremap n nzz
 nnoremap ; :
+
 " ESCを二回押すことでハイライトを消す
 nmap <silent> <Esc><Esc> :nohlsearch<CR>
+
 " TABにて対応ペアにジャンプ
 nnoremap &lt;Tab&gt; %
 vnoremap &lt;Tab&gt; %
+
 " Ctrl + hjkl でウィンドウ間を移動
 nnoremap <C-h> <C-w>h
 nnoremap <C-j> <C-w>j
 " nnoremap <C-k> <C-w>k
 nnoremap <C-l> <C-w>l
-" open shell
-nmap <silent> vs :<C-u>VimShell<CR>
-nmap <silent> vp :<C-u>VimShellPop<CR>
-" nerdtree
-nnoremap <silent><C-e> :NERDTreeToggle<CR>
-" caw.vim
-nmap <C-K> <Plug>(caw:i:toggle)
-vmap <C-K> <Plug>(caw:i:toggle)
-nmap ff :TernDef<CR>
-nmap fff :TernRefs<CR>
-vmap <Enter> <Plug>(EasyAlign)
 
 
 "----------------------------------------------------------------------------"
@@ -120,6 +116,13 @@ NeoBundle 'Shougo/neomru.vim'
 " comment-out
 NeoBundle "tyru/caw.vim.git"
 
+" caw.vim
+nmap <C-K> <Plug>(caw:i:toggle)
+vmap <C-K> <Plug>(caw:i:toggle)
+nmap ff :TernDef<CR>
+nmap fff :TernRefs<CR>
+vmap <Enter> <Plug>(EasyAlign)
+
 NeoBundle 'tpope/vim-fugitive'
 NeoBundle 'airblade/vim-gitgutter'
 NeoBundle 'itchyny/lightline.vim'
@@ -136,6 +139,11 @@ let g:gitgutter_sign_modified = '➜'
 let g:gitgutter_sign_removed = '✘'
 
 NeoBundle 'Shougo/vimshell'
+
+" open shell
+nmap <silent> vs :<C-u>VimShell<CR>
+nmap <silent> vp :<C-u>VimShellPop<CR>
+
 
 """"""""""""""""""""""""""""""""""""""""""" neocomplcache
 NeoBundle 'Shougo/neocomplcache'
@@ -178,6 +186,10 @@ autocmd BufRead,BufNewFile *.js set filetype=javascript
 NeoBundle 'jpalardy/vim-slime'
 NeoBundle 'scrooloose/syntastic'
 NeoBundle 'scrooloose/nerdtree'
+
+" nerdtree
+nnoremap <silent><C-e> :NERDTreeToggle<CR>
+
 NeoBundle 'Townk/vim-autoclose'
 
 NeoBundle 'https://github.com/h1mesuke/unite-outline.git'
