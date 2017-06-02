@@ -12,7 +12,7 @@ export PATH=$GOPATH/bin:$GOROOT/bin:$PATH
 eval "$(rbenv init -)"
 export PATH="$HOME/.rbenv/shims:$PATH"
 
-# alias vim=nvim
+alias vim=nvim
 alias f="fg"
 alias mongodd="mongod -dbpath /usr/local/var/mongodb/ --logpath /usr/local/var/log/mongodb/mongodb.log &"
 alias a="./a.out"
