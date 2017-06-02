@@ -1,22 +1,20 @@
 [user]
   name = Yuta Hiroto
   email = git@about-hiroppy.com
-  signingkey = E2B165C2
+  signingkey = E03998F3E2B165C2
 [help]
   autocorrect = 1
 [url "git@github.com:"]
   pushinsteadof = https://github.com/
-[url "git@github.o-in.dwango.co.jp:"]
-  pushinsteadof = http://github.o-in.dwango.co.jp/
 [core]
-  editor = vim
+  editor = nvim
   excludesfile = ~/.gitignore_global
-	whitespace = fix
+  whitespace = fix
 [hub]
-	host = github.o-in.dwango.co.jp
+  host = github.com
   editor = vim
   autocrlf = input
-	excludesfile = ~/.gitignore
+  excludesfile = ~/.gitignore
 [merge]
   ff = true
 [http]
@@ -38,9 +36,9 @@
 [push]
   default = tracking 
 [commit]
-	template = ~/.gitmessage.txt
-	gpgsign = true
+  template = ~/.gitmessage.txt
+  gpgsign = true
 [color]
-	ui = true
+  ui = true
 [gpg]
-	program = gpg
+  program = /usr/local/bin/gpg
