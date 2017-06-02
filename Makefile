@@ -19,6 +19,8 @@ deploy:
 	@echo 'Start deploy dotfiles current directory.'
 	@echo 'If this is "dotdir", curretly it is ignored and copy your hand.'
 	@echo ''
+	@mkdir -p ~/.config/nvim && mv ~/dotfiles/init.vim ~/.config/nvim
+	@ln -sfnv ~/dotfiles/init.vim ~/.config/nvim/init.vim
 	@ln -sfnv ~/dotfiles/custom.zsh ~/.oh-my-zsh/custom/custom.zsh
 	@ln -sfnv ~/dotfiles/bluehigh.zsh-theme/bluehigh.zsh-theme ~/.oh-my-zsh/themes/bluehigh.zsh-theme
 	@ln -sfnv ~/dotfiles/bluehigh.zsh-theme/bluehigh-components ~/.oh-my-zsh/themes/bluehigh-components
