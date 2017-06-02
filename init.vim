@@ -127,6 +127,7 @@ if dein#load_state(s:DEIN_BASE_PATH)
   call dein#add('Shougo/dein.vim')
   call dein#add('haya14busa/dein-command.vim')
 
+  " 一回insertにしてその後UpdateRemotePluginsを実行する
   call dein#add('Shougo/deoplete.nvim', { 'lazy': 1, 'on_event': 'InsertEnter', 'if': has('nvim') })
   call dein#add('Shougo/neocomplete.vim', { 'lazy': 1, 'on_event': 'InsertEnter', 'if': (has('lua') && !has('nvim')) })
 
