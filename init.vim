@@ -175,6 +175,9 @@ if dein#load_state(s:DEIN_BASE_PATH)
 
   call dein#add('vim-scripts/Lucius')
 
+  " javascript
+  " call dein#add('flowtype/vim-flow', {'autoload': {'filetypes': 'javascript'}, 'build': {'mac': 'npm install -g flow-bin'}})
+
   call dein#end()
   call dein#save_state()
 endif
@@ -258,8 +261,8 @@ let g:parenmatch_highlight = 0
 hi link ParenMatch MatchParen
 
 " caw.vim
-nmap <C-K> <Plug>(caw:i:toggle)
-vmap <C-K> <Plug>(caw:i:toggle)
+nmap <C-K> <Plug>(caw:hatpos:toggle)
+vmap <C-K> <Plug>(caw:hatpos:toggle)
 nmap ff :TernDef<CR>
 nmap fff :TernRefs<CR>
 vmap <Enter> <Plug>(EasyAlign)
