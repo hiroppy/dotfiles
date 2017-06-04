@@ -173,6 +173,10 @@ if dein#load_state(s:DEIN_BASE_PATH)
   call dein#add('vim-scripts/JSON.vim')
   call dein#add('vim-scripts/nginx.vim')
 
+  call dein#add('othree/javascript-libraries-syntax.vim')
+
+  " need to run `npm i -g tern`
+  call dein#add('carlitux/deoplete-ternjs')
   call dein#add('vim-scripts/Lucius')
 
   " javascript
@@ -291,6 +295,9 @@ nmap <silent> vp :<C-u>VimShellPop<CR>
 let g:jsx_ext_required = 0
 let g:jsx_pragma_required = 0
 
+" javascript-libraries-syntax.vim
+let g:used_javascript_libs = 'underscore,react, flux'
+
 " lucius
 let g:lucius_contrast = 'light'
 let g:lucius_contrast_bg = 'high'
@@ -300,3 +307,6 @@ hi CursorLine ctermbg=black cterm=underline
 
 syntax enable
 colorscheme lucius
+
+" line
+highlight LineNr ctermfg=blue ctermbg=NONE
