@@ -22,6 +22,7 @@ alias vps="ssh 153.121.57.47 -p 10022 -l about_hiroppy"
 alias deploy-myvocabs="ansible-playbook $HOME/Programming/deploy2Server/deploy/myVocabs.yml -i $HOME/Programming/deploy2Server/hosts --ask-pass --ask-sudo-pass"
 alias git=hub
 alias dynamodb="/usr/local/bin/dynamodb-local"
+alias tfind="find ./ -type f -print | xargs grep"
 
 # for hub
 # compdef hub=git

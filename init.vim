@@ -173,6 +173,9 @@ if dein#load_state(s:DEIN_BASE_PATH)
   call dein#add('vim-scripts/JSON.vim')
   call dein#add('vim-scripts/nginx.vim')
 
+  " for php
+  call dein#add('evidens/vim-twig')
+
   call dein#add('othree/javascript-libraries-syntax.vim')
 
   " need to run `npm i -g tern`
