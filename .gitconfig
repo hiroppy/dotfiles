@@ -10,6 +10,7 @@
   editor = nvim
   excludesfile = ~/.gitignore_global
   whitespace = fix
+  ignorecase = false
 [hub]
   host = github.com
   editor = vim
