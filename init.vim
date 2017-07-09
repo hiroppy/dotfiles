@@ -313,3 +313,6 @@ colorscheme lucius
 
 " line
 highlight LineNr ctermfg=blue ctermbg=NONE
+
+" background
+hi Normal guibg=NONE ctermbg=NONE
