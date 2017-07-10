@@ -24,7 +24,7 @@ set wrap
 
 " Others.
 set backspace=indent,eol,start
-set clipboard+=unnamed
+set clipboard=unnamed
 set hlsearch
 set ignorecase
 set incsearch
