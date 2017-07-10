@@ -10,8 +10,7 @@
   },
   "libs": [
     "browser",
-    "ecma5",
-    "ecma6"
+    "ecmascript"
   ],
-  "ecmaVersion": 6
+  "ecmaVersion": 8
 }
