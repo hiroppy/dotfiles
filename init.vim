@@ -41,7 +41,6 @@ set t_Co=256
 set t_kD=^?
 set wildmenu
 
-
 "----------------------------------------------------------------------------"
 " Mapping
 "----------------------------------------------------------------------------"
@@ -179,6 +178,7 @@ if dein#load_state(s:DEIN_BASE_PATH)
   call dein#add('othree/javascript-libraries-syntax.vim')
 
   " need to run `npm i -g tern`
+  " help: pip install neovim --upgrade
   call dein#add('carlitux/deoplete-ternjs')
   call dein#add('vim-scripts/Lucius')
 
