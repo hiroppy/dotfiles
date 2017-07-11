@@ -36,9 +36,10 @@ setopt always_last_prompt    # カーソル位置は保持したままファイ�
 
 bindkey "^L" backward-delete-word
 
-if [ $SHLVL = 1 ]; then
-  tmux
-fi
+# if [ $SHLVL = 1 ]; then
+  # (cd $PWD; tmux)
+  # tmux
+# fi
 
 ############################################
 function cdls() {
