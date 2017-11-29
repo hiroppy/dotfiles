@@ -175,7 +175,9 @@ if dein#load_state(s:DEIN_BASE_PATH)
   " for php
   call dein#add('evidens/vim-twig')
 
+  " for javascript
   call dein#add('othree/javascript-libraries-syntax.vim')
+  call dein#add('leafgarland/typescript-vim')
 
   " need to run `npm i -g tern`
   " help: pip install neovim --upgrade
@@ -300,6 +302,9 @@ let g:jsx_pragma_required = 0
 
 " javascript-libraries-syntax.vim
 let g:used_javascript_libs = 'underscore,react, flux'
+
+" typescript
+let g:typescript_indent_disable = 1
 
 " lucius
 let g:lucius_contrast = 'light'
