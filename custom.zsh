@@ -12,6 +12,8 @@ export PATH=$GOPATH/bin:$GOROOT/bin:$PATH
 eval "$(rbenv init -)"
 export PATH="$HOME/.rbenv/shims:$PATH"
 
+alias d=docker
+alias dc=docker-compose
 alias vi=nvim
 alias vim=nvim
 alias mongodd="mongod -dbpath /usr/local/var/mongodb/ --logpath /usr/local/var/log/mongodb/mongodb.log &"
