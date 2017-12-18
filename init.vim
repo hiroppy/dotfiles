@@ -127,12 +127,14 @@ if dein#load_state(s:DEIN_BASE_PATH)
   call dein#add('haya14busa/dein-command.vim')
 
   " 一回insertにしてその後UpdateRemotePluginsを実行する
-  call dein#add('Shougo/deoplete.nvim', { 'lazy': 1, 'on_event': 'InsertEnter', 'if': has('nvim') })
-  call dein#add('Shougo/neocomplete.vim', { 'lazy': 1, 'on_event': 'InsertEnter', 'if': (has('lua') && !has('nvim')) })
+  call dein#add('Shougo/deoplete.nvim', { 'lazy': 1, 'on_event': 'InsertEnter' })
+  if !has('nvim')
+      call dein#add('roxma/nvim-yarp')
+      call dein#add('roxma/vim-hug-neovim-rpc')
+  endif
 
+  call dein#add('Shougo/denite.nvim')
   call dein#add('Shougo/neomru.vim')
-  call dein#add('Shougo/unite.vim')
-  call dein#add('h1mesuke/unite-outline')
 
   call dein#add('Shougo/vimproc.vim', { 'build': 'make' })
   call dein#add('Shougo/vimshell', { 'lazy': 1, 'on_cmd': ['VimShell', 'VimShellExecute', 'VimShellInteractive', 'VimShellTerminal', 'VimShellPop'], 'on_map': ['<Plug>(vimshell_switch)'] } )
@@ -227,39 +229,6 @@ if dein#tap('deoplete.nvim') && has('nvim')
   inoremap <expr><C-e> "\<C-e>"
 endif
 
-" neocomplete.vim
-if dein#tap('neocomplete.vim') && !has('nvim')
-  let g:neocomplete#enable_at_startup = 1
-  let g:neocomplete#enable_smart_case = 1
-  let g:neocomplete#min_keyword_length = 3
-  let g:neocomplete#lock_buffer_name_pattern = '\*ku\*'
-
-  inoremap <expr><C-g> neocomplete#undo_completion()
-  inoremap <expr><C-l> neocomplete#complete_common_string()
-
-  " <CR>: close popup and save indent.
-  inoremap <silent> <CR> <C-r>=<SID>my_cr_function()<CR>
-  function! s:my_cr_function()
-    return neocomplete#smart_close_popup() . "\<CR>"
-  endfunction
-
-  " <TAB>: completion.
-  inoremap <silent><expr> <TAB>
-        \ pumvisible() ? "\<C-n>" :
-        \ <SID>check_back_space() ? "\<TAB>" :
-        \ neocomplete#start_manual_complete()
-  function! s:check_back_space() abort
-    let col = col('.') - 1
-    return !col || getline('.')[col - 1]  =~ '\s'
-  endfunction
-
-  " <C-h>, <BS>: close popup and delete backword char.
-  inoremap <expr><C-h> neocomplete#smart_close_popup()."\<C-h>"
-  inoremap <expr><BS> neocomplete#smart_close_popup()."\<C-h>"
-  inoremap <expr><C-y> "\<C-y>"
-  inoremap <expr><C-e> "\<C-e>"
-endif
-
 " vim-operator-flashy
 map y <Plug>(operator-flashy)
 map Y <Plug>(operator-flashy)$
@@ -310,14 +279,22 @@ let g:typescript_indent_disable = 1
 let g:lucius_contrast = 'light'
 let g:lucius_contrast_bg = 'high'
 set background=dark
-hi LineNr ctermfg=darkcyan ctermbg=black
-hi CursorLine ctermbg=black cterm=underline
+
+function! s:on_change_colorscheme() abort
+  hi LineNr ctermfg=darkcyan ctermbg=black
+  hi CursorLine ctermbg=black cterm=underline
+  " line
+  hi LineNr ctermfg=blue ctermbg=NONE
+  " background
+  hi Normal guibg=NONE ctermbg=NONE
+endfunction
+
+augroup hiroppy-plugins
+  autocmd!
+
+  " Fix colors
+  autocmd ColorScheme * :call s:on_change_colorscheme()
+augroup END
 
 syntax enable
 colorscheme lucius
-
-" line
-highlight LineNr ctermfg=blue ctermbg=NONE
-
-" background
-hi Normal guibg=NONE ctermbg=NONE
