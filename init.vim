@@ -40,6 +40,8 @@ set switchbuf=useopen
 set t_Co=256
 set t_kD=^?
 set wildmenu
+set undodir=~/.config/nvim/undo/
+set undofile
 
 "----------------------------------------------------------------------------"
 " Mapping
@@ -104,7 +106,7 @@ endif
 "----------------------------------------------------------------------------"
 " Plugin
 "----------------------------------------------------------------------------"
-let s:DEIN_BASE_PATH = '~/.vim/bundle/'
+let s:DEIN_BASE_PATH = '~/.config/nvim/bundle/'
 let s:DEIN_PATH      = expand(s:DEIN_BASE_PATH . 'repos/github.com/Shougo/dein.vim')
 if !isdirectory(s:DEIN_PATH)
   let answer = confirm('Would you like to download all plugins ?', "&Yes\n&No", 2)
