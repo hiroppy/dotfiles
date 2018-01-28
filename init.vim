@@ -12,6 +12,8 @@ if has('vim_starting')
   set fileformats=unix,mac,dos
 endif
 
+set autochdir
+
 " Appearance.
 set cursorline
 set laststatus=2
@@ -72,16 +74,14 @@ noremap : ;
 " ESCを二回押すことでハイライトを消す
 nnoremap <silent> <Esc><Esc> :<C-u>nohlsearch<CR>
 
-" TABにて対応ペアにジャンプ
-nnoremap &lt;Tab&gt; %
-vnoremap &lt;Tab&gt; %
-
 " Ctrl + hjkl でウィンドウ間を移動
 nnoremap <C-h> <C-w>h
 nnoremap <C-j> <C-w>j
-" nnoremap <C-k> <C-w>k
+nnoremap <C-k> <C-w>k
 nnoremap <C-l> <C-w>l
 
+nnoremap st :split<CR>
+nnoremap sd :vsplit<CR>
 
 "----------------------------------------------------------------------------"
 " autocmd
@@ -165,7 +165,10 @@ if dein#load_state(s:DEIN_BASE_PATH)
   call dein#add('jason0x43/vim-js-indent')
   call dein#add('joker1007/vim-markdown-quote-syntax')
   call dein#add('leafgarland/typescript-vim')
-  call dein#add('marijnh/tern_for_vim')
+
+  " need to run `npm i -g tern`
+  " help: pip install neovim --upgrade
+  call dein#add('carlitux/deoplete-ternjs')
   call dein#add('moll/vim-node')
   call dein#add('mxw/vim-jsx')
   call dein#add('othree/es.next.syntax.vim')
@@ -176,19 +179,12 @@ if dein#load_state(s:DEIN_BASE_PATH)
   call dein#add('vim-scripts/JSON.vim')
   call dein#add('vim-scripts/nginx.vim')
 
-  " for php
-  call dein#add('evidens/vim-twig')
+  call dein#add('vim-scripts/Lucius')
 
   " for javascript
   call dein#add('othree/javascript-libraries-syntax.vim')
   call dein#add('leafgarland/typescript-vim')
 
-  " need to run `npm i -g tern`
-  " help: pip install neovim --upgrade
-  call dein#add('carlitux/deoplete-ternjs')
-  call dein#add('vim-scripts/Lucius')
-
-  " javascript
   " call dein#add('flowtype/vim-flow', {'autoload': {'filetypes': 'javascript'}, 'build': {'mac': 'npm install -g flow-bin'}})
 
   call dein#end()
@@ -241,8 +237,8 @@ let g:parenmatch_highlight = 0
 hi link ParenMatch MatchParen
 
 " caw.vim
-nmap <C-K> <Plug>(caw:hatpos:toggle)
-vmap <C-K> <Plug>(caw:hatpos:toggle)
+nmap <S-K> <Plug>(caw:hatpos:toggle)
+vmap <S-K> <Plug>(caw:hatpos:toggle)
 nmap ff :TernDef<CR>
 nmap fff :TernRefs<CR>
 vmap <Enter> <Plug>(EasyAlign)
