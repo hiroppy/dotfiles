@@ -83,6 +83,11 @@ nnoremap <C-l> <C-w>l
 nnoremap st :split<CR>
 nnoremap sd :vsplit<CR>
 
+tnoremap <silent> jj <C-\><C-n>
+" Might as well use 'r' 'v' instead of 'a'
+:set mouse=a
+:map <ScrollWheelUp> :!<CR>  
+
 "----------------------------------------------------------------------------"
 " autocmd
 "----------------------------------------------------------------------------"
