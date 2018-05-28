@@ -64,7 +64,6 @@ inoremap (<Enter> ()<Left><CR><ESC><S-o>
 " Adding blank lines.
 nnoremap <silent> <CR> :<C-u>for i in range(1, v:count1) \| call append(line('.'),   '') \| endfor <CR>
 
-nnoremap m <C-z>
 noremap <Space>h  0
 noremap <Space>l  $
 nnoremap n nzz

@@ -20,12 +20,12 @@ alias mongodd="mongod -dbpath /usr/local/var/mongodb/ --logpath /usr/local/var/l
 alias a="./a.out"
 alias bc="bc -l"
 alias open="open ." # bugあり
-alias hue="node ~/Programming/hue/index.js"
-alias vps="ssh 153.121.57.47 -p 10022 -l about_hiroppy"
+alias vps="ssh 153.121.57.47 -l ubuntu"
 alias deploy-myvocabs="ansible-playbook $HOME/Programming/deploy2Server/deploy/myVocabs.yml -i $HOME/Programming/deploy2Server/hosts --ask-pass --ask-sudo-pass"
 alias git=hub
 alias dynamodb="/usr/local/bin/dynamodb-local"
 alias tfind="find ./ -type f -print | xargs grep"
+# alias code="code -a $@ && cd $@"
 
 # for hub
 # compdef hub=git
@@ -243,7 +243,7 @@ preexec() {
 zshaddhistory(){
   local line=${1%%$'\n'}
   local cmd=${line%% *}
-   
+
   [[ ${cmd} != (f) ]]
 }
 
