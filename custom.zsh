@@ -7,6 +7,7 @@ export GOPATH=$HOME/go
 export GOROOT=/usr/local/opt/go/libexec
 export PATH=$GOPATH/bin:$GOROOT/bin:$PATH
 # export PATH="/usr/local/opt/gpg-agent/bin:$PATH"
+export PATH="/Users/about_hiroppy/.deno/bin":$PATH 
 
 # rbenv
 eval "$(rbenv init -)"
