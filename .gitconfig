@@ -1,7 +1,7 @@
 [user]
   name = Yuta Hiroto
   email = git@about-hiroppy.com
-	signingkey = 0CE0B9CF96DD3F6E
+  signingkey = E03998F3E2B165C2
 [help]
   autocorrect = 1
 [url "git@github.com:"]
@@ -38,10 +38,10 @@
   default = tracking
 [commit]
   template = ~/.gitmessage.txt
-	gpgsign = true
+  gpgsign = true
 [color]
   ui = true
 [gpg]
-	program = gpg
+  program = gpg
 [pull]
-	rebase = preserve
+  rebase = preserve
