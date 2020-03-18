@@ -1,7 +1,7 @@
 [user]
   name = Yuta Hiroto
   email = git@about-hiroppy.com
-  signingkey = E03998F3E2B165C2
+	signingkey = 0CE0B9CF96DD3F6E
 [help]
   autocorrect = 1
 [url "git@github.com:"]
@@ -33,15 +33,15 @@
   pr = pull --rebase
   site = browse
   # alias = !"f(){ git config --get-regexp alias|cut -d'.' -f2|if [ -z $1 ];then cut -d' ' -f1|column; else grep $1' '; fi }; f"
-
+  current = rev-parse --abbrev-ref HEAD
 [push]
   default = tracking 
 [commit]
   template = ~/.gitmessage.txt
-  gpgsign = true
+	gpgsign = false
 [color]
   ui = true
 [gpg]
-  program = /usr/local/bin/gpg
+	program = gpg
 [pull]
 	rebase = preserve
