@@ -5,5 +5,5 @@ config/nvim/undo
 
 config/fish/completions
 config/fish/conf.d
-config/fish/functions
+config/fish/functions/*
 !config/fish/functions/fish_prompt.fish
