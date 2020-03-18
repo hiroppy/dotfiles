@@ -1,5 +1,5 @@
-DOTFILES_GITHUB   := "git@github.com:abouthiroppy/dotfiles.git"
-DOTFILES_EXCLUDES := .DS_Store .git .gitmodules .travis.yml
+DOTFILES_GITHUB   := "git@github.com:hiroppy/dotfiles.git"
+DOTFILES_EXCLUDES := .DS_Store .git
 DOTFILES_TARGET   := $(wildcard .??*) bin
 DOTFILES_DIR      := $(PWD)
 DOTFILES_FILES    := $(filter-out $(DOTFILES_EXCLUDES), $(DOTFILES_TARGET))
@@ -19,19 +19,12 @@ deploy:
 	@echo 'Start deploy dotfiles current directory.'
 	@echo 'If this is "dotdir", curretly it is ignored and copy your hand.'
 	@echo ''
-	@mkdir -p ~/.config/nvim
-	@ln -sfnv ~/dotfiles/init.vim ~/.config/nvim/init.vim
-	@ln -sfnv ~/dotfiles/custom.zsh ~/.oh-my-zsh/custom/custom.zsh
-	@ln -sfnv ~/dotfiles/bluehigh.zsh-theme/bluehigh.zsh-theme ~/.oh-my-zsh/themes/bluehigh.zsh-theme
-	@ln -sfnv ~/dotfiles/bluehigh.zsh-theme/bluehigh-components ~/.oh-my-zsh/themes/bluehigh-components
+	@mkdir -p ~/.config
+	@ln -sfnv ~/dotfiles/config/nvim ~/.config/nvim
 
 	@$(foreach val, $(DOTFILES_FILES), ln -sfnv $(abspath $(val)) $(HOME)/$(val);)
 
-init:
-	@$(foreach val, $(wildcard ./etc/init/*.sh), bash $(val);)
-	@sh ./oh-my-zsh/tools/install.sh
-
-install: update deploy init
+install: update deploy
 	@exec $$SHELL
 
 clean:
