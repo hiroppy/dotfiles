@@ -1,8 +1,7 @@
-`git clone --recursive git@github.com:abouthiroppy/dotfiles.git`
 
-```
+```sh
+$ git clone git@github.com:hiroppy/dotfiles.git
+$ /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install.sh)"
+$ brew bundle
 $ make install
 ```
-
-## Brewfile
-https://github.com/Homebrew/homebrew-bundle
