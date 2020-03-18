@@ -1,0 +1,2 @@
+*.zip filter=lfs -crlf
+*.sketch filter=lfs -crlf

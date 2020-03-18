@@ -1,5 +1,5 @@
 DOTFILES_GITHUB   := "git@github.com:hiroppy/dotfiles.git"
-DOTFILES_EXCLUDES := .DS_Store .git
+DOTFILES_EXCLUDES := .DS_Store .git .gitignore .editorconfig
 DOTFILES_TARGET   := $(wildcard .??*) bin
 DOTFILES_DIR      := $(PWD)
 DOTFILES_FILES    := $(filter-out $(DOTFILES_EXCLUDES), $(DOTFILES_TARGET))
