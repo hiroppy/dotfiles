@@ -13,9 +13,9 @@
   ignorecase = false
 [hub]
   host = github.com
-  editor = vim
+  editor = nvim
   autocrlf = input
-  excludesfile = ~/.gitignore
+  excludesfile = ~/.gitignore_global
 [merge]
   ff = true
 [http]
@@ -35,10 +35,10 @@
   # alias = !"f(){ git config --get-regexp alias|cut -d'.' -f2|if [ -z $1 ];then cut -d' ' -f1|column; else grep $1' '; fi }; f"
   current = rev-parse --abbrev-ref HEAD
 [push]
-  default = tracking 
+  default = tracking
 [commit]
   template = ~/.gitmessage.txt
-	gpgsign = false
+	gpgsign = true
 [color]
   ui = true
 [gpg]
