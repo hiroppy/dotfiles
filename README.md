@@ -1,3 +1,6 @@
+```sh
+$ curl dotfiles.hiroppy.me | bash
+```
 
 ```sh
 $ git clone git@github.com:hiroppy/dotfiles.git
