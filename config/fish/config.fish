@@ -1,10 +1,3 @@
-
-if not functions -q fisher
-    set -q XDG_CONFIG_HOME; or set XDG_CONFIG_HOME ~/.config
-    curl https://git.io/fisher --create-dirs -sLo $XDG_CONFIG_HOME/fish/functions/fisher.fish
-    fish -c fisher
-end
-
 # delete the greeting message
 set fish_greeting
 
@@ -21,8 +14,19 @@ set PATH \
   $HOME/go \
   $HOME/.deno/bin \
   $HOME/.rbenv/shims \
-  $HOME/.pyenv/bin \
+  $HOME/.pyenv/shims \
   $PATH
+
+# init
+# don't move before paths
+
+eval (pyenv init - | source)
+
+if not functions -q fisher
+    set -q XDG_CONFIG_HOME; or set XDG_CONFIG_HOME ~/.config
+    curl https://git.io/fisher --create-dirs -sLo $XDG_CONFIG_HOME/fish/functions/fisher.fish
+    fish -c fisher
+end
 
 # alias
 
