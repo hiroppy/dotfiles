@@ -30,6 +30,10 @@ end
 
 # alias
 
+alias ..="cd .."
+alias ...="cd ../.."
+alias ....="cd ../../.."
+alias .....="cd ../../../.."
 alias g=git
 alias d=docker
 alias dc=docker-compose
@@ -40,6 +44,11 @@ alias bc="bc -l"
 alias open="open ."
 alias git=hub
 alias tfind="find ./ -type f -print | xargs grep"
+alias localip="ipconfig getifaddr en0"
+# Show active network interfaces
+alias ifactive="ifconfig | pcregrep -M -o '^[^\t:]+:([^\n]|\n\t)*status: active'"
+alias showdesktop="defaults write com.apple.finder CreateDesktop -bool true && killall Finder"
+alias hidedesktop="defaults write com.apple.finder CreateDesktop -bool false && killall Finder"
 
 # git
 
