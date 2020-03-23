@@ -28,6 +28,14 @@ if not functions -q fisher
     fish -c fisher
 end
 
+if [ -f $HOME/google-cloud-sdk/path.fish.inc ]
+  source $HOME/google-cloud-sdk/path.fish.inc
+end
+
+if [ -f $HOME/google-cloud-sdk/completion.fish.inc ]
+  source $HOME/google-cloud-sdk/completion.fish.inc
+end
+
 # alias
 
 alias ..="cd .."
@@ -49,6 +57,8 @@ alias localip="ipconfig getifaddr en0"
 alias ifactive="ifconfig | pcregrep -M -o '^[^\t:]+:([^\n]|\n\t)*status: active'"
 alias showdesktop="defaults write com.apple.finder CreateDesktop -bool true && killall Finder"
 alias hidedesktop="defaults write com.apple.finder CreateDesktop -bool false && killall Finder"
+
+alias 10001="lsof -i:10001 -t | xargs kill -9"
 
 # git
 
