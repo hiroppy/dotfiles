@@ -1,4 +1,5 @@
 .DS_Store
+Brewfile.lock.json
 
 config/nvim/bundle
 config/nvim/undo
