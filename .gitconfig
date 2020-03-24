@@ -44,4 +44,4 @@
 [gpg]
   program = gpg
 [pull]
-  rebase = preserve
+  rebase = merges
