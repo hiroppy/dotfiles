@@ -41,8 +41,11 @@ alias tfind="find ./ -type f -print | xargs grep"
 alias localip="ipconfig getifaddr en0"
 # Show active network interfaces
 alias ifactive="ifconfig | pcregrep -M -o '^[^\t:]+:([^\n]|\n\t)*status: active'"
+# for presentation
 alias showdesktop="defaults write com.apple.finder CreateDesktop -bool true && killall Finder"
 alias hidedesktop="defaults write com.apple.finder CreateDesktop -bool false && killall Finder"
+# reftesh LaunchPad
+alias refresh-launchpad="defaults write com.apple.dock ResetLaunchPad -bool true && killall Dock"
 
 alias 10001="lsof -i:10001 -t | xargs kill -9"
 
