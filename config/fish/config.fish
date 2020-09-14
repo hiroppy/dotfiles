@@ -6,16 +6,16 @@ set fish_greeting
 # if you use fish_user_paths, fish_variables will be overwritten
 
 set PATH \
-  /usr/sbin \
-  /usr/local/bin \
-  /usr/local/php5/bin \
-  $HOME/.nodebrew/current/bin \
-  $HOME/Library/Android/sdk/platform-tools \
-  $HOME/go \
-  $HOME/.deno/bin \
-  $HOME/.rbenv/shims \
-  $HOME/.pyenv/shims \
-  $PATH
+    /usr/sbin \
+    /usr/local/bin \
+    /usr/local/php5/bin \
+    $HOME/.nodebrew/current/bin \
+    $HOME/Library/Android/sdk/platform-tools \
+    $HOME/go \
+    $HOME/.deno/bin \
+    $HOME/.rbenv/shims \
+    $HOME/.pyenv/shims \
+    $PATH
 
 # init
 # don't move before paths
@@ -46,8 +46,6 @@ alias showdesktop="defaults write com.apple.finder CreateDesktop -bool true && k
 alias hidedesktop="defaults write com.apple.finder CreateDesktop -bool false && killall Finder"
 # reftesh LaunchPad
 alias refresh-launchpad="defaults write com.apple.dock ResetLaunchPad -bool true && killall Dock"
-
-alias 10001="lsof -i:10001 -t | xargs kill -9"
 
 # git
 
@@ -93,3 +91,6 @@ set __fish_git_prompt_char_upstream_diverged ' 🚧 '
 
 set __fish_git_prompt_char_upstream_equal ' 🤝 '
 
+# overwrite settings that cannot be published
+# need to create secret.fish to functions dir
+secret
