@@ -93,4 +93,6 @@ set __fish_git_prompt_char_upstream_equal ' 🤝 '
 
 # overwrite settings that cannot be published
 # need to create secret.fish to functions dir
-secret
+if test -e $fisher_path/functions/secret.fish
+    secret
+end
