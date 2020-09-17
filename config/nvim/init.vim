@@ -85,7 +85,7 @@ nnoremap sd :vsplit<CR>
 tnoremap <silent> jj <C-\><C-n>
 " Might as well use 'r' 'v' instead of 'a'
 :set mouse=a
-:map <ScrollWheelUp> :!<CR>  
+:map <ScrollWheelUp> :!<CR>
 
 "----------------------------------------------------------------------------"
 " autocmd
@@ -98,6 +98,8 @@ augroup hiroppy
   autocmd BufWinEnter *.html nested inoremap <buffer> </ </<C-x><C-o>
 augroup END
 
+let g:python_host_prog = system('(type pyenv &>/dev/null && echo -n "$(pyenv root)/versions/$(pyenv global | grep python2)/bin/python") || echo -n $(which python2)')
+let g:python3_host_prog = system('(type pyenv &>/dev/null && echo -n "$(pyenv root)/versions/$(pyenv global | grep python3)/bin/python") || echo -n $(which python3)')
 
 "----------------------------------------------------------------------------"
 " GUI
