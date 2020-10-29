@@ -15,6 +15,7 @@ set PATH \
     $HOME/.deno/bin \
     $HOME/.rbenv/shims \
     $HOME/.pyenv/shims \
+    $HOME/.cargo/bin \
     $PATH
 
 # init
