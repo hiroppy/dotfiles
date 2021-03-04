@@ -11,7 +11,7 @@ set PATH \
     /usr/local/php5/bin \
     $HOME/.nodebrew/current/bin \
     $HOME/Library/Android/sdk/platform-tools \
-    $HOME/go \
+    $HOME/go/bin \
     $HOME/.deno/bin \
     $HOME/.rbenv/shims \
     $HOME/.pyenv/shims \
