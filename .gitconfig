@@ -1,7 +1,7 @@
 [user]
   name = Yuta Hiroto
   email = git@hiroppy.me
-  signingkey = 0E56F03B
+  signingkey = 6209B528
 [help]
   autocorrect = 1
 [url "git@github.com:"]
