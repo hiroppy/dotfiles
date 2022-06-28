@@ -47,7 +47,7 @@
 [push]
   default = current
 [commit]
-  template = ~/.gitmessage.txt
+  template = ~/.gitmessage
   gpgsign = true
 [color]
   ui = true

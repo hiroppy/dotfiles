@@ -9,7 +9,7 @@ set PATH \
     /usr/sbin \
     /usr/local/bin \
     /usr/local/php5/bin \
-    $HOME/.nodebrew/current/bin \
+    /opt/homebrew/bin:$PATH \
     $HOME/Library/Android/sdk/platform-tools \
     $HOME/go/bin \
     $HOME/.deno/bin \
