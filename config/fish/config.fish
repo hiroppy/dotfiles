@@ -97,3 +97,19 @@ set __fish_git_prompt_char_upstream_equal ' 🤝 '
 # if test -e $fisher_path/functions/secret.fish
 #     secret
 # end
+
+# pnpm
+set -gx PNPM_HOME "/Users/hiroppy/Library/pnpm"
+if not string match -q -- $PNPM_HOME $PATH
+  set -gx PATH "$PNPM_HOME" $PATH
+end
+# pnpm end
+
+status --is-interactive; and rbenv init - fish | source
+
+# bun
+set --export BUN_INSTALL "$HOME/.bun"
+set --export PATH $BUN_INSTALL/bin $PATH
+
+# nvm
+load_nvm > /dev/stderr
