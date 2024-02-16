@@ -47,6 +47,7 @@ alias showdesktop="defaults write com.apple.finder CreateDesktop -bool true && k
 alias hidedesktop="defaults write com.apple.finder CreateDesktop -bool false && killall Finder"
 # reftesh LaunchPad
 alias refresh-launchpad="defaults write com.apple.dock ResetLaunchPad -bool true && killall Dock"
+alias repo="gh browse"
 
 # git
 
