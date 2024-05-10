@@ -34,3 +34,4 @@ brew "protobuf"
 brew "hashicorp/tap/terraform"
 
 cask "fig"
+cask "google-cloud-sdk"
