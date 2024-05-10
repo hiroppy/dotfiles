@@ -12,3 +12,4 @@ config/fish/functions/*
 !config/fish/functions/load_nvm.fish
 !config/fish/functions/nvm.fish
 !config/fish/functions/nvm_find_nvmrc.fish
+!config/fish/functions/envsource.fish

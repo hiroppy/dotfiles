@@ -21,6 +21,8 @@ set PATH \
 # init
 # don't move before paths
 
+envsource ~/.env
+
 init
 
 # alias
