@@ -11,11 +11,6 @@
   excludesfile = ~/.gitignore_global
   whitespace = fix
   ignorecase = false
-[hub]
-  host = github.com
-  editor = nvim
-  autocrlf = input
-  excludesfile = ~/.gitignore_global
 [merge]
   ff = true
 [http]

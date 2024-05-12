@@ -18,11 +18,10 @@ set PATH \
     $HOME/.cargo/bin \
     $PATH
 
-# init
-# don't move before paths
-
 envsource ~/.env
 
+# init
+# don't move before paths
 init
 
 # alias
@@ -39,7 +38,6 @@ alias vim=nvim
 alias a="./a.out"
 alias bc="bc -l"
 alias open="open ."
-alias git=hub
 alias tfind="find ./ -type f -print | xargs grep"
 alias localip="ipconfig getifaddr en0"
 # Show active network interfaces
@@ -53,11 +51,11 @@ alias repo="gh browse"
 
 # git
 
-set __fish_git_prompt_showdirtystate 'yes'
-set __fish_git_prompt_showuntrackedfiles 'yes'
-set __fish_git_prompt_showupstream 'informative'
-set __fish_git_prompt_showstashstate 'yes'
-set __fish_git_prompt_describe_style 'branch'
+set __fish_git_prompt_showdirtystate yes
+set __fish_git_prompt_showuntrackedfiles yes
+set __fish_git_prompt_showupstream informative
+set __fish_git_prompt_showstashstate yes
+set __fish_git_prompt_describe_style branch
 set __fish_git_prompt_show_informative_status
 set __fish_git_prompt_showcolorhints
 
@@ -102,17 +100,17 @@ set __fish_git_prompt_char_upstream_equal ' 🤝 '
 # end
 
 # pnpm
-set -gx PNPM_HOME "/Users/hiroppy/Library/pnpm"
+set -gx PNPM_HOME /Users/hiroppy/Library/pnpm
 if not string match -q -- $PNPM_HOME $PATH
-  set -gx PATH "$PNPM_HOME" $PATH
+    set -gx PATH "$PNPM_HOME" $PATH
 end
 # pnpm end
-
-status --is-interactive; and rbenv init - fish | source
 
 # bun
 set --export BUN_INSTALL "$HOME/.bun"
 set --export PATH $BUN_INSTALL/bin $PATH
 
 # nvm
-load_nvm > /dev/stderr
+load_nvm >/dev/stderr
+
+# status --is-interactive; and rbenv init - fish | source
