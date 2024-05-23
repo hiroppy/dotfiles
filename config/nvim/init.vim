@@ -110,8 +110,8 @@ endif
 
 
 " vim-operator-flashy
-map y <Plug>(operator-flashy)
-map Y <Plug>(operator-flashy)$
+" map y <Plug>(operator-flashy)
+" map Y <Plug>(operator-flashy)$
 let g:operator#flashy#group = 'Error'
 
 " vim-parenmatch
