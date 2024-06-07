@@ -35,3 +35,4 @@ brew "hashicorp/tap/terraform"
 
 cask "fig"
 cask "google-cloud-sdk"
+cask "applite"
