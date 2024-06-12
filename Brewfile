@@ -32,6 +32,7 @@ brew "go"
 brew "buf"
 brew "protobuf"
 brew "hashicorp/tap/terraform"
+brew "rust"
 
 cask "fig"
 cask "google-cloud-sdk"
