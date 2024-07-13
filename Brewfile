@@ -34,6 +34,7 @@ brew "protobuf"
 brew "hashicorp/tap/terraform"
 brew "rust"
 brew "rustfmt"
+brew "docker-compose"
 
 cask "fig"
 cask "google-cloud-sdk"
