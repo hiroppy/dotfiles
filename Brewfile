@@ -35,6 +35,7 @@ brew "hashicorp/tap/terraform"
 brew "rust"
 brew "rustfmt"
 brew "docker-compose"
+brew "git-delta"
 
 cask "fig"
 cask "google-cloud-sdk"
