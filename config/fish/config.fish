@@ -110,9 +110,5 @@ end
 set --export BUN_INSTALL "$HOME/.bun"
 set --export PATH $BUN_INSTALL/bin $PATH
 
-# nvm
-load_nvm >/dev/stderr
-
-# status --is-interactive; and rbenv init - fish | source
-set -gx VOLTA_HOME "$HOME/.volta"
-set -gx PATH "$VOLTA_HOME/bin" $PATH
+# mise
+~/.local/bin/mise activate fish | source
