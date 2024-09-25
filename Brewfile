@@ -36,6 +36,7 @@ brew "rust"
 brew "rustfmt"
 brew "docker-compose"
 brew "git-delta"
+brew "mise"
 
 cask "fig"
 cask "google-cloud-sdk"
