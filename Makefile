@@ -16,7 +16,7 @@ brew:
 install:
 	echo 'Start deploy dotfiles current directory.'
 	mkdir -p ~/.config
-	ln -sfnv ~/dotfiles/config/nvim ~/.config/nvim
+	ln -sfnv ~/dotfiles/config/mise ~/.config/mise
 	ln -sfnv ~/dotfiles/config/fish ~/.config/fish
 	@$(foreach val, $(DOTFILES_FILES), ln -sfnv $(abspath $(val)) $(HOME)/$(val);)
 
