@@ -13,8 +13,6 @@ set PATH \
     $HOME/Library/Android/sdk/platform-tools \
     $HOME/go/bin \
     $HOME/.deno/bin \
-    $HOME/.rbenv/shims \
-    $HOME/.pyenv/shims \
     $HOME/.cargo/bin \
     $PATH
 
