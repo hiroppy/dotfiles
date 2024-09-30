@@ -109,4 +109,4 @@ set --export BUN_INSTALL "$HOME/.bun"
 set --export PATH $BUN_INSTALL/bin $PATH
 
 # mise
-~/.local/bin/mise activate fish | source
+/opt/homebrew/bin/mise activate fish | source
