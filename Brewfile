@@ -32,7 +32,6 @@ brew "protobuf"
 brew "hashicorp/tap/terraform"
 brew "rust"
 brew "rustfmt"
-brew "docker-compose"
 brew "git-delta"
 brew "mise"
 
