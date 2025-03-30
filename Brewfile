@@ -35,6 +35,4 @@ brew "rustfmt"
 brew "git-delta"
 brew "mise"
 
-cask "fig"
 cask "google-cloud-sdk"
-cask "applite"
