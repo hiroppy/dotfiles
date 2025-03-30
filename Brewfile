@@ -1,5 +1,3 @@
-tap "homebrew/bundle"
-tap "homebrew/services"
 tap "sanemat/font"
 tap "johanhaleby/kubetail"
 tap "bufbuild/buf"
@@ -36,3 +34,4 @@ brew "git-delta"
 brew "mise"
 
 cask "google-cloud-sdk"
+cask "gpg-suite"
