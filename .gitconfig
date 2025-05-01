@@ -1,7 +1,7 @@
 [user]
   name = Yuta Hiroto
   email = git@hiroppy.me
-  signingkey = 78DF9409
+	signingkey = ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIAkL1GAX23YP6rHf/veBypzjOk8belwk30p0/Vs0qyIi
 [help]
   autocorrect = 1
 [url "git@github.com:"]
@@ -47,7 +47,9 @@
 [color]
   ui = true
 [gpg]
-  program = gpg
+  format = ssh
+[gpg "ssh"]
+	program = /Applications/1Password.app/Contents/MacOS/op-ssh-sign
 [pull]
   rebase = merges
 [branch]
@@ -66,3 +68,4 @@
   side-by-side = true
 [interactive]
   diffFilter = delta --color-only
+
