@@ -33,4 +33,3 @@ brew "git-delta"
 brew "mise"
 
 cask "google-cloud-sdk"
-cask "gpg-suite"
