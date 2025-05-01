@@ -1,3 +1,8 @@
+## Requirement
+
+- homebrew
+- 1password
+
 ## Setup
 
 ```sh

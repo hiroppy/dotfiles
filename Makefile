@@ -19,6 +19,9 @@ install:
 	ln -sfnv ~/dotfiles/config/mise ~/.config/mise
 	ln -sfnv ~/dotfiles/config/fish ~/.config/fish
 	ln -sfnv ~/dotfiles/config/nvim ~/.config/nvim
+	mkdir -p ~/.ssh
+	ln -sfnv ~/dotfiles/ssh/config ~/.ssh/config
+	mkdir -p ~/.1password && ln -s ~/Library/Group\ Containers/2BUA8C4S2C.com.1password/t/agent.sock ~/.1password/agent.sock
 	@$(foreach val, $(DOTFILES_FILES), ln -sfnv $(abspath $(val)) $(HOME)/$(val);)
 
 .PHONY: fish
