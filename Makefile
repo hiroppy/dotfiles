@@ -11,6 +11,7 @@ setup: brew install fish
 brew:
 	/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install.sh)"
 	brew bundle
+	sh mas.sh
 
 .PHONY: install
 install:
