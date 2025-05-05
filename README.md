@@ -6,14 +6,10 @@
 ## Setup
 
 ```sh
-$ git clone git@github.com:hiroppy/dotfiles.git
+$ git clone https://github.com/hiroppy/dotfiles
+# secret variables
 $ touch ~/.env
 $ cd dotfiles
 $ make setup
 ```
 
-## Secret Values
-
-```sh
-$ touch ~/.env
-```
