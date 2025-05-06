@@ -24,7 +24,8 @@ install:
 	mkdir -p ~/.ssh
 	ln -sfnv ~/dotfiles/ssh/config ~/.ssh/config
 	mkdir -p ~/.1password
-	ln -s ~/Library/Group\ Containers/2BUA8C4S2C.com.1password/t/agent.sock ~/.1password/agent.sock
+	mkdir -p ~/.config/1Password/ssh
+	ln -sfnv ~/Library/Group\ Containers/2BUA8C4S2C.com.1password/t/agent.sock ~/.1password/agent.sock
 	ln -sfnv ~/dotfiles/config/1password/ssh/agent.toml ~/.config/1Password/ssh/agent.toml
 	@$(foreach val, $(DOTFILES_FILES), ln -sfnv $(abspath $(val)) $(HOME)/$(val);)
 
