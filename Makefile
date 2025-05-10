@@ -31,4 +31,4 @@ install:
 
 .PHONY: fish
 fish:
-	fisher
+	fish -c "fisher update"
