@@ -28,6 +28,9 @@ install:
 	ln -sfnv ~/Library/Group\ Containers/2BUA8C4S2C.com.1password/t/agent.sock ~/.1password/agent.sock
 	ln -sfnv ~/dotfiles/config/1password/ssh/agent.toml ~/.config/1Password/ssh/agent.toml
 	@$(foreach val, $(DOTFILES_FILES), ln -sfnv $(abspath $(val)) $(HOME)/$(val);)
+	# docker
+	mkdir -p ~/.config/fish/completions
+	docker completion fish > ~/.config/fish/completions/docker.fish
 
 .PHONY: fish
 fish:
