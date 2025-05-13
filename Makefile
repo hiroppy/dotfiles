@@ -38,4 +38,11 @@ fish:
 
 .PHONY: mac
 mac:
+	# dock
+	defaults write com.apple.dock autohide -bool true
+	defaults write com.apple.dock largesize 128
+	defaults write com.apple.dock show-recents -bool false
+	defaults write NSGlobalDomain AppleInterfaceStyle Dark
+	killall Dock
+	# bettertouchtool
 	defaults write com.hegenberg.BetterTouchTool BTTNoNamedTriggerOnLeftRightClick YES
