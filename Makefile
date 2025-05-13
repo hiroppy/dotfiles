@@ -5,7 +5,7 @@ DOTFILES_DIR      := $(PWD)
 DOTFILES_FILES    := $(filter-out $(DOTFILES_EXCLUDES), $(DOTFILES_TARGET))
 
 .PHONY: setup
-setup: brew install fish
+setup: brew install fish mac
 
 .PHONY: brew
 brew:
@@ -35,3 +35,7 @@ install:
 .PHONY: fish
 fish:
 	fish -c "fisher update"
+
+.PHONY: mac
+mac:
+	defaults write com.hegenberg.BetterTouchTool BTTNoNamedTriggerOnLeftRightClick YES
