@@ -11,22 +11,31 @@
   excludesfile = ~/.gitignore_global
   whitespace = fix
   ignorecase = false
-[merge]
-  ff = true
+[color]
+  ui = true
 [http]
   sslVerify = false
 [alias]
   st = status
   co = checkout
   so = remote show origin
-  ft = fetch
   wc = whatchanged
   ci = commit
+  fu = commit --fixup HEAD
   br = branch
   cp = cherry-pick
   rb = rebase
-  site = browse
   current = rev-parse --abbrev-ref HEAD
+  ri = "!f() { \
+        if [ -n \"$1\" ]; then \
+          base=\"$1\"; \
+        else \
+          base=$(git rev-parse --abbrev-ref --symbolic-full-name @{u} 2>/dev/null || echo origin/main); \
+        fi; \
+        start=$(git merge-base --fork-point \"$base\" HEAD) && \
+        exec git rebase -i \"$start\"; \
+        }; f"
+  ; fixup = "!f() { git commit --fixup \"$1\"; git rebase --autosquash --autostash \"$1\"~; tig; }; f"
   po = "!f() {\
         b=`git rev-parse --abbrev-ref HEAD`;\
         git push origin ${b};\
@@ -44,16 +53,18 @@
 [commit]
   template = ~/.gitmessage
   gpgsign = true
-[color]
-  ui = true
 [gpg]
   format = ssh
 [gpg "ssh"]
-	program = /Applications/1Password.app/Contents/MacOS/op-ssh-sign
+  program = /Applications/1Password.app/Contents/MacOS/op-ssh-sign
+[merge]
+  ff = true
 [pull]
   rebase = merges
 [branch]
   sort = -authordate
+[rebase]
+  autosquash = true
 [pager]
   diff = delta
   log = delta
@@ -68,4 +79,7 @@
   side-by-side = true
 [interactive]
   diffFilter = delta --color-only
-
+; [tig "bind"]
+;   main = F @git fixup %(commit)
+;   log = F @git fixup %(commit)
+;   diff = F @git fixup %(commit)
