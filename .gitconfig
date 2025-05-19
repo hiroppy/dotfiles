@@ -21,7 +21,7 @@
   so = remote show origin
   wc = whatchanged
   ci = commit
-  fu = commit --fixup HEAD
+  fu = !git add -A && git commit --fixup HEAD && git status
   br = branch
   cp = cherry-pick
   rb = rebase
