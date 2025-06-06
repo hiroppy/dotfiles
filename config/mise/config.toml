@@ -2,7 +2,6 @@
 node = '22'
 watchexec = 'latest'
 python = "3.12"
-"npm:@anthropic-ai/claude-code" = "latest"
 
 [settings]
 idiomatic_version_file_enable_tools = ["node"]
