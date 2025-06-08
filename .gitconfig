@@ -48,6 +48,7 @@
         b=`git rev-parse --abbrev-ref HEAD`;\
         git pull origin ${b};\
         }; f"
+	wt = worktree
 [push]
   default = current
 [commit]

@@ -1,0 +1,33 @@
+{
+  "permissions": {
+    "allow": [
+      "Fetch(https://*)",
+      "Read(./src/**)",
+      "Edit(./src/**)",
+      "Bash(true)",
+      "Bash(git:*)",
+      "Bash(git config:*)",
+      "Bash(mkdir:*)",
+      "Bash(mv:*)",
+      "Bash(rm:*)",
+      "Bash(grep:*)",
+      "Bash(pkill:*)",
+      "Bash(find:*)",
+      "Bash(ls:*)",
+      "Bash(jq:*)",
+      "Bash(npx knip)",
+      "Bash(npm run lint)",
+      "Bash(npm run test:*)",
+      "Bash(pnpm add:*)",
+      "Bash(pnpm remove:*)",
+      "Bash(pnpm dev:*)",
+      "Bash(pnpm fmt:*)",
+      "Bash(pnpm lint:*)",
+      "Bash(pnpm test:*)",
+      "Bash(pnpm check:*)",
+      "Bash(pnpm build:*)",
+      "Bash(pnpm knip:*)"
+    ],
+    "deny": []
+  }
+}
