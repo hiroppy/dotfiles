@@ -47,8 +47,6 @@ alias hidedesktop="defaults write com.apple.finder CreateDesktop -bool false && 
 alias refresh-launchpad="defaults write com.apple.dock ResetLaunchPad -bool true && killall Dock"
 alias repo="gh browse"
 alias claude="~/.claude/local/claude"
-alias wt=fzf-worktree
-alias wtd=fzf-worktree-delete
 
 # git
 

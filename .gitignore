@@ -10,3 +10,6 @@ config/fish/functions/*
 !config/fish/functions/fish_prompt.fish
 !config/fish/functions/init.fish
 !config/fish/functions/envsource.fish
+!config/fish/functions/wt.fish
+
+.claude
