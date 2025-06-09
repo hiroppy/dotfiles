@@ -2,6 +2,7 @@
   "permissions": {
     "allow": [
       "Fetch(https://*)",
+      "Read(~/.config/fish/**)",
       "Read(./src/**)",
       "Edit(./src/**)",
       "Bash(true)",
@@ -29,5 +30,7 @@
       "Bash(pnpm knip:*)"
     ],
     "deny": []
-  }
+  },
+  "preferredNotifChannel": "terminal_bell",
+  "theme": "dark-daltonized"
 }
