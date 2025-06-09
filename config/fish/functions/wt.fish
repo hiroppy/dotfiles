@@ -81,7 +81,23 @@ function wt
         if test $status -eq 0
             echo "Created worktree at: $worktree_path"
             echo "Branch: $branch_name"
+            
+            # Store project root before changing directory
+            set -l project_root (git rev-parse --show-toplevel)
+            
             cd "$worktree_path"
+            
+            # Execute .wt_hook.fish if it exists in the project root
+            if test -f "$project_root/.wt_hook.fish"
+                echo "Executing .wt_hook.fish..."
+                set -gx WT_WORKTREE_PATH "$worktree_path"
+                set -gx WT_BRANCH_NAME "$branch_name"
+                set -gx WT_PROJECT_ROOT "$project_root"
+                source "$project_root/.wt_hook.fish"
+                set -e WT_WORKTREE_PATH
+                set -e WT_BRANCH_NAME
+                set -e WT_PROJECT_ROOT
+            end
         end
         
     else if test "$cmd" = "remove"
@@ -111,12 +127,51 @@ function wt
             echo "Removed worktree and branch: $branch_name"
         end
         
+    else if test "$cmd" = "init"
+        # Check if .wt_hook.fish already exists
+        if test -f ".wt_hook.fish"
+            echo ".wt_hook.fish already exists"
+            return 1
+        end
+        
+        # Create .wt_hook.fish with copy template
+        echo "# .wt_hook.fish - Executed after 'wt add' command in worktree directory
+# Available variables:
+# - \$WT_WORKTREE_PATH: Path to the new worktree (current directory)
+# - \$WT_BRANCH_NAME: Name of the branch
+# - \$WT_PROJECT_ROOT: Path to the original project root
+
+# Files and directories to copy from project root to worktree directory
+# Add or remove file/directory names as needed
+set copy_items \".env\" \".claude\"
+
+for item in \$copy_items
+    if test -f \"\$WT_PROJECT_ROOT/\$item\"
+        # Copy file
+        cp \"\$WT_PROJECT_ROOT/\$item\" \"\$item\"
+        echo \"Copied file \$item to worktree\"
+    else if test -d \"\$WT_PROJECT_ROOT/\$item\"
+        # Copy directory recursively
+        cp -r \"\$WT_PROJECT_ROOT/\$item\" \"\$item\"
+        echo \"Copied directory \$item to worktree\"
+    end
+end
+
+# Example: Install dependencies
+# npm install
+
+# Add your custom initialization commands here
+" > .wt_hook.fish
+        
+        echo "Created .wt_hook.fish template"
+        
     else
         echo "Unknown command: $cmd"
         echo "Usage:"
         echo "  wt              - Show worktree list with fzf"
         echo "  wt add <branch> - Create new branch and worktree"
         echo "  wt remove <branch> - Remove worktree and branch"
+        echo "  wt init         - Create .wt_hook.fish template"
         return 1
     end
 end
