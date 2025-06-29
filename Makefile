@@ -20,6 +20,8 @@ install:
 	ln -sfnv ~/dotfiles/config/mise ~/.config/mise
 	ln -sfnv ~/dotfiles/config/fish ~/.config/fish
 	ln -sfnv ~/dotfiles/config/nvim ~/.config/nvim
+	mkdir -p ~/.claude
+	ln -sfnv ~/dotfiles/config/claude/setting.json ~/.claude/setting.json
 	# ssh with 1password
 	mkdir -p ~/.ssh
 	ln -sfnv ~/dotfiles/ssh/config ~/.ssh/config

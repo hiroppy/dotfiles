@@ -29,8 +29,17 @@
       "Bash(pnpm build:*)",
       "Bash(pnpm knip:*)"
     ],
-    "deny": []
+    "deny": [
+      "Bash(rm -rf *)",
+      "Bash(sudo:*)",
+      "Bash(npm publish:*)"
+    ]
   },
   "preferredNotifChannel": "terminal_bell",
-  "theme": "dark-daltonized"
+  "theme": "dark-daltonized",
+  "env": {
+    "CLAUDE_CODE_ENABLE_TELEMETRY": "0",
+    "BASH_DEFAULT_TIMEOUT_MS": "300000",
+    "BASH_MAX_TIMEOUT_MS": "1200000"
+  }
 }
