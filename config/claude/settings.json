@@ -1,6 +1,10 @@
 {
+  "env": {
+    "CLAUDE_CODE_ENABLE_TELEMETRY": "0",
+    "BASH_DEFAULT_TIMEOUT_MS": "300000",
+    "BASH_MAX_TIMEOUT_MS": "1200000"
+  },
   "permissions": {
-    "defaultMode": "acceptEdits",
     "allow": [
       "Fetch(https://*)",
       "Read(~/.config/fish/**)",
@@ -35,13 +39,33 @@
       "Bash(rm -rf *)",
       "Bash(sudo:*)",
       "Bash(npm publish:*)"
+    ],
+    "defaultMode": "acceptEdits"
+  },
+  "hooks": {
+    "Notification": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "osascript -e 'display notification \"Claude Codeが許可を求めています\" with title \"Claude Code\" subtitle \"確認待ち\" sound name \"Glass\"'"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "osascript -e 'display notification \"タスクが完了しました\" with title \"Claude Code\" subtitle \"処理終了\" sound name \"Hero\"'"
+          }
+        ]
+      }
     ]
   },
   "preferredNotifChannel": "terminal_bell",
-  "theme": "dark-daltonized",
-  "env": {
-    "CLAUDE_CODE_ENABLE_TELEMETRY": "0",
-    "BASH_DEFAULT_TIMEOUT_MS": "300000",
-    "BASH_MAX_TIMEOUT_MS": "1200000"
-  }
+  "theme": "dark-daltonized"
 }
