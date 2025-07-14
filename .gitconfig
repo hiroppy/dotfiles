@@ -11,6 +11,7 @@
   excludesfile = ~/.gitignore_global
   whitespace = fix
   ignorecase = false
+  pager = delta
 [color]
   ui = true
 [http]
@@ -60,17 +61,13 @@
   program = /Applications/1Password.app/Contents/MacOS/op-ssh-sign
 [merge]
   ff = true
+  conflictstyle = zdiff3
 [pull]
   rebase = merges
 [branch]
   sort = -authordate
 [rebase]
   autosquash = true
-[pager]
-  diff = delta
-  log = delta
-  reflog = delta
-  show = delta
 [delta]
   plus-style = "syntax #012800"
   minus-style = "syntax #340001"
@@ -78,9 +75,7 @@
   navigate = true
   line-numbers = true
   side-by-side = true
+  hyperlinks = true
+  hyperlinks-file-link-format = "vscode://file/{path}:{line}"
 [interactive]
   diffFilter = delta --color-only
-; [tig "bind"]
-;   main = F @git fixup %(commit)
-;   log = F @git fixup %(commit)
-;   diff = F @git fixup %(commit)
