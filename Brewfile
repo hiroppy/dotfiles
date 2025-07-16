@@ -32,6 +32,7 @@ brew "rustfmt"
 brew "git-delta"
 brew "mise"
 brew "mas"
+brew "stripe/stripe-cli/stripe"
 
 cask "google-chrome"
 # cask "google-japanese-ime"
