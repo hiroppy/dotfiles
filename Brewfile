@@ -36,7 +36,7 @@ brew "stripe-cli"
 brew "docker"
 
 cask "google-chrome"
-# cask "google-japanese-ime"
+cask "google-japanese-ime"
 cask "slack"
 cask "discord"
 cask "notion"
