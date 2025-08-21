@@ -33,7 +33,6 @@ brew "git-delta"
 brew "mise"
 brew "mas"
 brew "stripe-cli"
-brew "docker"
 
 cask "google-chrome"
 cask "google-japanese-ime"
