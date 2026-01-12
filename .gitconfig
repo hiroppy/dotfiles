@@ -26,6 +26,7 @@
   br = branch
   cp = cherry-pick
   rb = rebase
+	rl = reflog --date=default
   current = rev-parse --abbrev-ref HEAD
   ri = "!f() { \
         if [ -n \"$1\" ]; then \
@@ -55,6 +56,8 @@
 [commit]
   template = ~/.gitmessage
   gpgsign = true
+[log]
+  date = default
 [gpg]
   format = ssh
 [gpg "ssh"]
@@ -79,3 +82,5 @@
   hyperlinks-file-link-format = "vscode://file/{path}:{line}"
 [interactive]
   diffFilter = delta --color-only
+[rerere]
+	enabled = true
