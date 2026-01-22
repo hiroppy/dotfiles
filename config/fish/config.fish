@@ -46,7 +46,6 @@ alias hidedesktop="defaults write com.apple.finder CreateDesktop -bool false && 
 # reftesh LaunchPad
 alias refresh-launchpad="defaults write com.apple.dock ResetLaunchPad -bool true && killall Dock"
 alias repo="gh browse"
-alias claude="~/.claude/local/claude"
 
 # git
 
@@ -111,4 +110,3 @@ set --export PATH $BUN_INSTALL/bin $PATH
 
 # mise
 /opt/homebrew/bin/mise activate fish | source
-
