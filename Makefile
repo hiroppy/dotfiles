@@ -4,13 +4,13 @@ DOTFILES_TARGET   := $(wildcard .??*)
 DOTFILES_DIR      := $(PWD)
 DOTFILES_FILES    := $(filter-out $(DOTFILES_EXCLUDES), $(DOTFILES_TARGET))
 
-.PHONY: setup
-setup: brew install fish mac
-
 .PHONY: brew
 brew:
 	/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install.sh)"
 	brew bundle
+
+.PHONY: apple
+apple:
 	sh mas.sh
 
 .PHONY: install
@@ -33,10 +33,6 @@ install:
 	# docker
 	mkdir -p ~/.config/fish/completions
 	docker completion fish > ~/.config/fish/completions/docker.fish
-
-.PHONY: fish
-fish:
-	fish -c "fisher update"
 
 .PHONY: mac
 mac:

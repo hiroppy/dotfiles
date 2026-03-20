@@ -1,17 +1,36 @@
-## Requirement
-
-- homebrew
-- 1password
-
 ## Setup
 
+### Clone
+
 ```sh
-$ /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-$ curl -sL https://raw.githubusercontent.com/jorgebucaran/fisher/main/functions/fisher.fish | source && fisher install jorgebucaran/fisher
-$ brew install --cask 1password
-$ git clone https://github.com/hiroppy/dotfiles
-$ cd dotfiles
-$ make setup
+git clone https://github.com/hiroppy/dotfiles
+cd dotfiles
+```
+
+### brew
+
+```sh
+make brew
+```
+
+After this, you have 1password so you can sign in Apple.
+
+### Apps in Apple
+
+```sh
+make apple
+```
+
+### fish
+
+```sh
+curl -sL https://raw.githubusercontent.com/jorgebucaran/fisher/main/functions/fisher.fish | source && fisher install jorgebucaran/fisher
+```
+
+### Settings
+
+```sh
+make mac
 ```
 
 ## Setting Secret Envs
