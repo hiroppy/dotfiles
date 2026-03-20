@@ -36,7 +36,6 @@ alias vim=nvim
 alias a="./a.out"
 alias bc="bc -l"
 alias open="open ."
-alias tfind="find ./ -type f -print | xargs grep"
 alias localip="ipconfig getifaddr en0"
 # Show active network interfaces
 alias ifactive="ifconfig | pcregrep -M -o '^[^\t:]+:([^\n]|\n\t)*status: active'"
@@ -46,6 +45,13 @@ alias hidedesktop="defaults write com.apple.finder CreateDesktop -bool false && 
 # reftesh LaunchPad
 alias refresh-launchpad="defaults write com.apple.dock ResetLaunchPad -bool true && killall Dock"
 alias repo="gh browse"
+
+# tmux
+alias ta="tmux a -t"
+alias ts="tmux new -s"
+alias tls="tmux ls"
+alias td="tmux detach"
+alias tks="tmux kill-server"
 
 # git
 
@@ -110,3 +116,8 @@ set --export PATH $BUN_INSTALL/bin $PATH
 
 # mise
 /opt/homebrew/bin/mise activate fish | source
+
+# Added by LM Studio CLI (lms)
+set -gx PATH $PATH /Users/hiroppy/.lmstudio/bin
+# End of LM Studio CLI section
+

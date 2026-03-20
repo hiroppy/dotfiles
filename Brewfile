@@ -31,6 +31,8 @@ brew "rust"
 brew "rustfmt"
 brew "git-delta"
 brew "mise"
+brew "tmux"
+brew "reattach-to-user-namespace"
 brew "mas"
 brew "stripe-cli"
 

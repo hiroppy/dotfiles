@@ -20,6 +20,7 @@ install:
 	ln -sfnv ~/dotfiles/config/mise ~/.config/mise
 	ln -sfnv ~/dotfiles/config/fish ~/.config/fish
 	ln -sfnv ~/dotfiles/config/nvim ~/.config/nvim
+	ln -sfnv ~/dotfiles/config/tmux ~/.config/tmux
 	mkdir -p ~/.claude
 	ln -sfnv ~/dotfiles/config/claude/settings.json ~/.claude/settings.json
 	# ssh with 1password
