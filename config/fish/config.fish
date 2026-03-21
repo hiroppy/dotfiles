@@ -55,12 +55,16 @@ if status is-interactive
     end
 end
 
-alias ta="tmux a -t"
 function ts
     if test (count $argv) -eq 0
-        tmux new -s (basename $PWD)
+        set -f name (basename $PWD)
     else
-        tmux new -s $argv
+        set -f name $argv[1]
+    end
+    if tmux has-session -t $name 2>/dev/null
+        tmux attach -t $name
+    else
+        tmux new -s $name
     end
 end
 alias tls="tmux ls"
