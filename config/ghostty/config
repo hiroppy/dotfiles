@@ -1,0 +1,4 @@
+command = /opt/homebrew/bin/fish
+
+keybind = super+up=next_tab
+keybind = super+t=new_tab
