@@ -47,6 +47,13 @@ alias refresh-launchpad="defaults write com.apple.dock ResetLaunchPad -bool true
 alias repo="gh browse"
 
 # tmux
+if status is-interactive
+    and not set -q TMUX
+    and set -q TMUX_AUTO_START
+    and test "$PWD" != "$HOME"
+        tmux new-session -A -s (basename $PWD)
+end
+
 alias ta="tmux a -t"
 alias ts="tmux new -s"
 alias tls="tmux ls"
