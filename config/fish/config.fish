@@ -56,7 +56,13 @@ if status is-interactive
 end
 
 alias ta="tmux a -t"
-alias ts="tmux new -s"
+function ts
+    if test (count $argv) -eq 0
+        tmux new -s (basename $PWD)
+    else
+        tmux new -s $argv
+    end
+end
 alias tls="tmux ls"
 alias td="tmux detach"
 alias tks="tmux kill-server"
