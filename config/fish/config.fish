@@ -49,9 +49,10 @@ alias repo="gh browse"
 # tmux
 if status is-interactive
     and not set -q TMUX
-    and set -q TMUX_AUTO_START
-    and test "$PWD" != "$HOME"
+    read -l -P (set_color green)'Start tmux? [y/N] '(set_color normal) confirm
+    if string match -riq '^(y|yes|ｙ)$' -- "$confirm"
         tmux new-session -A -s (basename $PWD)
+    end
 end
 
 alias ta="tmux a -t"
