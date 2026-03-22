@@ -46,14 +46,6 @@ alias hidedesktop="defaults write com.apple.finder CreateDesktop -bool false && 
 alias refresh-launchpad="defaults write com.apple.dock ResetLaunchPad -bool true && killall Dock"
 alias repo="gh browse"
 
-# tmux
-if status is-interactive
-    and not set -q TMUX
-    read -l -P (set_color green)'Start tmux? [y/N] '(set_color normal) confirm
-    if string match -riq '^(y|yes|ｙ)$' -- "$confirm"
-        tmux new-session -A -s (basename $PWD)
-    end
-end
 
 function ts
     if test (count $argv) -eq 0
