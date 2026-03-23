@@ -135,11 +135,6 @@ if command -q aqua
     set -gx AQUA_GLOBAL_CONFIG $HOME/.config/aquaproj-aqua/aqua.yaml
 end
 
-# z
-set -gx Z_DATA $HOME/.local/share/z/data
-set -gx Z_DATA_DIR $HOME/.local/share/z
-set -gx Z_EXCLUDE "^$HOME\$"
-
 # mise
 /opt/homebrew/bin/mise activate fish | source
 

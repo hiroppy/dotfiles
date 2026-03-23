@@ -5,7 +5,8 @@ config/nvim/bundle
 config/nvim/undo
 
 config/fish/completions
-config/fish/conf.d
+config/fish/conf.d/*
+!config/fish/conf.d/aaa-z-pre.fish
 config/fish/functions/*
 !config/fish/functions/fish_prompt.fish
 !config/fish/functions/init.fish
