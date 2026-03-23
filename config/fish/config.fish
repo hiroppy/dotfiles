@@ -15,6 +15,7 @@ set PATH \
     $HOME/.deno/bin \
     $HOME/.cargo/bin \
     $PATH
+set -gx PATH $PATH (aqua root-dir)
 
 envsource ~/.env
 
@@ -114,20 +115,28 @@ set __fish_git_prompt_char_upstream_equal ' 🤝 '
 # end
 
 # pnpm
-set -gx PNPM_HOME /Users/hiroppy/Library/pnpm
-if not string match -q -- $PNPM_HOME $PATH
-    set -gx PATH "$PNPM_HOME" $PATH
-end
+# set -gx PNPM_HOME $HOME/Library/pnpm
+# if not string match -q -- $PNPM_HOME $PATH
+#     set -gx PATH "$PNPM_HOME" $PATH
+# end
 # pnpm end
 
 # bun
 set --export BUN_INSTALL "$HOME/.bun"
 set --export PATH $BUN_INSTALL/bin $PATH
 
+# aqua
+set -gx AQUA_GLOBAL_CONFIG $HOME/.config/aquaproj-aqua/aqua.yaml
+
+# z
+set -gx Z_DATA $HOME/.local/share/z/data
+set -gx Z_DATA_DIR $HOME/.local/share/z
+set -gx Z_EXCLUDE "^$HOME\$"
+
 # mise
 /opt/homebrew/bin/mise activate fish | source
 
 # Added by LM Studio CLI (lms)
-set -gx PATH $PATH /Users/hiroppy/.lmstudio/bin
+set -gx PATH $PATH $HOME/.lmstudio/bin
 # End of LM Studio CLI section
 
