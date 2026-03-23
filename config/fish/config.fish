@@ -1,6 +1,9 @@
 # delete the greeting message
 set fish_greeting
 
+# fix for ghostty terminal type
+set -gx TERM xterm-256color
+
 # paths
 # don't use fish_user_paths
 # if you use fish_user_paths, fish_variables will be overwritten
@@ -15,7 +18,9 @@ set PATH \
     $HOME/.deno/bin \
     $HOME/.cargo/bin \
     $PATH
-set -gx PATH $PATH (aqua root-dir)
+if command -q aqua
+    set -gx PATH $PATH (aqua root-dir)
+end
 
 envsource ~/.env
 
@@ -126,7 +131,9 @@ set --export BUN_INSTALL "$HOME/.bun"
 set --export PATH $BUN_INSTALL/bin $PATH
 
 # aqua
-set -gx AQUA_GLOBAL_CONFIG $HOME/.config/aquaproj-aqua/aqua.yaml
+if command -q aqua
+    set -gx AQUA_GLOBAL_CONFIG $HOME/.config/aquaproj-aqua/aqua.yaml
+end
 
 # z
 set -gx Z_DATA $HOME/.local/share/z/data
