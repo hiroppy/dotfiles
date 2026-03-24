@@ -35,6 +35,12 @@ install:
 	# docker
 	mkdir -p ~/.config/fish/completions
 	docker completion fish > ~/.config/fish/completions/docker.fish
+	# fisher
+	fish -c "curl -sL https://raw.githubusercontent.com/jorgebucaran/fisher/main/functions/fisher.fish | source && fisher install jorgebucaran/fisher"
+	fish -c "fisher update"
+	# tmux plugin manager
+	git clone https://github.com/tmux-plugins/tpm ~/.tmux/plugins/tpm 2>/dev/null || true
+	~/.tmux/plugins/tpm/bin/install_plugins
 
 .PHONY: mac
 mac:

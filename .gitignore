@@ -4,6 +4,8 @@ Brewfile.lock.json
 config/nvim/bundle
 config/nvim/undo
 
+config/tmux/plugins
+
 config/fish/completions
 config/fish/conf.d/*
 !config/fish/conf.d/aaa-z-pre.fish

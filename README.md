@@ -21,12 +21,6 @@ After this, you have 1password so you can sign in Apple.
 make apple
 ```
 
-### fish
-
-```sh
-curl -sL https://raw.githubusercontent.com/jorgebucaran/fisher/main/functions/fisher.fish | source && fisher install jorgebucaran/fisher
-```
-
 ### Settings
 
 ```sh

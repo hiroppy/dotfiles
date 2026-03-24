@@ -1,6 +1,6 @@
 command = /opt/homebrew/bin/fish
 
-font-family = Menlo
+font-family = Hack Nerd Font
 font-family = Hiragino Sans W4
 
 window-padding-x = 8
