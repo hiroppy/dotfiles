@@ -65,6 +65,16 @@ function ts
         tmux new -s $name
     end
 end
+function __tmux_auto_attach --on-variable PWD
+    if set -q TMUX
+        return
+    end
+    set -l name (basename $PWD)
+    if tmux has-session -t $name 2>/dev/null
+        tmux attach -t $name
+    end
+end
+
 alias tls="tmux ls"
 alias td="tmux detach"
 alias tks="tmux kill-server"
