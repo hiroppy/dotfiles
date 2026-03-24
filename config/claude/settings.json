@@ -40,7 +40,7 @@
       "Bash(sudo:*)",
       "Bash(npm publish:*)"
     ],
-    "defaultMode": "acceptEdits"
+    "defaultMode": "auto"
   },
   "hooks": {
     "Notification": [

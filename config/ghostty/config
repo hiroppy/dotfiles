@@ -6,6 +6,8 @@ font-family = Hiragino Sans W4
 window-padding-x = 8
 window-padding-y = 8
 
+macos-option-as-alt = true
+
 keybind = ctrl+tab=next_tab
 keybind = ctrl+shift+tab=previous_tab
 keybind = super+t=new_tab

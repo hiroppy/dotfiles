@@ -75,6 +75,7 @@ function __tmux_auto_attach --on-variable PWD
     end
 end
 
+
 alias tls="tmux ls"
 alias td="tmux detach"
 alias tks="tmux kill-server"
