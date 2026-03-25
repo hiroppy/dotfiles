@@ -1,0 +1,4 @@
+[[mgr.prepend_keymap]]
+on   = "<Enter>"
+run  = "quit"
+desc = "Quit and cd to current directory"

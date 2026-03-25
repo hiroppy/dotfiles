@@ -22,6 +22,7 @@ install:
 	ln -sfnv ~/dotfiles/config/nvim ~/.config/nvim
 	ln -sfnv ~/dotfiles/config/tmux ~/.config/tmux
 	ln -sfnv ~/dotfiles/config/ghostty ~/.config/ghostty
+	ln -sfnv ~/dotfiles/config/yazi ~/.config/yazi
 	mkdir -p ~/.claude
 	ln -sfnv ~/dotfiles/config/claude/settings.json ~/.claude/settings.json
 	# ssh with 1password
