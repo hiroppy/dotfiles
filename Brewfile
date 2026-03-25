@@ -36,6 +36,8 @@ brew "yazi"
 brew "reattach-to-user-namespace"
 brew "mas"
 brew "stripe-cli"
+brew "bat"
+brew "lazydocker"
 
 cask "google-chrome"
 cask "google-japanese-ime"

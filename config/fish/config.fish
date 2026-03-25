@@ -39,6 +39,7 @@ alias d=docker
 alias dc="docker compose"
 alias vi=nvim
 alias vim=nvim
+alias cat=bat
 alias a="./a.out"
 alias bc="bc -l"
 alias open="open ."
