@@ -14,5 +14,6 @@ config/fish/functions/*
 !config/fish/functions/init.fish
 !config/fish/functions/envsource.fish
 !config/fish/functions/wt.fish
+!config/fish/functions/y.fish
 
 .claude
