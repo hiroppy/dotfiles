@@ -40,6 +40,7 @@ alias dc="docker compose"
 alias vi=nvim
 alias vim=nvim
 alias cat=bat
+alias top=btop
 alias a="./a.out"
 alias bc="bc -l"
 alias open="open ."
@@ -60,19 +61,46 @@ function ts
     else
         set -f name $argv[1]
     end
-    if tmux has-session -t $name 2>/dev/null
-        tmux attach -t $name
+    if set -q SSH_CONNECTION
+        # SSH時は main セッション内でwindowとして管理
+        if set -q TMUX
+            tmux new-window -n $name -c $PWD
+        else if tmux has-session -t main 2>/dev/null
+            tmux attach -t main \; new-window -n $name -c $PWD
+        else
+            tmux new -s main -n $name -c $PWD
+        end
     else
-        tmux new -s $name
+        if tmux has-session -t $name 2>/dev/null
+            tmux attach -t $name
+        else
+            tmux new -s $name
+        end
     end
 end
 function __tmux_auto_attach --on-variable PWD
     if set -q TMUX
         return
     end
-    set -l name (basename $PWD)
-    if tmux has-session -t $name 2>/dev/null
-        tmux attach -t $name
+    if set -q SSH_CONNECTION
+        # SSH時: mainセッションがあればattach
+        if tmux has-session -t main 2>/dev/null
+            tmux attach -t main
+        end
+    else
+        # ローカル: 同名セッションがあればattach
+        set -l name (basename $PWD)
+        if tmux has-session -t $name 2>/dev/null
+            tmux attach -t $name
+        end
+    end
+end
+# SSH時に自動でmainセッションに入る
+if set -q SSH_CONNECTION; and not set -q TMUX; and status is-interactive
+    if tmux has-session -t main 2>/dev/null
+        exec tmux attach -t main
+    else
+        exec tmux new -s main
     end
 end
 

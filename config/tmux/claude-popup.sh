@@ -1,8 +1,8 @@
 #!/bin/bash
-session="claude-$(basename "$1")"
-current_session="$2"
+session="popup_claude-$(basename "$1")"
 
-if [ "$current_session" = "$session" ]; then
+# ポップアップ内から呼ばれた場合はdetach（ポップアップが閉じる）
+if [ "$(tmux display-message -p '#{session_name}')" = "$session" ]; then
     tmux detach-client
 elif tmux has-session -t "$session" 2>/dev/null; then
     tmux display-popup -w 80% -h 80% -E "tmux attach-session -t '$session'"
