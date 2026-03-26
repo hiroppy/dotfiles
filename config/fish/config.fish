@@ -53,6 +53,7 @@ alias hidedesktop="defaults write com.apple.finder CreateDesktop -bool false && 
 # reftesh LaunchPad
 alias refresh-launchpad="defaults write com.apple.dock ResetLaunchPad -bool true && killall Dock"
 alias repo="gh browse"
+alias q="exit"
 
 
 function ts
@@ -181,4 +182,3 @@ end
 # Added by LM Studio CLI (lms)
 set -gx PATH $PATH $HOME/.lmstudio/bin
 # End of LM Studio CLI section
-
