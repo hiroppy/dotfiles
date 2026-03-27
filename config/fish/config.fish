@@ -22,6 +22,10 @@ if command -q aqua
     set -gx PATH $PATH (aqua root-dir)
 end
 
+# set empty defaults to avoid .npmrc errors when .env is missing
+set -gx NPM_TOKEN ""
+set -gx GITHUB_TOKEN ""
+
 envsource ~/.env
 
 # init
