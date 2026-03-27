@@ -23,6 +23,8 @@ install:
 	ln -sfnv ~/dotfiles/config/tmux ~/.config/tmux
 	ln -sfnv ~/dotfiles/config/ghostty ~/.config/ghostty
 	ln -sfnv ~/dotfiles/config/yazi ~/.config/yazi
+	mkdir -p ~/.cargo
+	ln -sfnv ~/dotfiles/config/cargo/config.toml ~/.cargo/config.toml
 	mkdir -p ~/.claude
 	ln -sfnv ~/dotfiles/config/claude/settings.json ~/.claude/settings.json
 	# ssh with 1password
@@ -53,3 +55,8 @@ mac:
 	killall Dock
 	# bettertouchtool
 	defaults write com.hegenberg.BetterTouchTool BTTNoNamedTriggerOnLeftRightClick YES
+
+.PHONY: tools
+tools:
+	# ports
+	cargo install --git https://github.com/hiroppy/ports-cli.git
