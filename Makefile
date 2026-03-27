@@ -58,5 +58,6 @@ mac:
 
 .PHONY: tools
 tools:
+	gh auth setup-git
 	# ports
 	cargo install --git https://github.com/hiroppy/ports-cli.git
