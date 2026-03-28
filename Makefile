@@ -61,3 +61,5 @@ tools:
 	gh auth setup-git
 	# ports
 	cargo install --git https://github.com/hiroppy/ports-cli.git
+	# launched
+	cargo install --git https://github.com/hiroppy/launched-cli.git
