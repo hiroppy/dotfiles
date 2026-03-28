@@ -45,6 +45,7 @@ alias vi=nvim
 alias vim=nvim
 alias cat=bat
 alias top=btop
+alias ps=procs
 alias a="./a.out"
 alias bc="bc -l"
 alias open="open ."
@@ -58,6 +59,19 @@ alias hidedesktop="defaults write com.apple.finder CreateDesktop -bool false && 
 alias refresh-launchpad="defaults write com.apple.dock ResetLaunchPad -bool true && killall Dock"
 alias repo="gh browse"
 alias q="exit"
+alias find=fd
+alias grep=rg
+set -gx EZA_CONFIG_DIR ~/.config/eza
+
+# fzf (use fd instead of find)
+set -gx FZF_FIND_FILE_COMMAND "fd --follow --type f --type d --type l --exclude .git . \$dir"
+set -gx FZF_CD_COMMAND "fd --follow --type d --exclude .git . \$dir"
+set -gx FZF_CD_WITH_HIDDEN_COMMAND "fd --follow --type d --hidden --exclude .git . \$dir"
+set -gx FZF_OPEN_COMMAND "fd --follow --type f --type d --type l --exclude .git . \$dir"
+alias ls="eza --icons"
+alias ll="eza --icons -l"
+alias la="eza --icons -la"
+alias tree="eza --icons --tree"
 
 
 function ts

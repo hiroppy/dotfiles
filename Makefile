@@ -23,6 +23,9 @@ install:
 	ln -sfnv ~/dotfiles/config/tmux ~/.config/tmux
 	ln -sfnv ~/dotfiles/config/ghostty ~/.config/ghostty
 	ln -sfnv ~/dotfiles/config/yazi ~/.config/yazi
+	# eza theme
+	mkdir -p ~/.config/eza
+	curl -so ~/.config/eza/theme.yml https://raw.githubusercontent.com/eza-community/eza-themes/main/themes/frosty.yml
 	mkdir -p ~/.cargo
 	ln -sfnv ~/dotfiles/config/cargo/config.toml ~/.cargo/config.toml
 	mkdir -p ~/.claude
