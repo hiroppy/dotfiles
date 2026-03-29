@@ -1,8 +1,6 @@
 # delete the greeting message
 set fish_greeting
 
-# done: notify after long commands (10s)
-set -g __done_min_cmd_duration 10000
 
 # fix for ghostty terminal type (only over SSH)
 if set -q SSH_CONNECTION
@@ -10,15 +8,15 @@ if set -q SSH_CONNECTION
 end
 
 # paths
-fish_add_path /opt/homebrew/bin
-fish_add_path /usr/local/bin
-fish_add_path /usr/local/php5/bin
-fish_add_path $HOME/Library/Android/sdk/platform-tools
-fish_add_path $HOME/go/bin
-fish_add_path $HOME/.deno/bin
-fish_add_path $HOME/.cargo/bin
+fish_add_path --global /opt/homebrew/bin
+fish_add_path --global /usr/local/bin
+fish_add_path --global /usr/local/php5/bin
+fish_add_path --global $HOME/Library/Android/sdk/platform-tools
+fish_add_path --global $HOME/go/bin
+fish_add_path --global $HOME/.deno/bin
+fish_add_path --global $HOME/.cargo/bin
 if command -q aqua
-    fish_add_path (aqua root-dir)
+    fish_add_path --global (aqua root-dir)
 end
 
 # set empty defaults to avoid .npmrc errors when .env is missing
@@ -183,7 +181,7 @@ set __fish_git_prompt_char_upstream_equal ' 🤝 '
 
 # bun
 set -gx BUN_INSTALL "$HOME/.bun"
-fish_add_path $BUN_INSTALL/bin
+fish_add_path --global $BUN_INSTALL/bin
 
 # aqua
 if command -q aqua
@@ -194,4 +192,4 @@ end
 /opt/homebrew/bin/mise activate fish | source
 
 # LM Studio CLI (lms)
-fish_add_path $HOME/.lmstudio/bin
+fish_add_path --global $HOME/.lmstudio/bin

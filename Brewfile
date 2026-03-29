@@ -41,7 +41,6 @@ brew "stripe-cli" # Stripe API CLI
 # [Shell]
 brew "fish" # Friendly interactive shell
 brew "fzf" # Fuzzy finder
-brew "reattach-to-user-namespace" # Tmux clipboard fix for macOS
 
 # [Container]
 brew "lazydocker" # Docker TUI manager
