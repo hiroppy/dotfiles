@@ -1,7 +1,9 @@
 [tools]
 node = '24'
+go = '1'
+rust = '1'
 watchexec = 'latest'
-python = "3.12"
+python = "3"
 
 [settings]
 idiomatic_version_file_enable_tools = ["node"]

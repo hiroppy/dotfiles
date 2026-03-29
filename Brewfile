@@ -33,9 +33,6 @@ brew "git-delta" # Syntax highlighting for git diff
 brew "neovim" # Text editor
 brew "tmux" # Terminal multiplexer
 brew "mise" # Runtime version manager
-brew "go" # Go programming language
-brew "rust" # Rust programming language
-brew "rustfmt" # Rust code formatter
 brew "buf" # Protocol buffers toolchain
 brew "protobuf" # Protocol buffers compiler
 brew "hashicorp/tap/terraform" # Infrastructure as code
