@@ -1,6 +1,7 @@
 function h
     set -l brewfile ~/dotfiles/Brewfile
     set -l config ~/dotfiles/config/fish/config.fish
+    set -l toolsconf ~/dotfiles/config/fish/tools.conf
     set -l skip_categories Build Misc
 
     # パッケージ名 -> コマンド名のマッピング (異なるもののみ)
@@ -23,7 +24,8 @@ function h
         set -l cnt (count $alias_keys)
         if test $cnt -gt 0
             for i in (seq 1 $cnt)
-                if test "$alias_keys[$i]" = "$target"
+                set -l akey $alias_keys[$i]
+                if test "$akey" = "$target"
                     set alias_values[$i] "$alias_values[$i], $name"
                     set found true
                     break
@@ -36,50 +38,51 @@ function h
         end
     end
 
-    # Makefile (make tools) からcargoツールを先に収集
-    set -l makefile ~/dotfiles/Makefile
-    set -l cargo_categories
-    set -l cargo_tools
-    set -l cargo_descs
-    set -l mk_category ""
+    # tools.conf から追加ツールを読み込み
+    set -l extra_categories
+    set -l extra_tools
+    set -l extra_descs
+    if test -f $toolsconf
+        while read -l line
+            # コメントと空行をスキップ
+            if string match -qr '^\s*#|^\s*$' $line
+                continue
+            end
+            set -l parts (string split \t $line)
+            if test (count $parts) -ge 2
+                set -a extra_categories $parts[1]
+                # org/repo からリポジトリ名を取得
+                set -a extra_tools (string split '/' $parts[2])[-1]
+                if test (count $parts) -ge 3
+                    set -a extra_descs $parts[3]
+                else
+                    set -a extra_descs ""
+                end
+            end
+        end < $toolsconf
+    end
 
-    while read -l line
-        set -l cat_match (string match -r '# \[(.+)\]' $line)
-        if test (count $cat_match) -ge 2
-            set mk_category $cat_match[2]
-            continue
-        end
-        set -l tool_match (string match -r 'cargo install --git .+/([^/]+)\.git\s+# (.+)' $line)
-        if test (count $tool_match) -ge 3
-            set -a cargo_categories $mk_category
-            set -a cargo_tools $tool_match[2]
-            set -a cargo_descs $tool_match[3]
-        end
-    end < $makefile
-
-    # Brewfile をパースして表示（カテゴリ切り替え時にcargoツールも統合）
+    # Brewfile をパースして表示
     set -l current_category ""
     set -l skip false
 
-    # カテゴリ終了時にcargoツールを出力する関数的処理のため、
-    # 全行を読んでからカテゴリ単位で処理
     while read -l line
         # カテゴリ行
         set -l cat_match (string match -r '# \[(.+)\]' $line)
         if test (count $cat_match) -ge 2
-            # 前のカテゴリのcargoツールを出力
-            if test -n "$current_category" -a "$skip" = false
-                for i in (seq 1 (count $cargo_categories))
-                    if test "$cargo_categories[$i]" = "$current_category"
+            # 前のカテゴリの追加ツールを出力
+            if test -n "$current_category" -a "$skip" = false -a (count $extra_categories) -gt 0
+                for i in (seq 1 (count $extra_categories))
+                    set -l ecat $extra_categories[$i]
+                    if test "$ecat" = "$current_category"
                         set_color yellow
-                        printf "    %-28s" $cargo_tools[$i]
+                        printf "    %-28s" $extra_tools[$i]
                         set_color normal
-                        printf "%s" $cargo_descs[$i]
+                        printf "%s" $extra_descs[$i]
                         printf "\n"
                     end
                 end
             end
-
             set current_category $cat_match[2]
             set skip false
             for sc in $skip_categories
@@ -96,15 +99,16 @@ function h
             continue
         end
 
-        # cask セクションに到達したら最後のカテゴリのcargoツールを出力して終了
+        # cask セクションに到達したら最後のカテゴリの追加ツールを出力して終了
         if string match -q '# --- cask ---' $line
-            if test -n "$current_category" -a "$skip" = false
-                for i in (seq 1 (count $cargo_categories))
-                    if test "$cargo_categories[$i]" = "$current_category"
+            if test -n "$current_category" -a "$skip" = false -a (count $extra_categories) -gt 0
+                for i in (seq 1 (count $extra_categories))
+                    set -l ecat $extra_categories[$i]
+                    if test "$ecat" = "$current_category"
                         set_color yellow
-                        printf "    %-28s" $cargo_tools[$i]
+                        printf "    %-28s" $extra_tools[$i]
                         set_color normal
-                        printf "%s" $cargo_descs[$i]
+                        printf "%s" $extra_descs[$i]
                         printf "\n"
                     end
                 end
@@ -130,7 +134,8 @@ function h
             # パッケージ名をコマンド名に変換
             set -l cmd $tool
             for i in (seq 1 (count $pkg_map_keys))
-                if test "$pkg_map_keys[$i]" = "$tool"
+                set -l pkey $pkg_map_keys[$i]
+                if test "$pkey" = "$tool"
                     set cmd $pkg_map_values[$i]
                     break
                 end
@@ -139,7 +144,8 @@ function h
             # alias を探す
             set -l alias_str ""
             for i in (seq (count $alias_keys))
-                if test "$alias_keys[$i]" = "$cmd"
+                set -l akey $alias_keys[$i]
+                if test "$akey" = "$cmd"
                     set alias_str $alias_values[$i]
                     break
                 end

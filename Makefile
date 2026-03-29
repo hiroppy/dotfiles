@@ -55,9 +55,11 @@ install:
 	git clone https://github.com/tmux-plugins/tpm ~/.tmux/plugins/tpm 2>/dev/null || true
 	~/.tmux/plugins/tpm/bin/install_plugins
 
-	$(call section,"Tools")
-	cargo install --git https://github.com/hiroppy/ports-cli.git
-	cargo install --git https://github.com/hiroppy/launched-cli.git
+	$(call section,"Tools (cargo)")
+	@grep -v '^\s*#' config/fish/tools.conf | grep -v '^\s*$$' | while IFS='	' read -r cat repo desc; do \
+		echo "cargo install --git https://github.com/$$repo.git"; \
+		cargo install --git "https://github.com/$$repo.git"; \
+	done
 
 .PHONY: mac
 mac:
