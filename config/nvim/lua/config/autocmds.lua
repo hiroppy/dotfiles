@@ -1,4 +1,4 @@
-local group = vim.api.nvim_create_augroup("hiroppy", { clear = true })
+local group = vim.api.nvim_create_augroup("custom", { clear = true })
 
 vim.api.nvim_create_autocmd("FileType", {
   group = group,

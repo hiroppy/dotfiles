@@ -3,47 +3,67 @@ tap "johanhaleby/kubetail"
 tap "bufbuild/buf"
 tap "hashicorp/tap"
 
+# [Network]
+brew "bandwhich" # Bandwidth utilization by process
+brew "gping" # Ping with graph
+brew "dnsmasq" # Lightweight DNS forwarder
+brew "wget" # File downloader
+
+# [System]
+brew "fastfetch" # System info overview
+brew "duf" # Disk usage with modern UI
+brew "btop" # Resource monitor
+brew "procs" # Modern ps replacement
+brew "hyperfine" # Command benchmarking tool
+
+# [File]
+brew "bat" # Cat with syntax highlighting
+brew "fd" # Modern find replacement
+brew "eza" # Modern ls replacement
+brew "ripgrep" # Fast grep replacement
+brew "yazi" # Terminal file manager
+brew "jq" # JSON processor
+
+# [Git]
+brew "gh" # GitHub CLI
+brew "tig" # Text-mode git interface
+brew "git-delta" # Syntax highlighting for git diff
+
+# [Dev]
+brew "neovim" # Text editor
+brew "tmux" # Terminal multiplexer
+brew "mise" # Runtime version manager
+brew "go" # Go programming language
+brew "rust" # Rust programming language
+brew "rustfmt" # Rust code formatter
+brew "buf" # Protocol buffers toolchain
+brew "protobuf" # Protocol buffers compiler
+brew "hashicorp/tap/terraform" # Infrastructure as code
+brew "stripe-cli" # Stripe API CLI
+
+# [Shell]
+brew "fish" # Friendly interactive shell
+brew "fzf" # Fuzzy finder
+brew "reattach-to-user-namespace" # Tmux clipboard fix for macOS
+
+# [Container]
+brew "lazydocker" # Docker TUI manager
+
+# [Build]
 brew "gnupg"
-brew "fish"
-brew "fzf"
 brew "autoconf"
 brew "fontconfig"
 brew "cmake"
 brew "czmq"
 brew "libtool"
 brew "fontforge"
-brew "btop"
-brew "iftop"
 brew "libvo-aacenc"
-brew "neovim"
 brew "nkf"
-brew "tig"
-brew "tree"
-brew "wget"
-brew "jq"
-brew "dnsmasq"
-brew "gh"
-brew "go"
-brew "buf"
-brew "protobuf"
-brew "hashicorp/tap/terraform"
-brew "rust"
-brew "rustfmt"
-brew "git-delta"
-brew "mise"
-brew "tmux"
-brew "yazi"
-brew "reattach-to-user-namespace"
-brew "mas"
-brew "stripe-cli"
-brew "bat"
-brew "fd"
-brew "ripgrep"
-brew "eza"
-brew "lazydocker"
-brew "procs"
-brew "hyperfine"
 
+# [Misc]
+brew "mas"
+
+# --- cask ---
 cask "google-chrome"
 cask "google-japanese-ime"
 cask "slack"

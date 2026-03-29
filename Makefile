@@ -13,9 +13,15 @@ brew:
 apple:
 	sh mas.sh
 
+define section
+	@printf '\n\033[1;34m===> %s\033[0m\n' $(1)
+endef
+
 .PHONY: install
 install:
-	echo 'Start deploy dotfiles current directory.'
+	@echo 'Start deploy dotfiles current directory.'
+
+	$(call section,"Dotfiles (symlinks)")
 	mkdir -p ~/.config
 	ln -sfnv ~/dotfiles/config/mise ~/.config/mise
 	ln -sfnv ~/dotfiles/config/fish ~/.config/fish
@@ -23,30 +29,35 @@ install:
 	ln -sfnv ~/dotfiles/config/tmux ~/.config/tmux
 	ln -sfnv ~/dotfiles/config/ghostty ~/.config/ghostty
 	ln -sfnv ~/dotfiles/config/yazi ~/.config/yazi
-	# eza theme
-	mkdir -p ~/.config/eza
-	curl -so ~/.config/eza/theme.yml https://raw.githubusercontent.com/eza-community/eza-themes/main/themes/frosty.yml
 	mkdir -p ~/.cargo
 	ln -sfnv ~/dotfiles/config/cargo/config.toml ~/.cargo/config.toml
 	mkdir -p ~/.claude
 	ln -sfnv ~/dotfiles/config/claude/settings.json ~/.claude/settings.json
-	# ssh with 1password
+	@$(foreach val, $(DOTFILES_FILES), ln -sfnv $(abspath $(val)) $(HOME)/$(val);)
+
+	$(call section,"Eza theme")
+	mkdir -p ~/.config/eza
+	curl -so ~/.config/eza/theme.yml https://raw.githubusercontent.com/eza-community/eza-themes/main/themes/frosty.yml
+
+	$(call section,"SSH / 1Password")
 	mkdir -p ~/.ssh
 	ln -sfnv ~/dotfiles/ssh/config ~/.ssh/config
 	mkdir -p ~/.1password
 	mkdir -p ~/.config/1Password/ssh
 	ln -sfnv ~/Library/Group\ Containers/2BUA8C4S2C.com.1password/t/agent.sock ~/.1password/agent.sock
 	ln -sfnv ~/dotfiles/config/1password/ssh/agent.toml ~/.config/1Password/ssh/agent.toml
-	@$(foreach val, $(DOTFILES_FILES), ln -sfnv $(abspath $(val)) $(HOME)/$(val);)
-	# docker
-	mkdir -p ~/.config/fish/completions
-	docker completion fish > ~/.config/fish/completions/docker.fish
-	# fisher
+
+	$(call section,"Fisher (fish plugin manager)")
 	fish -c "curl -sL https://raw.githubusercontent.com/jorgebucaran/fisher/main/functions/fisher.fish | source && fisher install jorgebucaran/fisher"
 	fish -c "fisher update"
-	# tmux plugin manager
+
+	$(call section,"Tmux Plugin Manager")
 	git clone https://github.com/tmux-plugins/tpm ~/.tmux/plugins/tpm 2>/dev/null || true
 	~/.tmux/plugins/tpm/bin/install_plugins
+
+	$(call section,"Tools")
+	cargo install --git https://github.com/hiroppy/ports-cli.git
+	cargo install --git https://github.com/hiroppy/launched-cli.git
 
 .PHONY: mac
 mac:
@@ -59,10 +70,3 @@ mac:
 	# bettertouchtool
 	defaults write com.hegenberg.BetterTouchTool BTTNoNamedTriggerOnLeftRightClick YES
 
-.PHONY: tools
-tools:
-	gh auth setup-git
-	# ports
-	cargo install --git https://github.com/hiroppy/ports-cli.git
-	# launched
-	cargo install --git https://github.com/hiroppy/launched-cli.git

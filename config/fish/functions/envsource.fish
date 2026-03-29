@@ -3,6 +3,5 @@ function envsource
     set item (string split -m 1 '=' $line)
     set key (string replace 'export ' '' $item[1])
     set -gx $key $item[2]
-    echo "Exported key $key"
   end
 end

@@ -1,25 +1,24 @@
 # delete the greeting message
 set fish_greeting
 
-# fix for ghostty terminal type
-set -gx TERM xterm-256color
+# done: notify after long commands (10s)
+set -g __done_min_cmd_duration 10000
+
+# fix for ghostty terminal type (only over SSH)
+if set -q SSH_CONNECTION
+    set -gx TERM xterm-256color
+end
 
 # paths
-# don't use fish_user_paths
-# if you use fish_user_paths, fish_variables will be overwritten
-
-set PATH \
-    /usr/sbin \
-    /usr/local/bin \
-    /usr/local/php5/bin \
-    /opt/homebrew/bin:$PATH \
-    $HOME/Library/Android/sdk/platform-tools \
-    $HOME/go/bin \
-    $HOME/.deno/bin \
-    $HOME/.cargo/bin \
-    $PATH
+fish_add_path /opt/homebrew/bin
+fish_add_path /usr/local/bin
+fish_add_path /usr/local/php5/bin
+fish_add_path $HOME/Library/Android/sdk/platform-tools
+fish_add_path $HOME/go/bin
+fish_add_path $HOME/.deno/bin
+fish_add_path $HOME/.cargo/bin
 if command -q aqua
-    set -gx PATH $PATH (aqua root-dir)
+    fish_add_path (aqua root-dir)
 end
 
 # set empty defaults to avoid .npmrc errors when .env is missing
@@ -35,9 +34,6 @@ init
 # alias
 
 alias ..="cd .."
-alias ...="cd ../.."
-alias ....="cd ../../.."
-alias .....="cd ../../../.."
 alias g=git
 alias d=docker
 alias dc="docker compose"
@@ -61,13 +57,13 @@ alias repo="gh browse"
 alias q="exit"
 alias find=fd
 alias grep=rg
+alias ping=gping
+alias bandwhich="sudo bandwhich"
 set -gx EZA_CONFIG_DIR ~/.config/eza
 
-# fzf (use fd instead of find)
-set -gx FZF_FIND_FILE_COMMAND "fd --follow --type f --type d --type l --exclude .git . \$dir"
-set -gx FZF_CD_COMMAND "fd --follow --type d --exclude .git . \$dir"
-set -gx FZF_CD_WITH_HIDDEN_COMMAND "fd --follow --type d --hidden --exclude .git . \$dir"
-set -gx FZF_OPEN_COMMAND "fd --follow --type f --type d --type l --exclude .git . \$dir"
+# fzf.fish (PatrickF1/fzf.fish)
+set fzf_preview_dir_cmd eza --all --color=always --icons
+set fzf_diff_highlighter delta --paging=never --width=20
 alias ls="eza --icons"
 alias ll="eza --icons -l"
 alias la="eza --icons -la"
@@ -186,8 +182,8 @@ set __fish_git_prompt_char_upstream_equal ' 🤝 '
 # pnpm end
 
 # bun
-set --export BUN_INSTALL "$HOME/.bun"
-set --export PATH $BUN_INSTALL/bin $PATH
+set -gx BUN_INSTALL "$HOME/.bun"
+fish_add_path $BUN_INSTALL/bin
 
 # aqua
 if command -q aqua
@@ -197,6 +193,5 @@ end
 # mise
 /opt/homebrew/bin/mise activate fish | source
 
-# Added by LM Studio CLI (lms)
-set -gx PATH $PATH $HOME/.lmstudio/bin
-# End of LM Studio CLI section
+# LM Studio CLI (lms)
+fish_add_path $HOME/.lmstudio/bin
