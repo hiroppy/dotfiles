@@ -31,6 +31,7 @@ brew "git-delta" # Syntax highlighting for git diff
 
 # [Dev]
 brew "neovim" # Text editor
+brew "tree-sitter-cli" # Parser generator (for nvim-treesitter)
 brew "tmux" # Terminal multiplexer
 brew "mise" # Runtime version manager
 brew "buf" # Protocol buffers toolchain

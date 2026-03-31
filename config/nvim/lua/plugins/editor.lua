@@ -99,4 +99,21 @@ return {
       { "<Enter>", "<Plug>(EasyAlign)", mode = "x", remap = true, desc = "Easy align" },
     },
   },
+  {
+    "windwp/nvim-autopairs",
+    event = "InsertEnter",
+    opts = {},
+  },
+  {
+    "kylechui/nvim-surround",
+    version = "^2",
+    event = "VeryLazy",
+    opts = {},
+  },
+  {
+    "folke/todo-comments.nvim",
+    event = { "BufReadPre", "BufNewFile" },
+    dependencies = { "nvim-lua/plenary.nvim" },
+    opts = {},
+  },
 }

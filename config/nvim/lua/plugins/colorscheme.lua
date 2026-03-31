@@ -5,6 +5,8 @@ return {
     priority = 1000,
     config = function()
       vim.cmd.colorscheme("nord")
+      vim.api.nvim_set_hl(0, "Normal", { bg = "#1e222a" })
+      vim.api.nvim_set_hl(0, "NormalFloat", { bg = "#1e222a" })
     end,
   },
   {
