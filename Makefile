@@ -33,6 +33,7 @@ install:
 	ln -sfnv ~/dotfiles/config/cargo/config.toml ~/.cargo/config.toml
 	mkdir -p ~/.claude
 	ln -sfnv ~/dotfiles/config/claude/settings.json ~/.claude/settings.json
+	ln -sfnv ~/dotfiles/config/claude/mcp.json ~/.claude/mcp.json
 	@$(foreach val, $(DOTFILES_FILES), ln -sfnv $(abspath $(val)) $(HOME)/$(val);)
 
 	$(call section,"Eza theme")
