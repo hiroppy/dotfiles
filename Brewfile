@@ -13,7 +13,6 @@ brew "wget" # File downloader
 brew "fastfetch" # System info overview
 brew "duf" # Disk usage with modern UI
 brew "btop" # Resource monitor
-brew "procs" # Modern ps replacement
 brew "hyperfine" # Command benchmarking tool
 
 # [File]

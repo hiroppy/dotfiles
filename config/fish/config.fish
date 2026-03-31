@@ -39,7 +39,6 @@ alias vi=nvim
 alias vim=nvim
 alias cat=bat
 alias top=btop
-alias ps=procs
 alias a="./a.out"
 alias bc="bc -l"
 alias open="open ."
