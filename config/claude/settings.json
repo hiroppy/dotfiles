@@ -62,6 +62,43 @@
           {
             "type": "command",
             "command": "fish -c 'notify -t \"Claude Code\" \"タスクが完了しました\"'"
+          },
+          {
+            "type": "command",
+            "command": "bash ~/.config/tmux/agent-status.sh idle"
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash ~/.config/tmux/agent-status.sh running"
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash ~/.config/tmux/agent-status.sh idle"
+          }
+        ]
+      }
+    ],
+    "SessionEnd": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash ~/.config/tmux/agent-status.sh clear"
           }
         ]
       }
