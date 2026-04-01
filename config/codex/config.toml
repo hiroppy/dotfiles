@@ -1,0 +1,11 @@
+model = "gpt-5.4"
+model_reasoning_effort = "xhigh"
+
+[features]
+codex_hooks = true
+
+[notice.model_migrations]
+"gpt-5.3-codex" = "gpt-5.4"
+
+[plugins."github@openai-curated"]
+enabled = true

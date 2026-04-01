@@ -27,6 +27,7 @@ install:
 	ln -sfnv ~/dotfiles/config/fish ~/.config/fish
 	ln -sfnv ~/dotfiles/config/nvim ~/.config/nvim
 	ln -sfnv ~/dotfiles/config/tmux ~/.config/tmux
+	ln -sfnv ~/dotfiles/config/agent ~/.config/agent
 	ln -sfnv ~/dotfiles/config/ghostty ~/.config/ghostty
 	ln -sfnv ~/dotfiles/config/yazi ~/.config/yazi
 	mkdir -p ~/.cargo
@@ -34,6 +35,9 @@ install:
 	mkdir -p ~/.claude
 	ln -sfnv ~/dotfiles/config/claude/settings.json ~/.claude/settings.json
 	ln -sfnv ~/dotfiles/config/claude/mcp.json ~/.claude/mcp.json
+	mkdir -p ~/.codex
+	ln -sfnv ~/dotfiles/config/codex/config.toml ~/.codex/config.toml
+	ln -sfnv ~/dotfiles/config/codex/hooks.json ~/.codex/hooks.json
 	@$(foreach val, $(DOTFILES_FILES), ln -sfnv $(abspath $(val)) $(HOME)/$(val);)
 
 	$(call section,"Eza theme")
@@ -75,4 +79,3 @@ mac:
 	killall Dock
 	# bettertouchtool
 	defaults write com.hegenberg.BetterTouchTool BTTNoNamedTriggerOnLeftRightClick YES
-

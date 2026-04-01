@@ -50,7 +50,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "fish -c 'notify -t \"Claude Code\" -s Glass \"許可を求めています\"'"
+            "command": "bash ~/.config/agent/hook.sh claude notification"
           }
         ]
       }
@@ -61,11 +61,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "fish -c 'notify -t \"Claude Code\" \"タスクが完了しました\"'"
-          },
-          {
-            "type": "command",
-            "command": "bash ~/.config/tmux/agent-status.sh idle"
+            "command": "bash ~/.config/agent/hook.sh claude stop"
           }
         ]
       }
@@ -76,7 +72,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash ~/.config/tmux/agent-status.sh running"
+            "command": "bash ~/.config/agent/hook.sh claude user-prompt-submit"
           }
         ]
       }
@@ -87,7 +83,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash ~/.config/tmux/agent-status.sh idle"
+            "command": "bash ~/.config/agent/hook.sh claude session-start"
           }
         ]
       }
@@ -98,7 +94,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash ~/.config/tmux/agent-status.sh clear"
+            "command": "bash ~/.config/agent/hook.sh claude session-end"
           }
         ]
       }
