@@ -1,6 +1,9 @@
 # delete the greeting message
 set fish_greeting
 
+# locale
+set -gx LANG ja_JP.UTF-8
+
 
 # fix for ghostty terminal type (only over SSH)
 if set -q SSH_CONNECTION
