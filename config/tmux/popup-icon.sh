@@ -5,18 +5,10 @@
 session="popup_$(basename "$1")"
 tmux has-session -t "$session" 2>/dev/null || exit 0
 
-has_idle=false
+result=$("$(dirname "$0")/check-agent-status.sh" "$session")
 
-while IFS= read -r status; do
-    if [ "$status" = "running" ]; then
-        echo "running"
-        exit 0
-    fi
-    [ "$status" = "idle" ] && has_idle=true
-done < <(tmux list-panes -t "$session" -F '#{@pane_status}' 2>/dev/null)
-
-if $has_idle; then
-    echo "idle"
+if [ -n "$result" ]; then
+    echo "$result"
 else
     echo "popup"
 fi
