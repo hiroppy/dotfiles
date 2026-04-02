@@ -110,8 +110,8 @@ function __tmux_auto_attach --on-variable PWD
         end
     end
 end
-# SSH時に自動でmainセッションに入る
-if set -q SSH_CONNECTION; and not set -q TMUX; and status is-interactive
+# 自動でtmuxセッションに入る
+if not set -q TMUX; and status is-interactive
     if tmux has-session -t main 2>/dev/null
         exec tmux attach -t main
     else
