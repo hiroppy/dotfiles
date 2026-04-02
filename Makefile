@@ -69,6 +69,28 @@ install:
 		cargo install --git "https://github.com/$$repo.git"; \
 	done
 
+.PHONY: cleanup
+cleanup:
+	$(call section,"Cleanup z directory history")
+	@Z_DATA=~/.local/share/z/data; \
+	if [ -f "$$Z_DATA" ]; then \
+		count=0; \
+		tmp=$$(mktemp); \
+		while IFS= read -r line; do \
+			dir=$$(echo "$$line" | cut -d'|' -f1); \
+			if [ -d "$$dir" ]; then \
+				echo "$$line" >> "$$tmp"; \
+			else \
+				echo "  removed: $$dir"; \
+				count=$$((count + 1)); \
+			fi; \
+		done < "$$Z_DATA"; \
+		mv "$$tmp" "$$Z_DATA"; \
+		echo "  $$count entries removed"; \
+	else \
+		echo "  z data file not found"; \
+	fi
+
 .PHONY: mac
 mac:
 	# dock
