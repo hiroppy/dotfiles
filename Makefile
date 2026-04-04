@@ -27,7 +27,7 @@ install:
 	ln -sfnv ~/dotfiles/config/fish ~/.config/fish
 	ln -sfnv ~/dotfiles/config/nvim ~/.config/nvim
 	ln -sfnv ~/dotfiles/config/tmux ~/.config/tmux
-	ln -sfnv ~/dotfiles/config/agent ~/.config/agent
+	ln -sfnv ~/dotfiles/config/tmux-agent-sidebar ~/.config/tmux-agent-sidebar
 	ln -sfnv ~/dotfiles/config/ghostty ~/.config/ghostty
 	ln -sfnv ~/dotfiles/config/yazi ~/.config/yazi
 	mkdir -p ~/.cargo
@@ -90,6 +90,10 @@ cleanup:
 	else \
 		echo "  z data file not found"; \
 	fi
+
+.PHONY: test
+test:
+	bats config/tmux-agent-sidebar/tests/
 
 .PHONY: mac
 mac:

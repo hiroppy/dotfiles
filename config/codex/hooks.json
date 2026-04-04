@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash ~/.config/agent/hook.sh codex session-start"
+            "command": "bash ~/.config/tmux-agent-sidebar/hook.sh codex session-start"
           }
         ]
       }
@@ -16,7 +16,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash ~/.config/agent/hook.sh codex user-prompt-submit"
+            "command": "bash ~/.config/tmux-agent-sidebar/hook.sh codex user-prompt-submit"
           }
         ]
       }
@@ -26,7 +26,11 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash ~/.config/agent/hook.sh codex stop"
+            "command": "bash ~/.config/tmux-agent-sidebar/hook.sh codex stop"
+          },
+          {
+            "type": "command",
+            "command": "bash ~/.config/tmux/scripts/notify-hook.sh codex stop"
           }
         ]
       }

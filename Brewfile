@@ -22,6 +22,7 @@ brew "eza" # Modern ls replacement
 brew "ripgrep" # Fast grep replacement
 brew "yazi" # Terminal file manager
 brew "jq" # JSON processor
+brew "glow" # Markdown renderer for terminal
 
 # [Git]
 brew "gh" # GitHub CLI
