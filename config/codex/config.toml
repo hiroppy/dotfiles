@@ -1,5 +1,5 @@
-model = "gpt-5.4"
-model_reasoning_effort = "xhigh"
+model = "gpt-5.4-mini"
+model_reasoning_effort = "medium"
 
 [features]
 codex_hooks = true
@@ -9,3 +9,12 @@ codex_hooks = true
 
 [plugins."github@openai-curated"]
 enabled = true
+
+[projects."/Users/hiroppy/dotfiles"]
+trust_level = "trusted"
+
+[projects."/Users/hiroppy/Programming/stock"]
+trust_level = "trusted"
+
+[projects."/Users/hiroppy/Programming/site"]
+trust_level = "trusted"

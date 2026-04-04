@@ -50,7 +50,11 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash ~/.config/agent/hook.sh claude notification"
+            "command": "bash ~/.config/tmux-agent-sidebar/hook.sh claude notification"
+          },
+          {
+            "type": "command",
+            "command": "bash ~/.config/tmux/scripts/notify-hook.sh claude notification"
           }
         ]
       }
@@ -61,7 +65,22 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash ~/.config/agent/hook.sh claude stop"
+            "command": "bash ~/.config/tmux-agent-sidebar/hook.sh claude stop"
+          },
+          {
+            "type": "command",
+            "command": "bash ~/.config/tmux/scripts/notify-hook.sh claude stop"
+          }
+        ]
+      }
+    ],
+    "StopFailure": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash ~/.config/tmux-agent-sidebar/hook.sh claude stop-failure"
           }
         ]
       }
@@ -72,7 +91,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash ~/.config/agent/hook.sh claude user-prompt-submit"
+            "command": "bash ~/.config/tmux-agent-sidebar/hook.sh claude user-prompt-submit"
           }
         ]
       }
@@ -83,7 +102,18 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash ~/.config/agent/hook.sh claude session-start"
+            "command": "bash ~/.config/tmux-agent-sidebar/hook.sh claude session-start"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash ~/.config/tmux-agent-sidebar/activity-log.sh"
           }
         ]
       }
@@ -94,7 +124,29 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash ~/.config/agent/hook.sh claude session-end"
+            "command": "bash ~/.config/tmux-agent-sidebar/hook.sh claude session-end"
+          }
+        ]
+      }
+    ],
+    "SubagentStart": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash ~/.config/tmux-agent-sidebar/hook.sh claude subagent-start"
+          }
+        ]
+      }
+    ],
+    "SubagentStop": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash ~/.config/tmux-agent-sidebar/hook.sh claude subagent-stop"
           }
         ]
       }
@@ -111,7 +163,8 @@
     "claude-code-setup@claude-plugins-official": true,
     "claude-md-management@claude-plugins-official": true,
     "skill-creator@claude-plugins-official": true,
-    "codex@openai-codex": true
+    "codex@openai-codex": true,
+    "rust-analyzer-lsp@claude-plugins-official": true
   },
   "extraKnownMarketplaces": {
     "openai-codex": {

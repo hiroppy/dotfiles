@@ -19,3 +19,4 @@ config/fish/functions/*
 !config/fish/functions/notify.fish
 
 .claude
+.worktrees
