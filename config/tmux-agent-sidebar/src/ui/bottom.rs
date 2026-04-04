@@ -12,6 +12,20 @@ use super::text::{display_width, pad_to, truncate_to_width, wrap_text_char};
 
 const MAX_CHANGED_FILES: usize = 5;
 
+fn render_more_indicator(
+    remaining: usize,
+    inner_w: usize,
+    theme: &crate::ui::colors::ColorTheme,
+) -> Line<'static> {
+    let more_text = format!("+{} more ", remaining);
+    let more_w = display_width(&more_text);
+    let gap = pad_to(more_w, inner_w);
+    Line::from(vec![
+        Span::raw(gap),
+        Span::styled(more_text, Style::default().fg(theme.text_muted)),
+    ])
+}
+
 fn render_centered(frame: &mut Frame, area: Rect, text: &str, color: Color) {
     // Vertically center: pad with empty lines above
     let top_pad = area.height.saturating_sub(1) / 2;
@@ -28,7 +42,6 @@ pub fn draw_bottom(frame: &mut Frame, state: &mut AppState, area: Rect) {
     let theme = &state.theme;
     let border_color = theme.border_active;
 
-    // Build the tab bar title
     let tab_title = build_tab_title(state);
 
     let block = Block::default()
@@ -214,7 +227,6 @@ fn render_git_header(state: &AppState, inner_w: usize) -> Vec<Line<'static>> {
         lines.push(Line::from(left_spans));
     }
 
-    // Line 3: separator
     let sep = "─".repeat(inner_w);
     lines.push(Line::from(Span::styled(
         sep,
@@ -303,13 +315,7 @@ fn render_file_section(
     }
 
     if files.len() > MAX_CHANGED_FILES {
-        let more_text = format!("+{} more ", files.len() - MAX_CHANGED_FILES);
-        let more_w = display_width(&more_text);
-        let gap = pad_to(more_w, inner_w);
-        lines.push(Line::from(vec![
-            Span::raw(gap),
-            Span::styled(more_text, Style::default().fg(theme.text_muted)),
-        ]));
+        lines.push(render_more_indicator(files.len() - MAX_CHANGED_FILES, inner_w, theme));
     }
 
     lines
@@ -342,13 +348,7 @@ fn render_untracked_section(
     }
 
     if files.len() > MAX_CHANGED_FILES {
-        let more_text = format!("+{} more ", files.len() - MAX_CHANGED_FILES);
-        let more_w = display_width(&more_text);
-        let gap = pad_to(more_w, inner_w);
-        lines.push(Line::from(vec![
-            Span::raw(gap),
-            Span::styled(more_text, Style::default().fg(theme.text_muted)),
-        ]));
+        lines.push(render_more_indicator(files.len() - MAX_CHANGED_FILES, inner_w, theme));
     }
 
     lines

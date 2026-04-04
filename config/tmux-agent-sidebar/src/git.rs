@@ -53,27 +53,8 @@ pub fn fetch_git_data(path: &str) -> GitData {
         }
     }
 
-    // Staged file diff stats
-    if let Some(text) = run_git(path, &["diff", "--cached", "--numstat"]) {
-        let numstat = parse_numstat(&text);
-        for entry in &mut data.staged_files {
-            if let Some((add, del)) = numstat.get(entry.name.as_str()) {
-                entry.additions = *add;
-                entry.deletions = *del;
-            }
-        }
-    }
-
-    // Unstaged file diff stats
-    if let Some(text) = run_git(path, &["diff", "--numstat"]) {
-        let numstat = parse_numstat(&text);
-        for entry in &mut data.unstaged_files {
-            if let Some((add, del)) = numstat.get(entry.name.as_str()) {
-                entry.additions = *add;
-                entry.deletions = *del;
-            }
-        }
-    }
+    apply_numstat(path, &["diff", "--cached", "--numstat"], &mut data.staged_files);
+    apply_numstat(path, &["diff", "--numstat"], &mut data.unstaged_files);
 
     data.changed_file_count =
         data.staged_files.len() + data.unstaged_files.len() + data.untracked_files.len();
@@ -173,6 +154,19 @@ pub(crate) fn parse_status_short(text: &str, data: &mut GitData) {
                 additions: 0,
                 deletions: 0,
             });
+        }
+    }
+}
+
+/// Apply numstat diff data to a list of file entries.
+fn apply_numstat(path: &str, args: &[&str], entries: &mut [GitFileEntry]) {
+    if let Some(text) = run_git(path, args) {
+        let numstat = parse_numstat(&text);
+        for entry in entries {
+            if let Some((add, del)) = numstat.get(entry.name.as_str()) {
+                entry.additions = *add;
+                entry.deletions = *del;
+            }
         }
     }
 }

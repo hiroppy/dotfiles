@@ -18,13 +18,11 @@ use tmux_agent_sidebar::ui;
 static NEEDS_REFRESH: AtomicBool = AtomicBool::new(false);
 
 fn main() -> io::Result<()> {
-    // Check for CLI subcommands
     let args: Vec<String> = std::env::args().skip(1).collect();
     if let Some(code) = tmux_agent_sidebar::cli::run(&args) {
         std::process::exit(code);
     }
 
-    // No subcommand → launch TUI
     let tmux_pane = std::env::var("TMUX_PANE").unwrap_or_default();
     if tmux_pane.is_empty() {
         eprintln!("TMUX_PANE not set");

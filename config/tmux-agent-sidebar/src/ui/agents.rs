@@ -148,6 +148,24 @@ pub fn draw_agents(frame: &mut Frame, state: &mut AppState, area: Rect) {
     frame.render_widget(paragraph, area);
 }
 
+fn bordered_line<'a>(
+    border_style: Style,
+    apply_bg: &dyn Fn(Style) -> Style,
+    inner_width: usize,
+    content_spans: Vec<Span<'a>>,
+    content_width: usize,
+) -> Line<'a> {
+    let padding = pad_to(content_width, inner_width);
+    let mut spans = vec![
+        Span::styled("│", border_style),
+        Span::styled(" ", apply_bg(Style::default())),
+    ];
+    spans.extend(content_spans);
+    spans.push(Span::styled(padding, apply_bg(Style::default())));
+    spans.push(Span::styled("│", border_style));
+    Line::from(spans)
+}
+
 fn render_pane_lines<'a>(
     pane: &crate::tmux::PaneInfo,
     git_info: &crate::group::PaneGitInfo,
@@ -165,7 +183,7 @@ fn render_pane_lines<'a>(
     let border_style = Style::default().fg(border_color);
     let inner_width = width.saturating_sub(3);
 
-    let (icon, pulse_color) = running_icon_for(pane.status.clone(), spinner_frame);
+    let (icon, pulse_color) = running_icon_for(&pane.status, spinner_frame);
     let icon_color =
         pulse_color.unwrap_or_else(|| theme.status_color(&pane.status, pane.attention));
     use crate::tmux::PermissionMode;
@@ -242,13 +260,9 @@ fn render_pane_lines<'a>(
         let truncated = truncate_to_width(&branch, max_branch_width);
         let text = format!("{}{}", prefix, truncated);
         let text_dw = display_width(&text);
-        let padding = pad_to(text_dw, inner_width);
-        out.push(Line::from(vec![
-            Span::styled("│", border_style), Span::styled(" ", apply_bg(Style::default())),
-            Span::styled(text, apply_bg(Style::default().fg(branch_color))),
-            Span::styled(padding, apply_bg(Style::default())),
-            Span::styled("│", border_style),
-        ]));
+        out.push(bordered_line(border_style, &apply_bg, inner_width,
+            vec![Span::styled(text, apply_bg(Style::default().fg(branch_color)))],
+            text_dw));
     }
 
     // Task progress line
@@ -271,14 +285,10 @@ fn render_pane_lines<'a>(
                 progress.total()
             );
             let summary_dw = display_width(&summary);
-            let padding = pad_to(summary_dw, inner_width);
             let task_color = theme.task_progress;
-            out.push(Line::from(vec![
-                Span::styled("│", border_style), Span::styled(" ", apply_bg(Style::default())),
-                Span::styled(summary, apply_bg(Style::default().fg(task_color))),
-                Span::styled(padding, apply_bg(Style::default())),
-                Span::styled("│", border_style),
-            ]));
+            out.push(bordered_line(border_style, &apply_bg, inner_width,
+                vec![Span::styled(summary, apply_bg(Style::default().fg(task_color)))],
+                summary_dw));
         }
     }
 
@@ -298,14 +308,10 @@ fn render_pane_lines<'a>(
             let max_sa_w = inner_width.saturating_sub(prefix_dw);
             let truncated_sa = truncate_to_width(&numbered, max_sa_w);
             let text_dw = prefix_dw + display_width(&truncated_sa);
-            let padding = pad_to(text_dw, inner_width);
-            out.push(Line::from(vec![
-                Span::styled("│", border_style), Span::styled(" ", apply_bg(Style::default())),
+            out.push(bordered_line(border_style, &apply_bg, inner_width, vec![
                 Span::styled(prefix, apply_bg(Style::default().fg(tree_color))),
                 Span::styled(truncated_sa, apply_bg(Style::default().fg(subagent_color))),
-                Span::styled(padding, apply_bg(Style::default())),
-                Span::styled("│", border_style),
-            ]));
+            ], text_dw));
         }
     }
 
@@ -313,18 +319,14 @@ fn render_pane_lines<'a>(
         let reason = wait_reason_label(&pane.wait_reason);
         let text = format!("  {}", reason);
         let text_dw = display_width(&text);
-        let padding = pad_to(text_dw, inner_width);
         let reason_color = if matches!(pane.status, PaneStatus::Error) {
             theme.status_error
         } else {
             theme.wait_reason
         };
-        out.push(Line::from(vec![
-            Span::styled("│", border_style), Span::styled(" ", apply_bg(Style::default())),
-            Span::styled(text, apply_bg(Style::default().fg(reason_color))),
-            Span::styled(padding, apply_bg(Style::default())),
-            Span::styled("│", border_style),
-        ]));
+        out.push(bordered_line(border_style, &apply_bg, inner_width,
+            vec![Span::styled(text, apply_bg(Style::default().fg(reason_color)))],
+            text_dw));
     }
 
     if !pane.prompt.is_empty() {
@@ -344,55 +346,37 @@ fn render_pane_lines<'a>(
         for (li, wl) in wrapped.iter().enumerate() {
             if is_response && li == 0 {
                 let arrow_color = theme.diff_added;
-                let text_dw = 4 + display_width(wl); // "  ▸ " + text
-                let padding = pad_to(text_dw, inner_width);
-                out.push(Line::from(vec![
-                    Span::styled("│", border_style), Span::styled(" ", apply_bg(Style::default())),
+                let text_dw = 4 + display_width(wl); // "  ▶ " + text
+                out.push(bordered_line(border_style, &apply_bg, inner_width, vec![
                     Span::styled(
                         "  ▶ ",
-                        apply_bg(
-                            Style::default()
-                                .fg(arrow_color)
-                                .add_modifier(Modifier::BOLD),
-                        ),
+                        apply_bg(Style::default().fg(arrow_color).add_modifier(Modifier::BOLD)),
                     ),
                     Span::styled(wl.clone(), apply_bg(Style::default().fg(prompt_color))),
-                    Span::styled(padding, apply_bg(Style::default())),
-                    Span::styled("│", border_style),
-                ]));
+                ], text_dw));
             } else {
                 let indent = if is_response { "    " } else { "  " };
                 let text = format!("{}{}", indent, wl);
                 let text_dw = display_width(&text);
-                let padding = pad_to(text_dw, inner_width);
-                out.push(Line::from(vec![
-                    Span::styled("│", border_style), Span::styled(" ", apply_bg(Style::default())),
-                    Span::styled(text, apply_bg(Style::default().fg(prompt_color))),
-                    Span::styled(padding, apply_bg(Style::default())),
-                    Span::styled("│", border_style),
-                ]));
+                out.push(bordered_line(border_style, &apply_bg, inner_width,
+                    vec![Span::styled(text, apply_bg(Style::default().fg(prompt_color)))],
+                    text_dw));
             }
         }
     } else if matches!(pane.status, PaneStatus::Idle) {
         let text = "  Waiting for prompt…";
         let text_dw = display_width(text);
-        let padding = pad_to(text_dw, inner_width);
-        out.push(Line::from(vec![
-            Span::styled("│", border_style), Span::styled(" ", apply_bg(Style::default())),
-            Span::styled(
-                text.to_string(),
-                apply_bg(Style::default().fg(if active { theme.text_active } else { theme.text_muted })),
-            ),
-            Span::styled(padding, apply_bg(Style::default())),
-            Span::styled("│", border_style),
-        ]));
+        let idle_color = if active { theme.text_active } else { theme.text_muted };
+        out.push(bordered_line(border_style, &apply_bg, inner_width,
+            vec![Span::styled(text.to_string(), apply_bg(Style::default().fg(idle_color)))],
+            text_dw));
     }
 
     out
 }
 
 pub(crate) fn running_icon_for(
-    status: PaneStatus,
+    status: &PaneStatus,
     spinner_frame: usize,
 ) -> (&'static str, Option<ratatui::style::Color>) {
     use crate::{SPINNER_ICON, SPINNER_PULSE};
@@ -489,12 +473,12 @@ mod tests {
 
     #[test]
     fn running_icon_for_all_statuses() {
-        assert_eq!(running_icon_for(PaneStatus::Idle, 0), ("○", None));
-        assert_eq!(running_icon_for(PaneStatus::Waiting, 0), ("◐", None));
-        assert_eq!(running_icon_for(PaneStatus::Error, 0), ("✕", None));
-        assert_eq!(running_icon_for(PaneStatus::Unknown, 0), ("·", None));
+        assert_eq!(running_icon_for(&PaneStatus::Idle, 0), ("○", None));
+        assert_eq!(running_icon_for(&PaneStatus::Waiting, 0), ("◐", None));
+        assert_eq!(running_icon_for(&PaneStatus::Error, 0), ("✕", None));
+        assert_eq!(running_icon_for(&PaneStatus::Unknown, 0), ("·", None));
 
-        let (icon, color) = running_icon_for(PaneStatus::Running, 0);
+        let (icon, color) = running_icon_for(&PaneStatus::Running, 0);
         assert_eq!(icon, "●");
         assert_eq!(color, Some(ratatui::style::Color::Indexed(82)));
     }
