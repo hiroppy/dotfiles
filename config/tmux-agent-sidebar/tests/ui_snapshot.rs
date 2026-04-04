@@ -367,13 +367,6 @@ fn snapshot_auto_rename_window_title_ui() {
 }
 
 #[test]
-fn snapshot_no_sessions_ui() {
-    let mut state = make_state(vec![]);
-    let output = render_to_string(&mut state, 28, 25);
-    assert_eq!(output, "No agent panes found");
-}
-
-#[test]
 fn snapshot_activity_log_ui() {
     let pane = make_pane(AgentType::Claude, PaneStatus::Running);
     let mut state = make_state(vec![SessionInfo {

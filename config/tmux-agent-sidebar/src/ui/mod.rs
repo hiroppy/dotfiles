@@ -6,7 +6,6 @@ pub mod text;
 use ratatui::{
     Frame,
     layout::{Constraint, Direction, Layout},
-    widgets::Paragraph,
 };
 
 use crate::state::AppState;
@@ -17,12 +16,6 @@ pub const BOTTOM_PANEL_HEIGHT: u16 = 20;
 
 pub fn draw(frame: &mut Frame, state: &mut AppState) {
     let area = frame.area();
-
-    if state.sessions.is_empty() {
-        let msg = Paragraph::new("No agent panes found");
-        frame.render_widget(msg, area);
-        return;
-    }
 
     let bot_h = BOTTOM_PANEL_HEIGHT;
 

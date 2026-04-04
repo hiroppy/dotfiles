@@ -74,15 +74,6 @@ fn test_agents_scroll_offset_tracks_total_and_visible() {
     );
 }
 
-// ─── Agents: no sessions renders message ────────────────────────────
-
-#[test]
-fn test_no_sessions_renders_message() {
-    let mut state = make_state(vec![]);
-    let output = render_to_string(&mut state, 28, 10);
-    assert!(output.contains("No agent panes found"));
-}
-
 // ─── Agents: Codex agent color ──────────────────────────────────────
 
 #[test]

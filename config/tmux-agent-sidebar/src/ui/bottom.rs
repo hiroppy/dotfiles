@@ -421,10 +421,8 @@ fn draw_git_content(frame: &mut Frame, state: &mut AppState, inner: Rect) {
 
     // Working tree clean
     if lines.is_empty() {
-        lines.push(Line::from(Span::styled(
-            "     Working tree clean",
-            Style::default().fg(theme.text_muted),
-        )));
+        render_centered(frame, content_area, "Working tree clean", theme.text_muted);
+        return;
     }
 
     state.git_scroll.total_lines = lines.len();
