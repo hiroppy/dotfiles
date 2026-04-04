@@ -434,3 +434,33 @@ fn test_scroll_activity_empty_is_noop() {
         "scrolling empty activity should be no-op"
     );
 }
+
+// ─── State: git tab active flag Tests ───────────────────────────────
+
+#[test]
+fn test_git_tab_active_after_tab_switch() {
+    let mut state = make_state(vec![]);
+    assert_eq!(state.bottom_tab, BottomTab::Activity);
+
+    state.next_bottom_tab();
+    assert_eq!(state.bottom_tab, BottomTab::GitStatus);
+
+    state.next_bottom_tab();
+    assert_eq!(state.bottom_tab, BottomTab::Activity);
+}
+
+#[test]
+fn test_git_tab_default_is_activity() {
+    let state = make_state(vec![]);
+    assert_eq!(state.bottom_tab, BottomTab::Activity);
+    assert_ne!(state.bottom_tab, BottomTab::GitStatus);
+}
+
+#[test]
+fn test_git_tab_equality_check() {
+    // Verify BottomTab::GitStatus == check works correctly for the AtomicBool flag
+    let tab = BottomTab::GitStatus;
+    assert!(tab == BottomTab::GitStatus);
+    let tab2 = BottomTab::Activity;
+    assert!(tab2 != BottomTab::GitStatus);
+}

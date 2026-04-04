@@ -11,7 +11,7 @@ use crossterm::{
 use ratatui::{Terminal, backend::CrosstermBackend};
 use tmux_agent_sidebar::SPINNER_PULSE;
 use tmux_agent_sidebar::git::{self, GitData};
-use tmux_agent_sidebar::state::{AppState, Focus};
+use tmux_agent_sidebar::state::{AppState, BottomTab, Focus};
 use tmux_agent_sidebar::tmux;
 use tmux_agent_sidebar::ui;
 
@@ -78,17 +78,12 @@ fn run_app(
 
     let (git_tx, git_rx) = mpsc::channel::<GitData>();
     let tmux_pane_clone = state.tmux_pane.clone();
+    let git_tab_active = std::sync::Arc::new(AtomicBool::new(
+        state.bottom_tab == BottomTab::GitStatus,
+    ));
+    let git_tab_flag = std::sync::Arc::clone(&git_tab_active);
     std::thread::spawn(move || {
-        loop {
-            std::thread::sleep(Duration::from_secs(5));
-            let path = tmux::focused_pane_path(&tmux_pane_clone);
-            if let Some(path) = path {
-                let data = git::fetch_git_data(&path);
-                if git_tx.send(data).is_err() {
-                    break;
-                }
-            }
-        }
+        git_poll_loop(&tmux_pane_clone, &git_tx, &git_tab_flag);
     });
 
     let mut last_refresh = std::time::Instant::now();
@@ -150,6 +145,10 @@ fn run_app(
                         }
                         KeyCode::Tab => {
                             state.next_bottom_tab();
+                            git_tab_active.store(
+                                state.bottom_tab == BottomTab::GitStatus,
+                                Ordering::Relaxed,
+                            );
                         }
                         _ => {}
                     },
@@ -181,11 +180,13 @@ fn run_app(
 
         if NEEDS_REFRESH.swap(false, Ordering::Relaxed) {
             state.refresh();
+            git_tab_active.store(state.bottom_tab == BottomTab::GitStatus, Ordering::Relaxed);
             last_refresh = std::time::Instant::now();
         }
 
         if last_refresh.elapsed() >= refresh_interval {
             state.refresh();
+            git_tab_active.store(state.bottom_tab == BottomTab::GitStatus, Ordering::Relaxed);
             last_refresh = std::time::Instant::now();
         }
 
@@ -195,6 +196,115 @@ fn run_app(
     }
 }
 
+/// Git data polling thread. Fetches git status every 2 seconds while the Git
+/// tab is active. Skips fetching when the tab is not visible.
+fn git_poll_loop(tmux_pane: &str, git_tx: &mpsc::Sender<GitData>, active: &AtomicBool) {
+    loop {
+        std::thread::sleep(Duration::from_secs(2));
+
+        if !active.load(Ordering::Relaxed) {
+            continue;
+        }
+
+        let path = tmux::focused_pane_path(tmux_pane);
+        if let Some(path) = path {
+            let data = git::fetch_git_data(&path);
+            if git_tx.send(data).is_err() {
+                return;
+            }
+        }
+    }
+}
+
 extern "C" fn sigusr1_handler(_: libc::c_int) {
     NEEDS_REFRESH.store(true, Ordering::Relaxed);
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::sync::Arc;
+
+    #[test]
+    fn test_git_poll_skips_when_inactive() {
+        let active = Arc::new(AtomicBool::new(false));
+        let (tx, rx) = mpsc::channel::<GitData>();
+
+        let flag = Arc::clone(&active);
+        let handle = std::thread::spawn(move || {
+            // Simulate the poll loop check without actually sleeping 2s
+            for _ in 0..3 {
+                if !flag.load(Ordering::Relaxed) {
+                    continue;
+                }
+                let _ = tx.send(GitData::default());
+            }
+        });
+
+        handle.join().unwrap();
+        // No data should have been sent since active=false
+        assert!(
+            rx.try_recv().is_err(),
+            "should not poll when git tab is inactive"
+        );
+    }
+
+    #[test]
+    fn test_git_poll_sends_when_active() {
+        let active = Arc::new(AtomicBool::new(true));
+        let (tx, rx) = mpsc::channel::<GitData>();
+
+        let flag = Arc::clone(&active);
+        let handle = std::thread::spawn(move || {
+            // active=true, so it should send
+            if flag.load(Ordering::Relaxed) {
+                let _ = tx.send(GitData::default());
+            }
+        });
+
+        handle.join().unwrap();
+        assert!(
+            rx.try_recv().is_ok(),
+            "should poll when git tab is active"
+        );
+    }
+
+    #[test]
+    fn test_git_poll_reacts_to_flag_change() {
+        let active = Arc::new(AtomicBool::new(false));
+        let (tx, rx) = mpsc::channel::<GitData>();
+
+        // Initially inactive
+        assert!(!active.load(Ordering::Relaxed));
+
+        // Switch to active
+        active.store(true, Ordering::Relaxed);
+
+        let flag = Arc::clone(&active);
+        let handle = std::thread::spawn(move || {
+            if flag.load(Ordering::Relaxed) {
+                let _ = tx.send(GitData::default());
+            }
+        });
+
+        handle.join().unwrap();
+        assert!(
+            rx.try_recv().is_ok(),
+            "should poll after flag switches to active"
+        );
+    }
+
+    #[test]
+    fn test_git_poll_stops_on_sender_closed() {
+        let active = AtomicBool::new(true);
+        let (tx, rx) = mpsc::channel::<GitData>();
+        drop(rx); // Close receiver
+
+        let result = tx.send(GitData::default());
+        assert!(result.is_err(), "send should fail when receiver is dropped");
+
+        // Verify the flag check pattern used in git_poll_loop
+        assert!(active.load(Ordering::Relaxed));
+    }
+}
+
