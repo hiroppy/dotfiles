@@ -120,6 +120,15 @@ if not set -q TMUX; and status is-interactive
 end
 
 
+function ssh --wraps ssh
+    if set -q TMUX
+        set -l session_name (tmux display-message -p '#{session_name}')
+        tmux detach-client -E "ssh $argv; tmux attach -t $session_name"
+    else
+        command ssh $argv
+    end
+end
+
 alias tls="tmux ls"
 alias td="tmux detach"
 alias tks="tmux kill-server"
