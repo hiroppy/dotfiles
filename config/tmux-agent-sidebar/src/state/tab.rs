@@ -1,6 +1,4 @@
 use super::{AppState, BottomTab};
-#[allow(unused_imports)]
-use crate::group::PaneGitInfo;
 
 impl AppState {
     /// Auto-switch bottom tab based on the focused pane.
@@ -108,11 +106,9 @@ mod tests {
             status: PaneStatus::Running,
             attention: false,
             agent: AgentType::Claude,
-            pane_name: String::new(),
             path: "/tmp".into(),
-            command: "fish".into(),
-            role: String::new(),
             prompt: String::new(),
+            prompt_is_response: false,
             started_at: None,
             wait_reason: String::new(),
             permission_mode: PermissionMode::Default,

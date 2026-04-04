@@ -1,4 +1,5 @@
 pub mod activity;
+pub mod cli;
 pub mod git;
 pub mod group;
 pub mod state;

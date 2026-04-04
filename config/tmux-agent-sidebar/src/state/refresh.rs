@@ -2,7 +2,7 @@ use std::collections::HashSet;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use crate::activity::{self, TaskProgress};
-use crate::tmux::{self, SessionInfo};
+use crate::tmux::{self, PaneStatus, SessionInfo};
 
 use super::AppState;
 
@@ -74,12 +74,56 @@ impl AppState {
         for group in &self.repo_groups {
             for (pane, _) in &group.panes {
                 active_pane_ids.insert(&pane.pane_id);
-                let entries = activity::read_activity_log(&pane.pane_id, self.activity_max_entries);
+                // Read all entries for task progress (not limited to display max)
+                // so that TaskCreate entries aren't lost when subagents flood the log
+                let entries = activity::read_activity_log(&pane.pane_id, 0);
                 let progress = activity::parse_task_progress(&entries);
-                match classify_task_progress(
-                    &progress,
-                    self.pane_task_dismissed.get(&pane.pane_id).copied(),
-                ) {
+                // Debounce inactive→dismiss transition to avoid flicker.
+                //
+                // The agent status can briefly drop to idle during normal operation
+                // (e.g. when Claude Code processes a system prompt or between tool
+                // calls). Without a grace period, the 1-second refresh cycle can
+                // catch that transient idle state and immediately hide the task
+                // progress bar, causing a visible flicker.
+                //
+                // We track when each pane first appeared inactive and only dismiss
+                // after INACTIVE_GRACE_SECS have elapsed. If the agent returns to
+                // Running/Waiting within that window, the timer is reset.
+                const INACTIVE_GRACE_SECS: u64 = 3;
+
+                let agent_inactive = !matches!(
+                    pane.status,
+                    PaneStatus::Running | PaneStatus::Waiting
+                );
+
+                // Update the per-pane inactive timer:
+                // - Agent active → clear the timer
+                // - Agent inactive and no timer yet → start the timer
+                // - Agent inactive and timer exists → leave it (accumulate elapsed time)
+                if agent_inactive {
+                    self.pane_inactive_since
+                        .entry(pane.pane_id.clone())
+                        .or_insert(self.now);
+                } else {
+                    self.pane_inactive_since.remove(&pane.pane_id);
+                }
+
+                // Only treat the agent as truly inactive once the grace period
+                // has passed, so momentary status flickers are ignored.
+                let grace_expired = self
+                    .pane_inactive_since
+                    .get(&pane.pane_id)
+                    .map_or(false, |&since| self.now.saturating_sub(since) >= INACTIVE_GRACE_SECS);
+
+                let decision = if grace_expired && !progress.is_empty() && !progress.all_completed() {
+                    TaskProgressDecision::Dismiss { total: progress.total() }
+                } else {
+                    classify_task_progress(
+                        &progress,
+                        self.pane_task_dismissed.get(&pane.pane_id).copied(),
+                    )
+                };
+                match decision {
                     TaskProgressDecision::Clear => {
                         self.pane_task_dismissed.remove(&pane.pane_id);
                     }
@@ -96,6 +140,9 @@ impl AppState {
             }
         }
         self.pane_task_dismissed
+            .retain(|id, _| active_pane_ids.contains(id.as_str()));
+        // Clean up inactive timers for panes that no longer exist
+        self.pane_inactive_since
             .retain(|id, _| active_pane_ids.contains(id.as_str()));
     }
 

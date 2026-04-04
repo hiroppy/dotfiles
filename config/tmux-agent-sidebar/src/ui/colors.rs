@@ -32,6 +32,7 @@ pub struct ColorTheme {
     pub diff_deleted: Color,
     pub file_change: Color,
     pub pr_link: Color,
+    pub section_title: Color,
     pub activity_timestamp: Color,
 }
 
@@ -63,7 +64,8 @@ impl Default for ColorTheme {
             diff_added: Color::Indexed(114),
             diff_deleted: Color::Indexed(174),
             file_change: Color::Indexed(221),
-            pr_link: Color::Indexed(39),
+            pr_link: Color::Indexed(117),
+            section_title: Color::Indexed(109),
             activity_timestamp: Color::Indexed(109),
         }
     }
@@ -71,30 +73,34 @@ impl Default for ColorTheme {
 
 impl ColorTheme {
     /// Load colors from tmux @sidebar_color_* variables, falling back to defaults.
+    /// Fetches all global options in a single tmux call to avoid N subprocess forks.
     pub fn from_tmux() -> Self {
         let mut theme = Self::default();
 
-        fn read_color(var: &str, fallback: Color) -> Color {
-            tmux::get_option(var)
+        let all_opts = tmux::get_all_global_options();
+
+        let read = |var: &str, fallback: Color| -> Color {
+            all_opts
+                .get(var)
                 .and_then(|s| s.parse::<u8>().ok())
                 .map(Color::Indexed)
                 .unwrap_or(fallback)
-        }
+        };
 
-        theme.border_active = read_color("@sidebar_color_border_active", theme.border_active);
-        theme.border_inactive = read_color("@sidebar_color_border", theme.border_inactive);
-        theme.status_running = read_color("@sidebar_color_running", theme.status_running);
-        theme.status_waiting = read_color("@sidebar_color_waiting", theme.status_waiting);
-        theme.status_idle = read_color("@sidebar_color_idle", theme.status_idle);
-        theme.status_error = read_color("@sidebar_color_error", theme.status_error);
-        theme.agent_claude = read_color("@sidebar_color_agent_claude", theme.agent_claude);
-        theme.agent_codex = read_color("@sidebar_color_agent_codex", theme.agent_codex);
-        theme.text_active = read_color("@sidebar_color_text_active", theme.text_active);
-        theme.text_muted = read_color("@sidebar_color_text_muted", theme.text_muted);
-        theme.session_header = read_color("@sidebar_color_session", theme.session_header);
-        theme.wait_reason = read_color("@sidebar_color_wait_reason", theme.wait_reason);
-        theme.selection_bg = read_color("@sidebar_color_selection", theme.selection_bg);
-        theme.branch = read_color("@sidebar_color_branch", theme.branch);
+        theme.border_active = read("@sidebar_color_border_active", theme.border_active);
+        theme.border_inactive = read("@sidebar_color_border", theme.border_inactive);
+        theme.status_running = read("@sidebar_color_running", theme.status_running);
+        theme.status_waiting = read("@sidebar_color_waiting", theme.status_waiting);
+        theme.status_idle = read("@sidebar_color_idle", theme.status_idle);
+        theme.status_error = read("@sidebar_color_error", theme.status_error);
+        theme.agent_claude = read("@sidebar_color_agent_claude", theme.agent_claude);
+        theme.agent_codex = read("@sidebar_color_agent_codex", theme.agent_codex);
+        theme.text_active = read("@sidebar_color_text_active", theme.text_active);
+        theme.text_muted = read("@sidebar_color_text_muted", theme.text_muted);
+        theme.session_header = read("@sidebar_color_session", theme.session_header);
+        theme.wait_reason = read("@sidebar_color_wait_reason", theme.wait_reason);
+        theme.selection_bg = read("@sidebar_color_selection", theme.selection_bg);
+        theme.branch = read("@sidebar_color_branch", theme.branch);
 
         theme
     }

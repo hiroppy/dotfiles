@@ -13,8 +13,6 @@ current_index=-1
 
 while IFS='|' read -r pane_id pane_role; do
     [ -z "$pane_id" ] && continue
-    # Uncomment the next line to skip sidebar in pane cycling
-    # [ "$pane_role" = "sidebar" ] && continue
 
     if [ "$pane_id" = "$current_pane" ]; then
         current_index="${#panes[@]}"

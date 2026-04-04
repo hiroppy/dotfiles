@@ -1,16 +1,26 @@
 use std::process::Command;
 
+/// A file entry with its status indicator, name, and per-file diff stats.
+#[derive(Debug, Clone, PartialEq)]
+pub struct GitFileEntry {
+    pub status: char,
+    pub name: String,
+    pub additions: usize,
+    pub deletions: usize,
+}
+
 /// All git information gathered in a single background pass
 #[derive(Debug, Clone, Default)]
 pub struct GitData {
-    pub status_lines: Vec<String>,
     pub diff_stat: Option<(usize, usize)>,
     pub branch: String,
     pub ahead_behind: Option<(usize, usize)>,
-    pub last_commit: Option<(String, String, u64)>,
-    pub file_changes: Vec<(String, usize)>,
+    pub staged_files: Vec<GitFileEntry>,
+    pub unstaged_files: Vec<GitFileEntry>,
+    pub untracked_files: Vec<String>,
     pub remote_url: String,
     pub pr_number: Option<String>,
+    pub changed_file_count: usize,
 }
 
 /// Fetch all git data for a given path. Runs blocking subprocess calls.
@@ -18,8 +28,9 @@ pub struct GitData {
 pub fn fetch_git_data(path: &str) -> GitData {
     let mut data = GitData::default();
 
+    // Parse git status --short to classify files into staged/unstaged/untracked
     if let Some(text) = run_git(path, &["status", "--short"]) {
-        data.status_lines = text.lines().map(|l| l.to_string()).collect();
+        parse_status_short(&text, &mut data);
     }
 
     if let Some(text) = run_git(path, &["diff", "--shortstat"]) {
@@ -42,34 +53,30 @@ pub fn fetch_git_data(path: &str) -> GitData {
         }
     }
 
-    if let Some(text) = run_git(path, &["log", "-1", "--format=%h\t%s\t%ct"]) {
-        let parts: Vec<&str> = text.splitn(3, '\t').collect();
-        if parts.len() == 3 {
-            let hash = parts[0].to_string();
-            let message = parts[1].to_string();
-            let epoch = parts[2].parse().unwrap_or(0);
-            data.last_commit = Some((hash, message, epoch));
+    // Staged file diff stats
+    if let Some(text) = run_git(path, &["diff", "--cached", "--numstat"]) {
+        let numstat = parse_numstat(&text);
+        for entry in &mut data.staged_files {
+            if let Some((add, del)) = numstat.get(entry.name.as_str()) {
+                entry.additions = *add;
+                entry.deletions = *del;
+            }
         }
     }
 
+    // Unstaged file diff stats
     if let Some(text) = run_git(path, &["diff", "--numstat"]) {
-        let mut changes: Vec<(String, usize)> = text
-            .lines()
-            .filter_map(|line| {
-                let parts: Vec<&str> = line.split('\t').collect();
-                if parts.len() >= 3 {
-                    let added: usize = parts[0].parse().unwrap_or(0);
-                    let deleted: usize = parts[1].parse().unwrap_or(0);
-                    let basename = parts[2].rsplit('/').next().unwrap_or(parts[2]);
-                    Some((basename.to_string(), added + deleted))
-                } else {
-                    None
-                }
-            })
-            .collect();
-        changes.sort_by(|a, b| b.1.cmp(&a.1));
-        data.file_changes = changes;
+        let numstat = parse_numstat(&text);
+        for entry in &mut data.unstaged_files {
+            if let Some((add, del)) = numstat.get(entry.name.as_str()) {
+                entry.additions = *add;
+                entry.deletions = *del;
+            }
+        }
     }
+
+    data.changed_file_count =
+        data.staged_files.len() + data.unstaged_files.len() + data.untracked_files.len();
 
     if let Some(text) = run_git(path, &["remote", "get-url", "origin"]) {
         data.remote_url = normalize_git_url(&text);
@@ -118,6 +125,71 @@ pub fn fetch_git_data(path: &str) -> GitData {
     }
 
     data
+}
+
+/// Parse `git status --short` output into staged/unstaged/untracked categories.
+///
+/// Each line has the format `XY filename` where:
+/// - X = index (staged) status
+/// - Y = worktree (unstaged) status
+/// - `??` = untracked
+pub(crate) fn parse_status_short(text: &str, data: &mut GitData) {
+    for line in text.lines() {
+        if line.len() < 3 {
+            continue;
+        }
+        let x = line.as_bytes()[0] as char;
+        let y = line.as_bytes()[1] as char;
+        // Handle renames: "R  old -> new" format
+        let raw_name = &line[3..];
+        let name = if raw_name.contains(" -> ") {
+            raw_name.rsplit(" -> ").next().unwrap_or(raw_name)
+        } else {
+            raw_name
+        };
+        let basename = name.rsplit('/').next().unwrap_or(name).to_string();
+
+        if x == '?' && y == '?' {
+            data.untracked_files.push(basename);
+            continue;
+        }
+
+        // Staged: X is M, A, D, R, or C
+        if matches!(x, 'M' | 'A' | 'D' | 'R' | 'C') {
+            let status = if x == 'R' || x == 'C' { 'M' } else { x };
+            data.staged_files.push(GitFileEntry {
+                status,
+                name: basename.clone(),
+                additions: 0,
+                deletions: 0,
+            });
+        }
+
+        // Unstaged: Y is M or D
+        if matches!(y, 'M' | 'D') {
+            data.unstaged_files.push(GitFileEntry {
+                status: y,
+                name: basename,
+                additions: 0,
+                deletions: 0,
+            });
+        }
+    }
+}
+
+/// Parse `git diff --numstat` output into a map of filename -> (additions, deletions).
+fn parse_numstat(text: &str) -> std::collections::HashMap<&str, (usize, usize)> {
+    let mut map = std::collections::HashMap::new();
+    for line in text.lines() {
+        let parts: Vec<&str> = line.split('\t').collect();
+        if parts.len() >= 3 {
+            let add: usize = parts[0].parse().unwrap_or(0);
+            let del: usize = parts[1].parse().unwrap_or(0);
+            let basename = parts[2].rsplit('/').next().unwrap_or(parts[2]);
+            map.insert(basename, (add, del));
+        }
+    }
+    map
 }
 
 pub(crate) fn run_git(path: &str, args: &[&str]) -> Option<String> {
@@ -230,5 +302,103 @@ mod tests {
     #[test]
     fn normalize_git_url_unknown_format() {
         assert_eq!(normalize_git_url("/local/path/repo"), "/local/path/repo");
+    }
+
+    // ─── parse_status_short tests ────────────────────────────────
+
+    #[test]
+    fn parse_status_short_staged_modified() {
+        let mut data = GitData::default();
+        parse_status_short("M  src/app.rs", &mut data);
+        assert_eq!(data.staged_files.len(), 1);
+        assert_eq!(data.staged_files[0].status, 'M');
+        assert_eq!(data.staged_files[0].name, "app.rs");
+        assert!(data.unstaged_files.is_empty());
+        assert!(data.untracked_files.is_empty());
+    }
+
+    #[test]
+    fn parse_status_short_staged_added() {
+        let mut data = GitData::default();
+        parse_status_short("A  new.rs", &mut data);
+        assert_eq!(data.staged_files.len(), 1);
+        assert_eq!(data.staged_files[0].status, 'A');
+        assert_eq!(data.staged_files[0].name, "new.rs");
+    }
+
+    #[test]
+    fn parse_status_short_unstaged_modified() {
+        let mut data = GitData::default();
+        parse_status_short(" M config.toml", &mut data);
+        assert!(data.staged_files.is_empty());
+        assert_eq!(data.unstaged_files.len(), 1);
+        assert_eq!(data.unstaged_files[0].status, 'M');
+        assert_eq!(data.unstaged_files[0].name, "config.toml");
+    }
+
+    #[test]
+    fn parse_status_short_both_staged_and_unstaged() {
+        let mut data = GitData::default();
+        parse_status_short("MM src/lib.rs", &mut data);
+        assert_eq!(data.staged_files.len(), 1);
+        assert_eq!(data.staged_files[0].status, 'M');
+        assert_eq!(data.unstaged_files.len(), 1);
+        assert_eq!(data.unstaged_files[0].status, 'M');
+    }
+
+    #[test]
+    fn parse_status_short_untracked() {
+        let mut data = GitData::default();
+        parse_status_short("?? tmp/debug.log", &mut data);
+        assert!(data.staged_files.is_empty());
+        assert!(data.unstaged_files.is_empty());
+        assert_eq!(data.untracked_files, vec!["debug.log"]);
+    }
+
+    #[test]
+    fn parse_status_short_deleted() {
+        let mut data = GitData::default();
+        parse_status_short("D  old.rs", &mut data);
+        assert_eq!(data.staged_files.len(), 1);
+        assert_eq!(data.staged_files[0].status, 'D');
+    }
+
+    #[test]
+    fn parse_status_short_unstaged_deleted() {
+        let mut data = GitData::default();
+        parse_status_short(" D removed.rs", &mut data);
+        assert!(data.staged_files.is_empty());
+        assert_eq!(data.unstaged_files.len(), 1);
+        assert_eq!(data.unstaged_files[0].status, 'D');
+    }
+
+    #[test]
+    fn parse_status_short_rename() {
+        let mut data = GitData::default();
+        parse_status_short("R  old.rs -> new.rs", &mut data);
+        assert_eq!(data.staged_files.len(), 1);
+        assert_eq!(data.staged_files[0].status, 'M'); // renames shown as M
+        assert_eq!(data.staged_files[0].name, "new.rs");
+    }
+
+    #[test]
+    fn parse_status_short_multiple_lines() {
+        let mut data = GitData::default();
+        parse_status_short(
+            "M  src/app.rs\nA  src/new.rs\n M config.toml\n?? tmp/log",
+            &mut data,
+        );
+        assert_eq!(data.staged_files.len(), 2); // M staged + A staged
+        assert_eq!(data.unstaged_files.len(), 1); // M unstaged
+        assert_eq!(data.untracked_files.len(), 1); // ?? untracked
+    }
+
+    #[test]
+    fn parse_status_short_empty() {
+        let mut data = GitData::default();
+        parse_status_short("", &mut data);
+        assert!(data.staged_files.is_empty());
+        assert!(data.unstaged_files.is_empty());
+        assert!(data.untracked_files.is_empty());
     }
 }

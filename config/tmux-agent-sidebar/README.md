@@ -233,7 +233,7 @@ Codex does not support a `SessionEnd` hook, so pane cleanup has to happen throug
 │ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ │
 │ ✕ codex!!            3h45m│
 │   main                       │
-│   ❯ Error: build failed      │
+│   ▶ Error: build failed      │
 ╰──────────────────────────────╯
 
 ╭ Activity │ Git ──────────────╮
@@ -346,7 +346,7 @@ Each agent row is composed of the following lines (all optional except the statu
 │   └ {subagent}                  │
 │   {wait reason}                 │   ← wait reason (red)
 │   {prompt text}                 │   ← user prompt (max 3 lines)
-│   ❯ {response text}            │   ← agent response
+│   ▶ {response text}            │   ← agent response
 ```
 
 #### Elements
@@ -364,7 +364,7 @@ Each agent row is composed of the following lines (all optional except the statu
 | `├` / `└` | Subagent tree — running subagents listed in tree structure |
 | `permission required` | Wait reason (shown in red when waiting) |
 | Indented text | User's last prompt (word-wrapped, max 3 lines) |
-| `❯` | Agent response prefix (green, char-wrapped) |
+| `▶` | Agent response prefix (green, char-wrapped) |
 | `Waiting for prompt…` | Idle hint when no prompt is set |
 | `─ ─ ─` | Separator between agents in the same group |
 | Activity box | Recent tool operations for the focused agent (pinned to bottom) |
@@ -469,7 +469,7 @@ The plugin manages these tmux pane options:
 |---|---|---|---|
 | Status tracking (running/idle/error) | ✔ | ✔ | Driven by `SessionStart` / `UserPromptSubmit` / `Stop` |
 | Prompt text display | ✔ | ✔ | Saved from `UserPromptSubmit` |
-| Response text display (`❯ ...`) | ✔ | ✔ | Populated from `Stop` payload (`last_assistant_message`) |
+| Response text display (`▶ ...`) | ✔ | ✔ | Populated from `Stop` payload (`last_assistant_message`) |
 | Waiting status + wait reason | ✔ | ✘ | Codex has no `Notification` hook |
 | API failure reason display | ✔ | ✘ | `StopFailure` is wired only for Claude |
 | Permission badge | ✔ (`plan` / `edit` / `auto` / `!`) | ✔ (`auto` / `!` only) | Codex badges are inferred from process args |

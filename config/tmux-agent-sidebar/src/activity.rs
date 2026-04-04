@@ -36,6 +36,18 @@ pub fn log_file_path(pane_id: &str) -> PathBuf {
     PathBuf::from(format!("/tmp/tmux-agent-activity{encoded}.log"))
 }
 
+fn parse_entry(line: &str) -> Option<ActivityEntry> {
+    let mut parts = line.splitn(3, '|');
+    let timestamp = parts.next()?.to_string();
+    let tool = parts.next()?.to_string();
+    let label = parts.next().unwrap_or("").to_string();
+    Some(ActivityEntry {
+        timestamp,
+        tool,
+        label,
+    })
+}
+
 pub fn read_activity_log(pane_id: &str, max_entries: usize) -> Vec<ActivityEntry> {
     let path = log_file_path(pane_id);
     let content = match fs::read_to_string(&path) {
@@ -43,28 +55,24 @@ pub fn read_activity_log(pane_id: &str, max_entries: usize) -> Vec<ActivityEntry
         Err(_) => return vec![],
     };
 
-    let lines: Vec<&str> = content.lines().collect();
-    let start = if lines.len() > max_entries {
-        lines.len() - max_entries
+    if max_entries > 0 {
+        // Only parse the last N lines (avoid allocating the full Vec)
+        let entries: Vec<ActivityEntry> = content
+            .rsplit('\n')
+            .filter(|l| !l.is_empty())
+            .take(max_entries)
+            .filter_map(parse_entry)
+            .collect();
+        // rsplit yields newest-first, which is the desired order (reverse chronological)
+        entries
     } else {
-        0
-    };
-
-    lines[start..]
-        .iter()
-        .rev()
-        .filter_map(|line| {
-            let mut parts = line.splitn(3, '|');
-            let timestamp = parts.next()?.to_string();
-            let tool = parts.next()?.to_string();
-            let label = parts.next().unwrap_or("").to_string();
-            Some(ActivityEntry {
-                timestamp,
-                tool,
-                label,
-            })
-        })
-        .collect()
+        // Parse all entries in reverse order
+        content
+            .rsplit('\n')
+            .filter(|l| !l.is_empty())
+            .filter_map(parse_entry)
+            .collect()
+    }
 }
 
 /// Per-task status extracted from the activity log.

@@ -49,7 +49,7 @@ fn test_all_color_theme_defaults() {
     assert_eq!(theme.diff_added, Color::Indexed(114));
     assert_eq!(theme.diff_deleted, Color::Indexed(174));
     assert_eq!(theme.file_change, Color::Indexed(221));
-    assert_eq!(theme.pr_link, Color::Indexed(39));
+    assert_eq!(theme.pr_link, Color::Indexed(117));
 }
 
 // ─── status_color() for all PaneStatus variants ─────────────────────
@@ -121,10 +121,8 @@ fn test_permission_mode_bypass_all_renders_danger_color() {
 
     let mut state = make_state(vec![SessionInfo {
         session_name: "main".into(),
-        attached: true,
         windows: vec![WindowInfo {
             window_id: "@1".into(),
-            window_index: 1,
             window_name: "project".into(),
             window_active: true,
             auto_rename: false,
@@ -153,10 +151,8 @@ fn test_permission_mode_full_auto_renders_auto_color() {
 
     let mut state = make_state(vec![SessionInfo {
         session_name: "main".into(),
-        attached: true,
         windows: vec![WindowInfo {
             window_id: "@1".into(),
-            window_index: 1,
             window_name: "project".into(),
             window_active: true,
             auto_rename: false,
@@ -185,10 +181,8 @@ fn test_permission_mode_normal_no_badge() {
 
     let mut state = make_state(vec![SessionInfo {
         session_name: "main".into(),
-        attached: true,
         windows: vec![WindowInfo {
             window_id: "@1".into(),
-            window_index: 1,
             window_name: "project".into(),
             window_active: true,
             auto_rename: false,
@@ -248,10 +242,8 @@ fn test_git_summary_modified_uses_badge_auto_color() {
     let pane = make_pane(AgentType::Claude, PaneStatus::Running);
     let mut state = make_state(vec![SessionInfo {
         session_name: "main".into(),
-        attached: true,
         windows: vec![WindowInfo {
             window_id: "@1".into(),
-            window_index: 1,
             window_name: "project".into(),
             window_active: true,
             auto_rename: false,
@@ -265,7 +257,13 @@ fn test_git_summary_modified_uses_badge_auto_color() {
     state.focus = Focus::ActivityLog;
     state.sidebar_focused = true;
     state.git_branch = "main".into();
-    state.git_status_lines = vec![" M src/lib.rs".into()];
+    state.git_unstaged_files = vec![tmux_agent_sidebar::git::GitFileEntry {
+        status: 'M',
+        name: "src/lib.rs".into(),
+        additions: 5,
+        deletions: 2,
+    }];
+    state.git_changed_file_count = 1;
 
     let styled = render_to_styled_string(&mut state, 28, 24);
     // Modified count uses badge_auto (221)
@@ -284,10 +282,8 @@ fn test_task_progress_line_uses_task_progress_color() {
 
     let mut state = make_state(vec![SessionInfo {
         session_name: "main".into(),
-        attached: true,
         windows: vec![WindowInfo {
             window_id: "@1".into(),
-            window_index: 1,
             window_name: "project".into(),
             window_active: true,
             auto_rename: false,
@@ -330,10 +326,8 @@ fn test_subagent_line_uses_subagent_color() {
 
     let mut state = make_state(vec![SessionInfo {
         session_name: "main".into(),
-        attached: true,
         windows: vec![WindowInfo {
             window_id: "@1".into(),
-            window_index: 1,
             window_name: "project".into(),
             window_active: true,
             auto_rename: false,
@@ -359,15 +353,13 @@ fn test_subagent_line_uses_subagent_color() {
 fn test_response_arrow_uses_diff_added_color() {
     let mut pane = make_pane(AgentType::Claude, PaneStatus::Idle);
     pane.pane_active = false;
-    // ❯ (U+276F) + NBSP (U+00A0) prefix marks a response
-    pane.prompt = "\u{276f}\u{a0}Task completed successfully".into();
+    pane.prompt = "Task completed successfully".into();
+    pane.prompt_is_response = true;
 
     let mut state = make_state(vec![SessionInfo {
         session_name: "main".into(),
-        attached: true,
         windows: vec![WindowInfo {
             window_id: "@1".into(),
-            window_index: 1,
             window_name: "project".into(),
             window_active: true,
             auto_rename: false,
@@ -379,7 +371,7 @@ fn test_response_arrow_uses_diff_added_color() {
     state.sidebar_focused = false;
 
     let styled = render_to_styled_string(&mut state, 40, 24);
-    // Response arrow (❯) uses diff_added color (114) and bold
+    // Response arrow (▶) uses diff_added color (114) and bold
     assert!(
         styled.contains("fg:114"),
         "Response arrow should use diff_added color (114)"
@@ -392,58 +384,19 @@ fn test_response_arrow_uses_diff_added_color() {
     );
 
     let plain = render_to_string(&mut state, 40, 24);
-    assert!(plain.contains("❯"), "Response should show ❯ arrow");
+    assert!(plain.contains("▶"), "Response should show ▶ arrow");
 }
 
-#[test]
-fn test_commit_hash_uses_commit_hash_color() {
-    let now = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap()
-        .as_secs();
-
-    let pane = make_pane(AgentType::Claude, PaneStatus::Running);
-    let mut state = make_state(vec![SessionInfo {
-        session_name: "main".into(),
-        attached: true,
-        windows: vec![WindowInfo {
-            window_id: "@1".into(),
-            window_index: 1,
-            window_name: "project".into(),
-            window_active: true,
-            auto_rename: false,
-            panes: vec![pane.clone()],
-        }],
-    }]);
-    state.repo_groups = vec![make_repo_group("project", vec![pane])];
-    state.rebuild_row_targets();
-
-    state.bottom_tab = BottomTab::GitStatus;
-    state.focus = Focus::ActivityLog;
-    state.sidebar_focused = true;
-    state.git_branch = "main".into();
-    state.git_last_commit = Some(("abc1234".into(), "fix: something".into(), now - 60));
-
-    let styled = render_to_styled_string(&mut state, 28, 24);
-    // commit_hash color is 221
-    assert!(
-        styled.contains("fg:221"),
-        "Commit hash should use commit_hash color (221)"
-    );
-
-    let plain = render_to_string(&mut state, 28, 24);
-    assert!(plain.contains("abc1234"), "Commit hash should appear");
-}
+// test_commit_hash_uses_commit_hash_color was removed because
+// git_last_commit and commit hash rendering no longer exist.
 
 #[test]
 fn test_pr_link_uses_pr_link_color() {
     let pane = make_pane(AgentType::Claude, PaneStatus::Running);
     let mut state = make_state(vec![SessionInfo {
         session_name: "main".into(),
-        attached: true,
         windows: vec![WindowInfo {
             window_id: "@1".into(),
-            window_index: 1,
             window_name: "project".into(),
             window_active: true,
             auto_rename: false,
@@ -461,10 +414,10 @@ fn test_pr_link_uses_pr_link_color() {
     state.git_remote_url = "https://github.com/user/repo".into();
 
     let styled = render_to_styled_string(&mut state, 28, 24);
-    // pr_link color is 39
+    // pr_link color is 117 (pale blue)
     assert!(
-        styled.contains("fg:39"),
-        "PR link should use pr_link color (39)"
+        styled.contains("fg:117"),
+        "PR link should use pr_link color (117)"
     );
     assert!(styled.contains("underline"), "PR link should be underlined");
 
@@ -477,10 +430,8 @@ fn test_diff_stat_added_uses_diff_added_color() {
     let pane = make_pane(AgentType::Claude, PaneStatus::Running);
     let mut state = make_state(vec![SessionInfo {
         session_name: "main".into(),
-        attached: true,
         windows: vec![WindowInfo {
             window_id: "@1".into(),
-            window_index: 1,
             window_name: "project".into(),
             window_active: true,
             auto_rename: false,
@@ -512,10 +463,8 @@ fn test_diff_stat_deleted_uses_diff_deleted_color() {
     let pane = make_pane(AgentType::Claude, PaneStatus::Running);
     let mut state = make_state(vec![SessionInfo {
         session_name: "main".into(),
-        attached: true,
         windows: vec![WindowInfo {
             window_id: "@1".into(),
-            window_index: 1,
             window_name: "project".into(),
             window_active: true,
             auto_rename: false,
@@ -547,10 +496,8 @@ fn test_file_change_stat_uses_file_change_color() {
     let pane = make_pane(AgentType::Claude, PaneStatus::Running);
     let mut state = make_state(vec![SessionInfo {
         session_name: "main".into(),
-        attached: true,
         windows: vec![WindowInfo {
             window_id: "@1".into(),
-            window_index: 1,
             window_name: "project".into(),
             window_active: true,
             auto_rename: false,
@@ -564,17 +511,22 @@ fn test_file_change_stat_uses_file_change_color() {
     state.focus = Focus::ActivityLog;
     state.sidebar_focused = true;
     state.git_branch = "main".into();
-    state.git_file_changes = vec![("lib.rs".into(), 50)];
+    state.git_unstaged_files = vec![tmux_agent_sidebar::git::GitFileEntry {
+        status: 'M',
+        name: "lib.rs".into(),
+        additions: 40,
+        deletions: 10,
+    }];
+    state.git_changed_file_count = 1;
 
     let styled = render_to_styled_string(&mut state, 28, 24);
-    // file_change color is 221
+    // Modified status uses badge_auto (221)
     assert!(
         styled.contains("fg:221"),
-        "File change stat should use file_change color (221)"
+        "Modified file status should use badge_auto color (221)"
     );
 
     let plain = render_to_string(&mut state, 28, 24);
-    assert!(plain.contains("±50"), "File change count should appear");
     assert!(plain.contains("lib.rs"), "Filename should appear");
 }
 
@@ -618,10 +570,8 @@ fn test_branch_color_in_agent_panel() {
 
     let mut state = make_state(vec![SessionInfo {
         session_name: "main".into(),
-        attached: true,
         windows: vec![WindowInfo {
             window_id: "@1".into(),
-            window_index: 1,
             window_name: "project".into(),
             window_active: true,
             auto_rename: false,
@@ -664,10 +614,8 @@ fn test_selection_bg_color_applied() {
     let pane = make_pane(AgentType::Claude, PaneStatus::Idle);
     let mut state = make_state(vec![SessionInfo {
         session_name: "main".into(),
-        attached: true,
         windows: vec![WindowInfo {
             window_id: "@1".into(),
-            window_index: 1,
             window_name: "project".into(),
             window_active: true,
             auto_rename: false,
@@ -698,10 +646,8 @@ fn test_border_active_vs_inactive_colors() {
 
     let mut state = make_state(vec![SessionInfo {
         session_name: "main".into(),
-        attached: true,
         windows: vec![WindowInfo {
             window_id: "@0".into(),
-            window_index: 0,
             window_name: "fish".into(),
             window_active: true,
             auto_rename: true,
@@ -742,10 +688,8 @@ fn test_running_status_color_in_output() {
     let pane = make_pane(AgentType::Claude, PaneStatus::Running);
     let mut state = make_state(vec![SessionInfo {
         session_name: "main".into(),
-        attached: true,
         windows: vec![WindowInfo {
             window_id: "@1".into(),
-            window_index: 1,
             window_name: "project".into(),
             window_active: true,
             auto_rename: false,
@@ -769,10 +713,8 @@ fn test_waiting_status_color_in_output() {
     let pane = make_pane(AgentType::Claude, PaneStatus::Waiting);
     let mut state = make_state(vec![SessionInfo {
         session_name: "main".into(),
-        attached: true,
         windows: vec![WindowInfo {
             window_id: "@1".into(),
-            window_index: 1,
             window_name: "project".into(),
             window_active: true,
             auto_rename: false,
@@ -796,10 +738,8 @@ fn test_error_status_color_in_output() {
     let pane = make_pane(AgentType::Claude, PaneStatus::Error);
     let mut state = make_state(vec![SessionInfo {
         session_name: "main".into(),
-        attached: true,
         windows: vec![WindowInfo {
             window_id: "@1".into(),
-            window_index: 1,
             window_name: "project".into(),
             window_active: true,
             auto_rename: false,
@@ -823,10 +763,8 @@ fn test_idle_status_color_in_output() {
     let pane = make_pane(AgentType::Claude, PaneStatus::Idle);
     let mut state = make_state(vec![SessionInfo {
         session_name: "main".into(),
-        attached: true,
         windows: vec![WindowInfo {
             window_id: "@1".into(),
-            window_index: 1,
             window_name: "project".into(),
             window_active: true,
             auto_rename: false,
@@ -850,10 +788,8 @@ fn test_unknown_status_color_in_output() {
     let pane = make_pane(AgentType::Claude, PaneStatus::Unknown);
     let mut state = make_state(vec![SessionInfo {
         session_name: "main".into(),
-        attached: true,
         windows: vec![WindowInfo {
             window_id: "@1".into(),
-            window_index: 1,
             window_name: "project".into(),
             window_active: true,
             auto_rename: false,

@@ -75,10 +75,8 @@ fn test_line_to_row_single_agent() {
     let pane = make_pane(AgentType::Claude, PaneStatus::Idle);
     let mut state = make_state(vec![SessionInfo {
         session_name: "main".into(),
-        attached: true,
         windows: vec![WindowInfo {
             window_id: "@1".into(),
-            window_index: 1,
             window_name: "project".into(),
             window_active: true,
             auto_rename: false,
@@ -102,11 +100,9 @@ fn test_line_to_row_two_agents() {
         status: PaneStatus::Running,
         attention: false,
         agent: AgentType::Claude,
-        pane_name: String::new(),
         path: "/home/user/project".into(),
-        command: "fish".into(),
-        role: String::new(),
         prompt: String::new(),
+        prompt_is_response: false,
         started_at: None,
         wait_reason: String::new(),
         permission_mode: tmux_agent_sidebar::tmux::PermissionMode::Default,
@@ -119,11 +115,9 @@ fn test_line_to_row_two_agents() {
         status: PaneStatus::Idle,
         attention: false,
         agent: AgentType::Codex,
-        pane_name: String::new(),
         path: "/home/user/project".into(),
-        command: "fish".into(),
-        role: String::new(),
         prompt: String::new(),
+        prompt_is_response: false,
         started_at: None,
         wait_reason: String::new(),
         permission_mode: tmux_agent_sidebar::tmux::PermissionMode::Default,
@@ -133,10 +127,8 @@ fn test_line_to_row_two_agents() {
 
     let mut state = make_state(vec![SessionInfo {
         session_name: "main".into(),
-        attached: true,
         windows: vec![WindowInfo {
             window_id: "@1".into(),
-            window_index: 1,
             window_name: "project".into(),
             window_active: true,
             auto_rename: false,
@@ -162,10 +154,8 @@ fn test_line_to_row_with_prompt() {
 
     let mut state = make_state(vec![SessionInfo {
         session_name: "main".into(),
-        attached: true,
         windows: vec![WindowInfo {
             window_id: "@1".into(),
-            window_index: 1,
             window_name: "project".into(),
             window_active: true,
             auto_rename: false,
@@ -191,10 +181,8 @@ fn snapshot_agent_with_attention_styled() {
 
     let mut state = make_state(vec![SessionInfo {
         session_name: "main".into(),
-        attached: true,
         windows: vec![WindowInfo {
             window_id: "@1".into(),
-            window_index: 1,
             window_name: "project".into(),
             window_active: true,
             auto_rename: false,
@@ -258,47 +246,17 @@ fn test_scroll_git_empty_is_noop() {
     );
 }
 
-// ─── State: scroll_agents Tests ─────────────────────────────────────
-
-#[test]
-fn test_scroll_agents_bounds() {
-    let mut state = make_state(vec![]);
-    state.agents_scroll.total_lines = 10;
-    state.agents_scroll.visible_height = 4;
-    state.agents_scroll.offset = 0;
-
-    state.scroll_agents(3);
-    assert_eq!(state.agents_scroll.offset, 3);
-
-    // Clamp to max (10 - 4 = 6)
-    state.scroll_agents(10);
-    assert_eq!(state.agents_scroll.offset, 6);
-
-    // Clamp to 0
-    state.scroll_agents(-100);
-    assert_eq!(state.agents_scroll.offset, 0);
-}
-
-#[test]
-fn test_scroll_agents_no_overflow() {
-    let mut state = make_state(vec![]);
-    state.agents_scroll.total_lines = 3;
-    state.agents_scroll.visible_height = 5; // more visible than total
-    state.agents_scroll.offset = 0;
-
-    state.scroll_agents(1);
-    assert_eq!(
-        state.agents_scroll.offset, 0,
-        "should not scroll when content fits"
-    );
-}
-
 // ─── State: scroll_git Tests ────────────────────────────────────────
 
 #[test]
 fn test_scroll_git_bounds() {
     let mut state = make_state(vec![]);
-    state.git_status_lines = vec!["M file.rs".into()];
+    state.git_unstaged_files = vec![tmux_agent_sidebar::git::GitFileEntry {
+        status: 'M',
+        name: "file.rs".into(),
+        additions: 0,
+        deletions: 0,
+    }];
     state.git_scroll.total_lines = 8;
     state.git_scroll.visible_height = 3;
     state.git_scroll.offset = 0;
@@ -319,31 +277,37 @@ fn test_scroll_git_bounds() {
 
 #[test]
 fn test_apply_git_data() {
-    use tmux_agent_sidebar::git::GitData;
+    use tmux_agent_sidebar::git::{GitData, GitFileEntry};
 
     let mut state = make_state(vec![]);
     let data = GitData {
-        status_lines: vec![" M src/lib.rs".into()],
         diff_stat: Some((10, 5)),
         branch: "feature/test".into(),
         ahead_behind: Some((2, 1)),
-        last_commit: Some(("abc1234".into(), "fix bug".into(), 1000)),
-        file_changes: vec![("lib.rs".into(), 15)],
+        staged_files: vec![GitFileEntry {
+            status: 'M',
+            name: "src/lib.rs".into(),
+            additions: 10,
+            deletions: 5,
+        }],
+        unstaged_files: vec![],
+        untracked_files: vec![],
         remote_url: "https://github.com/user/repo".into(),
         pr_number: Some("42".into()),
+        changed_file_count: 1,
     };
 
     state.apply_git_data(data);
 
-    assert_eq!(state.git_status_lines, vec![" M src/lib.rs"]);
+    assert_eq!(state.git_staged_files.len(), 1);
+    assert_eq!(state.git_staged_files[0].status, 'M');
+    assert_eq!(state.git_staged_files[0].name, "src/lib.rs");
+    assert!(state.git_unstaged_files.is_empty());
+    assert!(state.git_untracked_files.is_empty());
+    assert_eq!(state.git_changed_file_count, 1);
     assert_eq!(state.git_diff_stat, Some((10, 5)));
     assert_eq!(state.git_branch, "feature/test");
     assert_eq!(state.git_ahead_behind, Some((2, 1)));
-    assert_eq!(
-        state.git_last_commit,
-        Some(("abc1234".into(), "fix bug".into(), 1000))
-    );
-    assert_eq!(state.git_file_changes, vec![("lib.rs".into(), 15)]);
     assert_eq!(state.git_remote_url, "https://github.com/user/repo");
     assert_eq!(state.git_pr_number, Some("42".into()));
 }
@@ -415,7 +379,12 @@ fn test_move_agent_selection_return_value() {
 fn test_scroll_bottom_dispatches_to_git() {
     let mut state = make_state(vec![]);
     state.bottom_tab = BottomTab::GitStatus;
-    state.git_status_lines = vec!["M file.rs".into()];
+    state.git_unstaged_files = vec![tmux_agent_sidebar::git::GitFileEntry {
+        status: 'M',
+        name: "file.rs".into(),
+        additions: 0,
+        deletions: 0,
+    }];
     state.git_scroll.total_lines = 10;
     state.git_scroll.visible_height = 3;
     state.git_scroll.offset = 0;

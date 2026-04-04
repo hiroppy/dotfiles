@@ -80,11 +80,16 @@ pub fn resolve_pane_git_info(path: &str) -> PaneGitInfo {
 /// Returns groups in insertion order (first-seen repo first).
 pub fn group_panes_by_repo(sessions: &[crate::tmux::SessionInfo]) -> Vec<RepoGroup> {
     let mut groups: IndexMap<String, RepoGroup> = IndexMap::new();
+    let mut git_cache: std::collections::HashMap<String, PaneGitInfo> =
+        std::collections::HashMap::new();
 
     for session in sessions {
         for window in &session.windows {
             for pane in &window.panes {
-                let git_info = resolve_pane_git_info(&pane.path);
+                let git_info = git_cache
+                    .entry(pane.path.clone())
+                    .or_insert_with(|| resolve_pane_git_info(&pane.path))
+                    .clone();
 
                 let group_key = git_info
                     .repo_root
@@ -189,11 +194,9 @@ mod tests {
             status: crate::tmux::PaneStatus::Running,
             attention: false,
             agent: crate::tmux::AgentType::Claude,
-            pane_name: String::new(),
             path: path.into(),
-            command: "fish".into(),
-            role: String::new(),
             prompt: String::new(),
+            prompt_is_response: false,
             started_at: None,
             wait_reason: String::new(),
             permission_mode: crate::tmux::PermissionMode::Default,
@@ -205,7 +208,6 @@ mod tests {
     fn test_window(panes: Vec<PaneInfo>, active: bool) -> crate::tmux::WindowInfo {
         crate::tmux::WindowInfo {
             window_id: "@0".into(),
-            window_index: 0,
             window_name: "test".into(),
             window_active: active,
             auto_rename: false,
@@ -216,7 +218,6 @@ mod tests {
     fn test_session(windows: Vec<crate::tmux::WindowInfo>) -> crate::tmux::SessionInfo {
         crate::tmux::SessionInfo {
             session_name: "main".into(),
-            attached: true,
             windows,
         }
     }
@@ -321,7 +322,6 @@ mod tests {
             test_session(vec![test_window(vec![pane1], true)]),
             crate::tmux::SessionInfo {
                 session_name: "other".into(),
-                attached: false,
                 windows: vec![test_window(vec![pane2], false)],
             },
         ];

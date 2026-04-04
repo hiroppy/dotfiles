@@ -7,7 +7,7 @@ set -euo pipefail
 agent="${1:-}"
 event="${2:-}"
 
-[ -z "$agent" ] || [ -z "$event" ] && exit 0
+{ [ -z "$agent" ] || [ -z "$event" ]; } && exit 0
 
 input=""
 if ! [ -t 0 ]; then

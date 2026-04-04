@@ -19,10 +19,8 @@ fn test_agents_auto_scroll_keeps_selected_visible() {
 
     let mut state = make_state(vec![SessionInfo {
         session_name: "main".into(),
-        attached: true,
         windows: vec![WindowInfo {
             window_id: "@1".into(),
-            window_index: 1,
             window_name: "project".into(),
             window_active: true,
             auto_rename: false,
@@ -53,10 +51,8 @@ fn test_agents_scroll_offset_tracks_total_and_visible() {
     let pane = make_pane(AgentType::Claude, PaneStatus::Idle);
     let mut state = make_state(vec![SessionInfo {
         session_name: "main".into(),
-        attached: true,
         windows: vec![WindowInfo {
             window_id: "@1".into(),
-            window_index: 1,
             window_name: "project".into(),
             window_active: true,
             auto_rename: false,
@@ -94,10 +90,8 @@ fn snapshot_codex_agent_styled() {
     let pane = make_pane(AgentType::Codex, PaneStatus::Idle);
     let mut state = make_state(vec![SessionInfo {
         session_name: "main".into(),
-        attached: true,
         windows: vec![WindowInfo {
             window_id: "@1".into(),
-            window_index: 1,
             window_name: "project".into(),
             window_active: true,
             auto_rename: false,
@@ -123,10 +117,8 @@ fn snapshot_unknown_agent_styled() {
     let pane = make_pane(AgentType::Unknown, PaneStatus::Idle);
     let mut state = make_state(vec![SessionInfo {
         session_name: "main".into(),
-        attached: true,
         windows: vec![WindowInfo {
             window_id: "@1".into(),
-            window_index: 1,
             window_name: "project".into(),
             window_active: true,
             auto_rename: false,
@@ -152,10 +144,8 @@ fn test_running_icon_blink_off() {
     let pane = make_pane(AgentType::Claude, PaneStatus::Running);
     let mut state = make_state(vec![SessionInfo {
         session_name: "main".into(),
-        attached: true,
         windows: vec![WindowInfo {
             window_id: "@1".into(),
-            window_index: 1,
             window_name: "project".into(),
             window_active: true,
             auto_rename: false,
@@ -176,10 +166,8 @@ fn test_running_spinner_frame_advances() {
     let pane = make_pane(AgentType::Claude, PaneStatus::Running);
     let mut state = make_state(vec![SessionInfo {
         session_name: "main".into(),
-        attached: true,
         windows: vec![WindowInfo {
             window_id: "@1".into(),
-            window_index: 1,
             window_name: "project".into(),
             window_active: true,
             auto_rename: false,
@@ -200,10 +188,8 @@ fn test_waiting_icon() {
     let pane = make_pane(AgentType::Claude, PaneStatus::Waiting);
     let mut state = make_state(vec![SessionInfo {
         session_name: "main".into(),
-        attached: true,
         windows: vec![WindowInfo {
             window_id: "@1".into(),
-            window_index: 1,
             window_name: "project".into(),
             window_active: true,
             auto_rename: false,
@@ -223,10 +209,8 @@ fn test_error_icon() {
     let pane = make_pane(AgentType::Claude, PaneStatus::Error);
     let mut state = make_state(vec![SessionInfo {
         session_name: "main".into(),
-        attached: true,
         windows: vec![WindowInfo {
             window_id: "@1".into(),
-            window_index: 1,
             window_name: "project".into(),
             window_active: true,
             auto_rename: false,
@@ -246,10 +230,8 @@ fn test_unknown_status_icon() {
     let pane = make_pane(AgentType::Claude, PaneStatus::Unknown);
     let mut state = make_state(vec![SessionInfo {
         session_name: "main".into(),
-        attached: true,
         windows: vec![WindowInfo {
             window_id: "@1".into(),
-            window_index: 1,
             window_name: "project".into(),
             window_active: true,
             auto_rename: false,
@@ -280,10 +262,8 @@ fn test_agents_auto_scroll_includes_group_bottom_border() {
 
     let mut state = make_state(vec![SessionInfo {
         session_name: "main".into(),
-        attached: true,
         windows: vec![WindowInfo {
             window_id: "@1".into(),
-            window_index: 1,
             window_name: "project".into(),
             window_active: true,
             auto_rename: false,
@@ -320,10 +300,8 @@ fn test_agents_auto_scroll_up_shows_group_header() {
 
     let mut state = make_state(vec![SessionInfo {
         session_name: "main".into(),
-        attached: true,
         windows: vec![WindowInfo {
             window_id: "@1".into(),
-            window_index: 1,
             window_name: "project".into(),
             window_active: true,
             auto_rename: false,

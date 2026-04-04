@@ -13,10 +13,8 @@ fn snapshot_selected_focused_styled() {
     let pane = make_pane(AgentType::Claude, PaneStatus::Idle);
     let mut state = make_state(vec![SessionInfo {
         session_name: "main".into(),
-        attached: true,
         windows: vec![WindowInfo {
             window_id: "@1".into(),
-            window_index: 1,
             window_name: "project".into(),
             window_active: true,
             auto_rename: false,
@@ -41,10 +39,8 @@ fn snapshot_activity_focused_styled() {
     let pane = make_pane(AgentType::Claude, PaneStatus::Running);
     let mut state = make_state(vec![SessionInfo {
         session_name: "main".into(),
-        attached: true,
         windows: vec![WindowInfo {
             window_id: "@1".into(),
-            window_index: 1,
             window_name: "project".into(),
             window_active: true,
             auto_rename: false,
@@ -74,10 +70,8 @@ fn snapshot_activity_unfocused_styled() {
     let pane = make_pane(AgentType::Claude, PaneStatus::Running);
     let mut state = make_state(vec![SessionInfo {
         session_name: "main".into(),
-        attached: true,
         windows: vec![WindowInfo {
             window_id: "@1".into(),
-            window_index: 1,
             window_name: "project".into(),
             window_active: true,
             auto_rename: false,
@@ -109,10 +103,8 @@ fn selection_bg_does_not_bleed_into_border() {
     let pane = make_pane(AgentType::Claude, PaneStatus::Running);
     let mut state = make_state(vec![SessionInfo {
         session_name: "main".into(),
-        attached: true,
         windows: vec![WindowInfo {
             window_id: "@1".into(),
-            window_index: 1,
             window_name: "project".into(),
             window_active: true,
             auto_rename: false,
@@ -165,10 +157,8 @@ fn selection_bg_covers_inner_padding() {
     let pane = make_pane(AgentType::Claude, PaneStatus::Idle);
     let mut state = make_state(vec![SessionInfo {
         session_name: "main".into(),
-        attached: true,
         windows: vec![WindowInfo {
             window_id: "@1".into(),
-            window_index: 1,
             window_name: "project".into(),
             window_active: true,
             auto_rename: false,
@@ -204,10 +194,8 @@ fn no_selection_bg_when_not_selected() {
     let pane = make_pane(AgentType::Claude, PaneStatus::Running);
     let mut state = make_state(vec![SessionInfo {
         session_name: "main".into(),
-        attached: true,
         windows: vec![WindowInfo {
             window_id: "@1".into(),
-            window_index: 1,
             window_name: "project".into(),
             window_active: true,
             auto_rename: false,
@@ -236,10 +224,8 @@ fn snapshot_custom_theme_colors() {
     let pane = make_pane(AgentType::Claude, PaneStatus::Idle);
     let mut state = make_state(vec![SessionInfo {
         session_name: "main".into(),
-        attached: true,
         windows: vec![WindowInfo {
             window_id: "@1".into(),
-            window_index: 1,
             window_name: "project".into(),
             window_active: true,
             auto_rename: false,

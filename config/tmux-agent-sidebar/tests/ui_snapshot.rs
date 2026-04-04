@@ -17,10 +17,8 @@ fn snapshot_single_agent_idle_ui() {
     let pane = make_pane(AgentType::Claude, PaneStatus::Idle);
     let mut state = make_state(vec![SessionInfo {
         session_name: "main".into(),
-        attached: true,
         windows: vec![WindowInfo {
             window_id: "@1".into(),
-            window_index: 1,
             window_name: "project".into(),
             window_active: true,
             auto_rename: false,
@@ -49,10 +47,8 @@ fn snapshot_single_agent_running_with_elapsed() {
 
     let mut state = make_state(vec![SessionInfo {
         session_name: "main".into(),
-        attached: true,
         windows: vec![WindowInfo {
             window_id: "@1".into(),
-            window_index: 1,
             window_name: "dotfiles".into(),
             window_active: true,
             auto_rename: false,
@@ -78,10 +74,8 @@ fn running_spinner_different_frame() {
     let pane = make_pane(AgentType::Claude, PaneStatus::Running);
     let mut state = make_state(vec![SessionInfo {
         session_name: "main".into(),
-        attached: true,
         windows: vec![WindowInfo {
             window_id: "@1".into(),
-            window_index: 1,
             window_name: "project".into(),
             window_active: true,
             auto_rename: false,
@@ -104,10 +98,8 @@ fn snapshot_agent_with_prompt_ui() {
 
     let mut state = make_state(vec![SessionInfo {
         session_name: "main".into(),
-        attached: true,
         windows: vec![WindowInfo {
             window_id: "@1".into(),
-            window_index: 1,
             window_name: "project".into(),
             window_active: true,
             auto_rename: false,
@@ -136,10 +128,8 @@ fn snapshot_agent_with_japanese_prompt_ui() {
 
     let mut state = make_state(vec![SessionInfo {
         session_name: "main".into(),
-        attached: true,
         windows: vec![WindowInfo {
             window_id: "@1".into(),
-            window_index: 1,
             window_name: "project".into(),
             window_active: true,
             auto_rename: false,
@@ -171,11 +161,9 @@ fn snapshot_two_agents_same_window_ui() {
         status: PaneStatus::Running,
         attention: false,
         agent: AgentType::Claude,
-        pane_name: String::new(),
         path: "/home/user/project".into(),
-        command: "fish".into(),
-        role: String::new(),
         prompt: "fix the bug".into(),
+        prompt_is_response: false,
         started_at: None,
         wait_reason: String::new(),
         permission_mode: tmux_agent_sidebar::tmux::PermissionMode::Default,
@@ -188,11 +176,9 @@ fn snapshot_two_agents_same_window_ui() {
         status: PaneStatus::Idle,
         attention: false,
         agent: AgentType::Codex,
-        pane_name: String::new(),
         path: "/home/user/project".into(),
-        command: "fish".into(),
-        role: String::new(),
         prompt: String::new(),
+        prompt_is_response: false,
         started_at: None,
         wait_reason: String::new(),
         permission_mode: tmux_agent_sidebar::tmux::PermissionMode::Default,
@@ -202,10 +188,8 @@ fn snapshot_two_agents_same_window_ui() {
 
     let mut state = make_state(vec![SessionInfo {
         session_name: "main".into(),
-        attached: true,
         windows: vec![WindowInfo {
             window_id: "@1".into(),
-            window_index: 1,
             window_name: "project".into(),
             window_active: true,
             auto_rename: false,
@@ -236,11 +220,9 @@ fn snapshot_two_windows_ui() {
 
     let mut state = make_state(vec![SessionInfo {
         session_name: "main".into(),
-        attached: true,
         windows: vec![
             WindowInfo {
                 window_id: "@1".into(),
-                window_index: 1,
                 window_name: "project-a".into(),
                 window_active: true,
                 auto_rename: false,
@@ -248,7 +230,6 @@ fn snapshot_two_windows_ui() {
             },
             WindowInfo {
                 window_id: "@2".into(),
-                window_index: 2,
                 window_name: "project-b".into(),
                 window_active: false,
                 auto_rename: false,
@@ -286,10 +267,8 @@ fn snapshot_multi_session_ui() {
     let mut state = make_state(vec![
         SessionInfo {
             session_name: "main".into(),
-            attached: true,
             windows: vec![WindowInfo {
                 window_id: "@1".into(),
-                window_index: 1,
                 window_name: "dotfiles".into(),
                 window_active: true,
                 auto_rename: false,
@@ -298,10 +277,8 @@ fn snapshot_multi_session_ui() {
         },
         SessionInfo {
             session_name: "work".into(),
-            attached: false,
             windows: vec![WindowInfo {
                 window_id: "@2".into(),
-                window_index: 1,
                 window_name: "api".into(),
                 window_active: false,
                 auto_rename: false,
@@ -336,10 +313,8 @@ fn snapshot_wait_reason_ui() {
 
     let mut state = make_state(vec![SessionInfo {
         session_name: "main".into(),
-        attached: true,
         windows: vec![WindowInfo {
             window_id: "@1".into(),
-            window_index: 1,
             window_name: "project".into(),
             window_active: true,
             auto_rename: false,
@@ -367,10 +342,8 @@ fn snapshot_auto_rename_window_title_ui() {
 
     let mut state = make_state(vec![SessionInfo {
         session_name: "main".into(),
-        attached: true,
         windows: vec![WindowInfo {
             window_id: "@1".into(),
-            window_index: 1,
             window_name: "fish".into(),
             window_active: true,
             auto_rename: true,
@@ -405,10 +378,8 @@ fn snapshot_activity_log_ui() {
     let pane = make_pane(AgentType::Claude, PaneStatus::Running);
     let mut state = make_state(vec![SessionInfo {
         session_name: "main".into(),
-        attached: true,
         windows: vec![WindowInfo {
             window_id: "@1".into(),
-            window_index: 1,
             window_name: "project".into(),
             window_active: true,
             auto_rename: false,
@@ -457,10 +428,8 @@ fn snapshot_activity_log_long_label_ui() {
     let pane = make_pane(AgentType::Claude, PaneStatus::Running);
     let mut state = make_state(vec![SessionInfo {
         session_name: "main".into(),
-        attached: true,
         windows: vec![WindowInfo {
             window_id: "@1".into(),
-            window_index: 1,
             window_name: "project".into(),
             window_active: true,
             auto_rename: false,
@@ -499,10 +468,8 @@ fn snapshot_prompt_wrapping_ui() {
 
     let mut state = make_state(vec![SessionInfo {
         session_name: "main".into(),
-        attached: true,
         windows: vec![WindowInfo {
             window_id: "@1".into(),
-            window_index: 1,
             window_name: "project".into(),
             window_active: true,
             auto_rename: false,
@@ -531,10 +498,8 @@ fn snapshot_selected_unfocused_ui() {
     let pane = make_pane(AgentType::Claude, PaneStatus::Idle);
     let mut state = make_state(vec![SessionInfo {
         session_name: "main".into(),
-        attached: true,
         windows: vec![WindowInfo {
             window_id: "@1".into(),
-            window_index: 1,
             window_name: "project".into(),
             window_active: true,
             auto_rename: false,
@@ -564,10 +529,8 @@ fn snapshot_error_state_ui() {
 
     let mut state = make_state(vec![SessionInfo {
         session_name: "main".into(),
-        attached: true,
         windows: vec![WindowInfo {
             window_id: "@1".into(),
-            window_index: 1,
             window_name: "project".into(),
             window_active: true,
             auto_rename: false,
@@ -596,10 +559,8 @@ fn snapshot_narrow_width_ui() {
 
     let mut state = make_state(vec![SessionInfo {
         session_name: "main".into(),
-        attached: true,
         windows: vec![WindowInfo {
             window_id: "@1".into(),
-            window_index: 1,
             window_name: "p".into(),
             window_active: true,
             auto_rename: false,
@@ -628,10 +589,8 @@ fn make_state_with_groups(
     let pane = make_pane(AgentType::Claude, PaneStatus::Idle);
     let mut state = make_state(vec![SessionInfo {
         session_name: "main".into(),
-        attached: true,
         windows: vec![WindowInfo {
             window_id: "@1".into(),
-            window_index: 1,
             window_name: "dummy".into(),
             window_active: true,
             auto_rename: false,
@@ -830,15 +789,16 @@ fn snapshot_all_elements_combined_ui() {
 #[test]
 fn snapshot_response_japanese_ui() {
     let mut pane = make_pane(AgentType::Claude, PaneStatus::Idle);
-    pane.prompt = "\u{276f}\u{a0}修正が完了しました。テストも全て通っています。".into();
+    pane.prompt = "修正が完了しました。テストも全て通っています。".into();
+    pane.prompt_is_response = true;
     let mut state = make_state_with_groups(vec![make_repo_group("project", vec![pane])]);
 
     let output = render_to_string(&mut state, 30, 27);
-    assert!(output.contains("❯"), "should show response arrow");
+    assert!(output.contains("▶"), "should show response arrow");
     let expected = indoc! {r#"
 ╭ project ───────────────────╮
 │ ○ claude                   │
-│   ❯ 修 正 が 完 了 し ま し た 。 テ  │
+│   ▶ 修 正 が 完 了 し ま し た 。 テ  │
 │     ス ト も 全 て 通 っ て い ま す  │
 │     。                      │
 ╰────────────────────────────╯

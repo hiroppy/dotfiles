@@ -328,21 +328,13 @@ fn render_pane_lines<'a>(
     }
 
     if !pane.prompt.is_empty() {
-        let is_response = pane.prompt.starts_with('\u{276f}'); // ❯
+        let is_response = pane.prompt_is_response;
         let prompt_color = if active {
             theme.text_active
         } else {
             theme.text_muted
         };
-        let display_prompt = if is_response {
-            // Strip the › and NBSP prefix for wrapping
-            pane.prompt
-                .trim_start_matches('\u{276f}')
-                .trim_start_matches('\u{a0}')
-                .to_string()
-        } else {
-            pane.prompt.clone()
-        };
+        let display_prompt = pane.prompt.clone();
         let wrap_width = inner_width.saturating_sub(if is_response { 4 } else { 2 });
         let wrapped = if is_response {
             wrap_text_char(&display_prompt, wrap_width, 3)
@@ -357,7 +349,7 @@ fn render_pane_lines<'a>(
                 out.push(Line::from(vec![
                     Span::styled("│", border_style), Span::styled(" ", apply_bg(Style::default())),
                     Span::styled(
-                        "  ❯ ",
+                        "  ▶ ",
                         apply_bg(
                             Style::default()
                                 .fg(arrow_color)
@@ -389,7 +381,7 @@ fn render_pane_lines<'a>(
             Span::styled("│", border_style), Span::styled(" ", apply_bg(Style::default())),
             Span::styled(
                 text.to_string(),
-                apply_bg(Style::default().fg(theme.text_muted)),
+                apply_bg(Style::default().fg(if active { theme.text_active } else { theme.text_muted })),
             ),
             Span::styled(padding, apply_bg(Style::default())),
             Span::styled("│", border_style),
@@ -413,10 +405,7 @@ pub(crate) fn running_icon_for(
                 Some(ratatui::style::Color::Indexed(color_idx)),
             )
         }
-        PaneStatus::Waiting => ("◐", None),
-        PaneStatus::Idle => ("○", None),
-        PaneStatus::Error => ("✕", None),
-        PaneStatus::Unknown => ("·", None),
+        _ => (status.icon(), None),
     }
 }
 
@@ -427,17 +416,19 @@ mod tests {
     use crate::tmux::{AgentType, PaneInfo, PermissionMode};
 
     fn pane(permission_mode: PermissionMode, status: PaneStatus, prompt: &str) -> PaneInfo {
+        pane_with_response(permission_mode, status, prompt, false)
+    }
+
+    fn pane_with_response(permission_mode: PermissionMode, status: PaneStatus, prompt: &str, is_response: bool) -> PaneInfo {
         PaneInfo {
             pane_id: "%1".into(),
             pane_active: false,
             status,
             attention: false,
             agent: AgentType::Codex,
-            pane_name: "pane".into(),
             path: "/tmp/project".into(),
-            command: "codex".into(),
-            role: String::new(),
             prompt: prompt.into(),
+            prompt_is_response: is_response,
             started_at: None,
             wait_reason: String::new(),
             permission_mode,
@@ -640,9 +631,7 @@ mod tests {
     #[test]
     fn render_pane_lines_response_shows_arrow() {
         let theme = ColorTheme::default();
-        // ❯ (U+276F) + NBSP (U+00A0) prefix marks a response
-        let prompt = "\u{276f}\u{a0}Task completed successfully";
-        let p = pane(PermissionMode::Default, PaneStatus::Idle, prompt);
+        let p = pane_with_response(PermissionMode::Default, PaneStatus::Idle, "Task completed successfully", true);
         let lines = render_pane_lines(
             &p,
             &PaneGitInfo::default(),
@@ -658,7 +647,7 @@ mod tests {
 
         assert!(lines.len() >= 2);
         let response_line = line_text(&lines[1]);
-        assert!(response_line.contains("❯"));
+        assert!(response_line.contains("▶"));
         assert!(response_line.contains("Task completed successfully"));
     }
 
@@ -666,8 +655,7 @@ mod tests {
     fn render_pane_lines_response_uses_char_wrap() {
         let theme = ColorTheme::default();
         // Long response that would word-wrap at spaces but should char-wrap instead
-        let prompt = format!("\u{276f}\u{a0}{}", "abcdef ghijk lmnop qrstu vwxyz");
-        let p = pane(PermissionMode::Default, PaneStatus::Idle, &prompt);
+        let p = pane_with_response(PermissionMode::Default, PaneStatus::Idle, "abcdef ghijk lmnop qrstu vwxyz", true);
         // Width 20: inner_width=17, prefix=4, so wrap at 13 chars
         let lines = render_pane_lines(
             &p,
@@ -683,9 +671,9 @@ mod tests {
         );
 
         assert!(lines.len() >= 2);
-        // First line has ❯ + start of text
+        // First line has ▶ + start of text
         let first = line_text(&lines[1]);
-        assert!(first.contains("❯"));
+        assert!(first.contains("▶"));
         // Second line should NOT have trimmed spaces (char-wrap, not word-wrap)
         // With word-wrap "abcdef ghijk " would break at "ghijk", char-wrap fills fully
         let second = line_text(&lines[2]);
@@ -711,7 +699,7 @@ mod tests {
 
         assert!(lines.len() >= 2);
         let prompt_line = line_text(&lines[1]);
-        assert!(!prompt_line.contains("❯"));
+        assert!(!prompt_line.contains("▶"));
         assert!(prompt_line.contains("fix the bug"));
     }
 

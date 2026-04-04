@@ -113,7 +113,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash ~/.config/tmux-agent-sidebar/activity-log.sh"
+            "command": "bash ~/.config/tmux-agent-sidebar/hook.sh claude activity-log"
           }
         ]
       }

@@ -40,11 +40,21 @@ fn test_scroll_bottom_dispatches() {
     state.activity_scroll.visible_height = 4;
 
     // Set up git scroll state
-    state.git_status_lines = vec![
-        " M file1.rs".into(),
-        " M file2.rs".into(),
-        "?? file3.rs".into(),
+    state.git_unstaged_files = vec![
+        tmux_agent_sidebar::git::GitFileEntry {
+            status: 'M',
+            name: "file1.rs".into(),
+            additions: 0,
+            deletions: 0,
+        },
+        tmux_agent_sidebar::git::GitFileEntry {
+            status: 'M',
+            name: "file2.rs".into(),
+            additions: 0,
+            deletions: 0,
+        },
     ];
+    state.git_untracked_files = vec!["file3.rs".into()];
     state.git_scroll.total_lines = 3;
     state.git_scroll.visible_height = 1;
 
@@ -66,10 +76,8 @@ fn snapshot_git_status_tab_ui() {
     let pane = make_pane(AgentType::Claude, PaneStatus::Running);
     let mut state = make_state(vec![SessionInfo {
         session_name: "main".into(),
-        attached: true,
         windows: vec![WindowInfo {
             window_id: "@1".into(),
-            window_index: 1,
             window_name: "project".into(),
             window_active: true,
             auto_rename: false,
@@ -84,25 +92,31 @@ fn snapshot_git_status_tab_ui() {
     state.sidebar_focused = true;
     state.git_branch = "feature/sidebar".into();
     state.git_ahead_behind = Some((2, 1));
-    state.git_status_lines = vec![
-        " M src/ui/agents.rs".into(),
-        " M src/state.rs".into(),
-        "?? new_file.rs".into(),
+    state.git_unstaged_files = vec![
+        tmux_agent_sidebar::git::GitFileEntry {
+            status: 'M',
+            name: "src/ui/agents.rs".into(),
+            additions: 30,
+            deletions: 10,
+        },
+        tmux_agent_sidebar::git::GitFileEntry {
+            status: 'M',
+            name: "src/state.rs".into(),
+            additions: 12,
+            deletions: 5,
+        },
     ];
+    state.git_untracked_files = vec!["new_file.rs".into()];
     state.git_diff_stat = Some((42, 15));
+    state.git_changed_file_count = 3;
 
     let output = render_to_string(&mut state, 28, 24);
-    let expected = indoc! {r#"
-╭ project ─────────────────╮
-│ ● claude                 │
-╰──────────────────────────╯
-╭ Activity │ Git ──────────╮
-│                    +42-15│
-│ feature/sidebar ↑2 ↓1    │
-│ Modified: 2              │
-│ Untracked: 1             │
-╰──────────────────────────╯"#};
-    assert_eq!(output, expected);
+    // Verify key elements are present in the new layout
+    assert!(output.contains("+42"), "should show insertions");
+    assert!(output.contains("-15"), "should show deletions");
+    assert!(output.contains("feature/sidebar"), "should show branch");
+    assert!(output.contains("↑2"), "should show ahead count");
+    assert!(output.contains("↓1"), "should show behind count");
 }
 
 #[test]
@@ -110,10 +124,8 @@ fn snapshot_git_clean_ui() {
     let pane = make_pane(AgentType::Claude, PaneStatus::Running);
     let mut state = make_state(vec![SessionInfo {
         session_name: "main".into(),
-        attached: true,
         windows: vec![WindowInfo {
             window_id: "@1".into(),
-            window_index: 1,
             window_name: "project".into(),
             window_active: true,
             auto_rename: false,
@@ -148,10 +160,8 @@ fn snapshot_activity_tab_active_ui() {
     let pane = make_pane(AgentType::Claude, PaneStatus::Running);
     let mut state = make_state(vec![SessionInfo {
         session_name: "main".into(),
-        attached: true,
         windows: vec![WindowInfo {
             window_id: "@1".into(),
-            window_index: 1,
             window_name: "project".into(),
             window_active: true,
             auto_rename: false,
@@ -187,10 +197,8 @@ fn snapshot_tab_bar_renders_both_labels() {
     let pane = make_pane(AgentType::Claude, PaneStatus::Idle);
     let mut state = make_state(vec![SessionInfo {
         session_name: "main".into(),
-        attached: true,
         windows: vec![WindowInfo {
             window_id: "@1".into(),
-            window_index: 1,
             window_name: "project".into(),
             window_active: true,
             auto_rename: false,
@@ -218,15 +226,11 @@ fn snapshot_tab_bar_renders_both_labels() {
 
 #[test]
 fn snapshot_git_full_info_ui() {
-    let now = FIXED_NOW;
-
     let pane = make_pane(AgentType::Claude, PaneStatus::Running);
     let mut state = make_state(vec![SessionInfo {
         session_name: "main".into(),
-        attached: true,
         windows: vec![WindowInfo {
             window_id: "@1".into(),
-            window_index: 1,
             window_name: "project".into(),
             window_active: true,
             auto_rename: false,
@@ -242,31 +246,30 @@ fn snapshot_git_full_info_ui() {
     state.git_branch = "main".into();
     state.git_ahead_behind = Some((0, 0));
     state.git_diff_stat = Some((120, 30));
-    state.git_last_commit = Some(("abc1234".into(), "fix: sidebar crash".into(), now - 300));
-    state.git_status_lines = vec![
-        " M src/state.rs".into(),
-        " M src/ui/bottom.rs".into(),
-        "?? new_file.rs".into(),
+    state.git_unstaged_files = vec![
+        tmux_agent_sidebar::git::GitFileEntry {
+            status: 'M',
+            name: "src/state.rs".into(),
+            additions: 42,
+            deletions: 10,
+        },
+        tmux_agent_sidebar::git::GitFileEntry {
+            status: 'M',
+            name: "src/ui/bottom.rs".into(),
+            additions: 85,
+            deletions: 20,
+        },
     ];
-    state.git_file_changes = vec![
-        ("bottom.rs".into(), 85),
-        ("state.rs".into(), 42),
-        ("main.rs".into(), 12),
-    ];
+    state.git_untracked_files = vec!["new_file.rs".into()];
+    state.git_changed_file_count = 3;
 
     // Use plain render since elapsed time varies
     let output = render_to_string(&mut state, 28, 24);
     assert!(output.contains("+120"));
     assert!(output.contains("-30"));
     assert!(output.contains("main"));
-    assert!(output.contains("abc1234"));
-    assert!(output.contains("fix: sidebar crash"));
-    assert!(output.contains("Modified: 2"));
-    assert!(output.contains("Untracked: 1"));
-    assert!(output.contains("bottom.rs"));
-    assert!(output.contains("±85"));
-    assert!(output.contains("state.rs"));
-    assert!(output.contains("±42"));
+    assert!(output.contains("Unstaged"), "should show Unstaged section");
+    assert!(output.contains("Untracked"), "should show Untracked section");
 }
 
 #[test]
@@ -274,10 +277,8 @@ fn snapshot_git_long_filename_truncated_ui() {
     let pane = make_pane(AgentType::Claude, PaneStatus::Running);
     let mut state = make_state(vec![SessionInfo {
         session_name: "main".into(),
-        attached: true,
         windows: vec![WindowInfo {
             window_id: "@1".into(),
-            window_index: 1,
             window_name: "project".into(),
             window_active: true,
             auto_rename: false,
@@ -291,38 +292,32 @@ fn snapshot_git_long_filename_truncated_ui() {
     state.focus = Focus::ActivityLog;
     state.sidebar_focused = true;
     state.git_branch = "main".into();
-    state.git_file_changes = vec![
-        ("very-long-filename-that-should-be-truncated.rs".into(), 200),
-        ("short.rs".into(), 10),
+    state.git_unstaged_files = vec![
+        tmux_agent_sidebar::git::GitFileEntry {
+            status: 'M',
+            name: "very-long-filename-that-should-be-truncated.rs".into(),
+            additions: 150,
+            deletions: 50,
+        },
+        tmux_agent_sidebar::git::GitFileEntry {
+            status: 'M',
+            name: "short.rs".into(),
+            additions: 8,
+            deletions: 2,
+        },
     ];
-    state.git_status_lines = vec![" M very-long-filename-that-should-be-truncated.rs".into()];
+    state.git_changed_file_count = 2;
 
-    let output = render_to_string(&mut state, 28, 24);
     // Verify the long filename is truncated (contains ellipsis)
-    let plain = render_to_string(&mut state, 28, 18);
+    let plain = render_to_string(&mut state, 28, 24);
     assert!(
         plain.contains("…"),
         "Long filename should be truncated with ellipsis"
     );
     assert!(
-        plain.contains("±200"),
-        "Change count should still be visible"
-    );
-    assert!(
         plain.contains("short.rs"),
         "Short filename should not be truncated"
     );
-    let expected = indoc! {r#"
-╭ project ─────────────────╮
-│ ● claude                 │
-╰──────────────────────────╯
-╭ Activity │ Git ──────────╮
-│ main                     │
-│ Modified: 1              │
-│ very-long-filename… ±200 │
-│ short.rs             ±10 │
-╰──────────────────────────╯"#};
-    assert_eq!(output, expected);
 }
 
 #[test]
@@ -330,10 +325,8 @@ fn snapshot_git_more_than_5_files() {
     let pane = make_pane(AgentType::Claude, PaneStatus::Running);
     let mut state = make_state(vec![SessionInfo {
         session_name: "main".into(),
-        attached: true,
         windows: vec![WindowInfo {
             window_id: "@1".into(),
-            window_index: 1,
             window_name: "project".into(),
             window_active: true,
             auto_rename: false,
@@ -347,24 +340,21 @@ fn snapshot_git_more_than_5_files() {
     state.focus = Focus::ActivityLog;
     state.sidebar_focused = true;
     state.git_branch = "main".into();
-    state.git_file_changes = vec![
-        ("a.rs".into(), 100),
-        ("b.rs".into(), 80),
-        ("c.rs".into(), 60),
-        ("d.rs".into(), 40),
-        ("e.rs".into(), 20),
-        ("f.rs".into(), 10),
-        ("g.rs".into(), 5),
+    state.git_unstaged_files = vec![
+        tmux_agent_sidebar::git::GitFileEntry { status: 'M', name: "a.rs".into(), additions: 100, deletions: 0 },
+        tmux_agent_sidebar::git::GitFileEntry { status: 'M', name: "b.rs".into(), additions: 80, deletions: 0 },
+        tmux_agent_sidebar::git::GitFileEntry { status: 'M', name: "c.rs".into(), additions: 60, deletions: 0 },
+        tmux_agent_sidebar::git::GitFileEntry { status: 'M', name: "d.rs".into(), additions: 40, deletions: 0 },
+        tmux_agent_sidebar::git::GitFileEntry { status: 'M', name: "e.rs".into(), additions: 20, deletions: 0 },
+        tmux_agent_sidebar::git::GitFileEntry { status: 'M', name: "f.rs".into(), additions: 10, deletions: 0 },
+        tmux_agent_sidebar::git::GitFileEntry { status: 'M', name: "g.rs".into(), additions: 5, deletions: 0 },
     ];
+    state.git_changed_file_count = 7;
 
     // Verify file list rendering (scroll to see overflow)
     let plain = render_to_string(&mut state, 28, 40);
     // First 5 files should be rendered (may need scroll to see all)
     assert!(plain.contains("a.rs"), "1st file should be shown");
-    assert!(
-        plain.contains("±100"),
-        "1st file change count should be shown"
-    );
     assert!(!plain.contains("f.rs"), "6th file should NOT be shown");
     assert!(!plain.contains("g.rs"), "7th file should NOT be shown");
 
@@ -379,15 +369,11 @@ fn snapshot_git_more_than_5_files() {
 
 #[test]
 fn snapshot_git_branch_only_no_changes() {
-    let now = FIXED_NOW;
-
     let pane = make_pane(AgentType::Claude, PaneStatus::Running);
     let mut state = make_state(vec![SessionInfo {
         session_name: "main".into(),
-        attached: true,
         windows: vec![WindowInfo {
             window_id: "@1".into(),
-            window_index: 1,
             window_name: "project".into(),
             window_active: true,
             auto_rename: false,
@@ -402,13 +388,10 @@ fn snapshot_git_branch_only_no_changes() {
     state.sidebar_focused = true;
     state.git_branch = "feature/long-branch-name".into();
     state.git_ahead_behind = Some((5, 0));
-    state.git_last_commit = Some(("def5678".into(), "chore: update deps".into(), now - 7200));
 
     let plain = render_to_string(&mut state, 38, 20);
     assert!(plain.contains("feature/long-branch-name"));
     assert!(plain.contains("↑5"));
-    assert!(plain.contains("def5678"));
-    assert!(plain.contains("chore: update deps"));
 }
 
 #[test]
@@ -416,10 +399,8 @@ fn snapshot_git_pr_number_ui() {
     let pane = make_pane(AgentType::Claude, PaneStatus::Running);
     let mut state = make_state(vec![SessionInfo {
         session_name: "main".into(),
-        attached: true,
         windows: vec![WindowInfo {
             window_id: "@1".into(),
-            window_index: 1,
             window_name: "project".into(),
             window_active: true,
             auto_rename: false,
@@ -445,7 +426,7 @@ fn snapshot_git_pr_number_ui() {
         output.contains("underline"),
         "PR number should be underlined"
     );
-    assert!(output.contains("fg:39"));
+    assert!(output.contains("fg:117"));
 }
 
 #[test]
@@ -461,10 +442,8 @@ fn snapshot_git_pr_with_diff_ui() {
     let pane = make_pane(AgentType::Claude, PaneStatus::Running);
     let mut state = make_state(vec![SessionInfo {
         session_name: "main".into(),
-        attached: true,
         windows: vec![WindowInfo {
             window_id: "@1".into(),
-            window_index: 1,
             window_name: "project".into(),
             window_active: true,
             auto_rename: false,
@@ -496,10 +475,8 @@ fn snapshot_subagents_tree_ui() {
 
     let mut state = make_state(vec![SessionInfo {
         session_name: "main".into(),
-        attached: true,
         windows: vec![WindowInfo {
             window_id: "@1".into(),
-            window_index: 1,
             window_name: "project".into(),
             window_active: true,
             auto_rename: false,
@@ -533,10 +510,8 @@ fn snapshot_subagent_long_name_truncated_ui() {
 
     let mut state = make_state(vec![SessionInfo {
         session_name: "main".into(),
-        attached: true,
         windows: vec![WindowInfo {
             window_id: "@1".into(),
-            window_index: 1,
             window_name: "project".into(),
             window_active: true,
             auto_rename: false,
@@ -569,10 +544,8 @@ fn snapshot_activity_empty_centered_ui() {
     let pane = make_pane(AgentType::Claude, PaneStatus::Idle);
     let mut state = make_state(vec![SessionInfo {
         session_name: "main".into(),
-        attached: true,
         windows: vec![WindowInfo {
             window_id: "@1".into(),
-            window_index: 1,
             window_name: "project".into(),
             window_active: true,
             auto_rename: false,
@@ -603,10 +576,8 @@ fn snapshot_git_clean_centered_ui() {
     let pane = make_pane(AgentType::Claude, PaneStatus::Idle);
     let mut state = make_state(vec![SessionInfo {
         session_name: "main".into(),
-        attached: true,
         windows: vec![WindowInfo {
             window_id: "@1".into(),
-            window_index: 1,
             window_name: "project".into(),
             window_active: true,
             auto_rename: false,
@@ -642,10 +613,8 @@ fn snapshot_git_branch_loaded_no_changes_shows_inline_clean() {
     let pane = make_pane(AgentType::Claude, PaneStatus::Running);
     let mut state = make_state(vec![SessionInfo {
         session_name: "main".into(),
-        attached: true,
         windows: vec![WindowInfo {
             window_id: "@1".into(),
-            window_index: 1,
             window_name: "project".into(),
             window_active: true,
             auto_rename: false,
@@ -678,10 +647,8 @@ fn snapshot_git_no_data_shows_centered_clean() {
     let pane = make_pane(AgentType::Claude, PaneStatus::Running);
     let mut state = make_state(vec![SessionInfo {
         session_name: "main".into(),
-        attached: true,
         windows: vec![WindowInfo {
             window_id: "@1".into(),
-            window_index: 1,
             window_name: "project".into(),
             window_active: true,
             auto_rename: false,
@@ -714,10 +681,8 @@ fn test_git_behind_only() {
     let pane = make_pane(AgentType::Claude, PaneStatus::Running);
     let mut state = make_state(vec![SessionInfo {
         session_name: "main".into(),
-        attached: true,
         windows: vec![WindowInfo {
             window_id: "@1".into(),
-            window_index: 1,
             window_name: "project".into(),
             window_active: true,
             auto_rename: false,
@@ -743,10 +708,8 @@ fn test_git_ahead_and_behind() {
     let pane = make_pane(AgentType::Claude, PaneStatus::Running);
     let mut state = make_state(vec![SessionInfo {
         session_name: "main".into(),
-        attached: true,
         windows: vec![WindowInfo {
             window_id: "@1".into(),
-            window_index: 1,
             window_name: "project".into(),
             window_active: true,
             auto_rename: false,
@@ -774,10 +737,8 @@ fn test_git_diff_insertions_only() {
     let pane = make_pane(AgentType::Claude, PaneStatus::Running);
     let mut state = make_state(vec![SessionInfo {
         session_name: "main".into(),
-        attached: true,
         windows: vec![WindowInfo {
             window_id: "@1".into(),
-            window_index: 1,
             window_name: "project".into(),
             window_active: true,
             auto_rename: false,
@@ -802,10 +763,8 @@ fn test_git_diff_deletions_only() {
     let pane = make_pane(AgentType::Claude, PaneStatus::Running);
     let mut state = make_state(vec![SessionInfo {
         session_name: "main".into(),
-        attached: true,
         windows: vec![WindowInfo {
             window_id: "@1".into(),
-            window_index: 1,
             window_name: "project".into(),
             window_active: true,
             auto_rename: false,
@@ -830,10 +789,8 @@ fn snapshot_branch_truncated_ui() {
     let pane = make_pane(AgentType::Claude, PaneStatus::Running);
     let mut state = make_state(vec![SessionInfo {
         session_name: "main".into(),
-        attached: true,
         windows: vec![WindowInfo {
             window_id: "@0".into(),
-            window_index: 0,
             window_name: "project".into(),
             window_active: true,
             auto_rename: false,
@@ -868,6 +825,191 @@ fn snapshot_branch_truncated_ui() {
 }
 
 #[test]
+fn snapshot_git_staged_unstaged_untracked_ui() {
+    let pane = make_pane(AgentType::Claude, PaneStatus::Running);
+    let mut state = make_state(vec![SessionInfo {
+        session_name: "main".into(),
+        windows: vec![WindowInfo {
+            window_id: "@1".into(),
+            window_name: "project".into(),
+            window_active: true,
+            auto_rename: false,
+            panes: vec![pane.clone()],
+        }],
+    }]);
+    state.repo_groups = vec![make_repo_group("project", vec![pane])];
+    state.rebuild_row_targets();
+
+    state.bottom_tab = BottomTab::GitStatus;
+    state.focus = Focus::ActivityLog;
+    state.sidebar_focused = true;
+    state.git_branch = "main".into();
+    state.git_pr_number = Some("5".into());
+    state.git_diff_stat = Some((12, 3));
+    state.git_changed_file_count = 4;
+    state.git_staged_files = vec![
+        tmux_agent_sidebar::git::GitFileEntry {
+            status: 'M',
+            name: "app.rs".into(),
+            additions: 10,
+            deletions: 2,
+        },
+        tmux_agent_sidebar::git::GitFileEntry {
+            status: 'A',
+            name: "new.rs".into(),
+            additions: 2,
+            deletions: 0,
+        },
+    ];
+    state.git_unstaged_files = vec![tmux_agent_sidebar::git::GitFileEntry {
+        status: 'M',
+        name: "config.toml".into(),
+        additions: 0,
+        deletions: 1,
+    }];
+    state.git_untracked_files = vec!["debug.log".into()];
+
+    let output = render_to_string(&mut state, 28, 30);
+    let expected = indoc! {r#"
+╭ project ─────────────────╮
+│ ● claude                 │
+╰──────────────────────────╯
+╭ Activity │ Git ──────────╮
+│ main                  #5 │
+│ +12/-3           4 files │
+│──────────────────────────│
+│ Staged (2)               │
+│ M app.rs          +10/-2 │
+│ A new.rs           +2/-0 │
+│ Unstaged (1)             │
+│ M config.toml      +0/-1 │
+│ Untracked (1)            │
+│ ? debug.log              │
+╰──────────────────────────╯"#};
+    assert_eq!(output, expected);
+}
+
+#[test]
+fn snapshot_git_long_branch_with_pr_ui() {
+    let pane = make_pane(AgentType::Claude, PaneStatus::Running);
+    let mut state = make_state(vec![SessionInfo {
+        session_name: "main".into(),
+        windows: vec![WindowInfo {
+            window_id: "@1".into(),
+            window_name: "project".into(),
+            window_active: true,
+            auto_rename: false,
+            panes: vec![pane.clone()],
+        }],
+    }]);
+    state.repo_groups = vec![make_repo_group("project", vec![pane])];
+    state.rebuild_row_targets();
+
+    state.bottom_tab = BottomTab::GitStatus;
+    state.focus = Focus::ActivityLog;
+    state.sidebar_focused = true;
+    state.git_branch = "feature/very-long-branch-name".into();
+    state.git_pr_number = Some("123".into());
+    state.git_diff_stat = Some((5, 2));
+    state.git_changed_file_count = 1;
+    state.git_unstaged_files = vec![tmux_agent_sidebar::git::GitFileEntry {
+        status: 'M',
+        name: "main.rs".into(),
+        additions: 5,
+        deletions: 2,
+    }];
+
+    let output = render_to_string(&mut state, 28, 24);
+    // Branch should be truncated, PR visible
+    assert!(output.contains("#123"));
+    assert!(output.contains('…'));
+    assert_right_border_intact(&output);
+}
+
+#[test]
+fn snapshot_git_staged_only_ui() {
+    let pane = make_pane(AgentType::Claude, PaneStatus::Running);
+    let mut state = make_state(vec![SessionInfo {
+        session_name: "main".into(),
+        windows: vec![WindowInfo {
+            window_id: "@1".into(),
+            window_name: "project".into(),
+            window_active: true,
+            auto_rename: false,
+            panes: vec![pane.clone()],
+        }],
+    }]);
+    state.repo_groups = vec![make_repo_group("project", vec![pane])];
+    state.rebuild_row_targets();
+
+    state.bottom_tab = BottomTab::GitStatus;
+    state.focus = Focus::ActivityLog;
+    state.sidebar_focused = true;
+    state.git_branch = "main".into();
+    state.git_diff_stat = Some((20, 0));
+    state.git_changed_file_count = 1;
+    state.git_staged_files = vec![tmux_agent_sidebar::git::GitFileEntry {
+        status: 'A',
+        name: "new_feature.rs".into(),
+        additions: 20,
+        deletions: 0,
+    }];
+
+    let output = render_to_string(&mut state, 28, 24);
+    let expected = indoc! {r#"
+╭ project ─────────────────╮
+│ ● claude                 │
+╰──────────────────────────╯
+╭ Activity │ Git ──────────╮
+│ main                     │
+│ +20/-0           1 files │
+│──────────────────────────│
+│ Staged (1)               │
+│ A new_feature.rs  +20/-0 │
+╰──────────────────────────╯"#};
+    assert_eq!(output, expected);
+}
+
+#[test]
+fn snapshot_git_many_files_more_indicator_ui() {
+    let pane = make_pane(AgentType::Claude, PaneStatus::Running);
+    let mut state = make_state(vec![SessionInfo {
+        session_name: "main".into(),
+        windows: vec![WindowInfo {
+            window_id: "@1".into(),
+            window_name: "project".into(),
+            window_active: true,
+            auto_rename: false,
+            panes: vec![pane.clone()],
+        }],
+    }]);
+    state.repo_groups = vec![make_repo_group("project", vec![pane])];
+    state.rebuild_row_targets();
+
+    state.bottom_tab = BottomTab::GitStatus;
+    state.focus = Focus::ActivityLog;
+    state.sidebar_focused = true;
+    state.git_branch = "dev".into();
+    state.git_changed_file_count = 7;
+    state.git_unstaged_files = (0..7)
+        .map(|i| tmux_agent_sidebar::git::GitFileEntry {
+            status: 'M',
+            name: format!("f{i}.rs"),
+            additions: 1,
+            deletions: 0,
+        })
+        .collect();
+
+    let output = render_to_string(&mut state, 28, 30);
+    // Should show 5 files + "+2 more" right-aligned
+    assert!(output.contains("f0.rs"));
+    assert!(output.contains("f4.rs"));
+    assert!(!output.contains("f5.rs"));
+    assert!(output.contains("+2 more"));
+    assert_right_border_intact(&output);
+}
+
+#[test]
 fn snapshot_focused_group_active_border_styled() {
     // Two repo groups: focused pane in first, second should have inactive border
     let mut pane1 = make_pane(AgentType::Claude, PaneStatus::Running);
@@ -877,10 +1019,8 @@ fn snapshot_focused_group_active_border_styled() {
 
     let mut state = make_state(vec![SessionInfo {
         session_name: "main".into(),
-        attached: true,
         windows: vec![WindowInfo {
             window_id: "@0".into(),
-            window_index: 0,
             window_name: "fish".into(),
             window_active: true,
             auto_rename: true,

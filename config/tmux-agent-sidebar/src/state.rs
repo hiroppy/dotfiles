@@ -59,17 +59,23 @@ pub struct AppState {
     pub agents_scroll: ScrollState,
     pub theme: ColorTheme,
     pub bottom_tab: BottomTab,
-    pub git_status_lines: Vec<String>,
     pub git_diff_stat: Option<(usize, usize)>,
     pub git_branch: String,
     pub git_ahead_behind: Option<(usize, usize)>,
-    pub git_last_commit: Option<(String, String, u64)>,
-    pub git_file_changes: Vec<(String, usize)>,
+    pub git_staged_files: Vec<crate::git::GitFileEntry>,
+    pub git_unstaged_files: Vec<crate::git::GitFileEntry>,
+    pub git_untracked_files: Vec<String>,
+    pub git_changed_file_count: usize,
     pub git_remote_url: String,
     pub git_pr_number: Option<String>,
     pub git_scroll: ScrollState,
     pub pane_task_progress: HashMap<String, TaskProgress>,
     pub pane_task_dismissed: HashMap<String, usize>,
+    /// Tracks when each pane first became inactive (epoch seconds).
+    /// Used to debounce task progress dismissal — the agent status can
+    /// briefly flicker to idle (e.g. during system prompt delivery),
+    /// so we wait a grace period before actually hiding task progress.
+    pub pane_inactive_since: HashMap<String, u64>,
     /// Agent pane IDs that have already been seen. Used to detect new agent
     /// launches and auto-switch the bottom tab to Activity only once.
     pub seen_agent_panes: std::collections::HashSet<String>,
@@ -100,17 +106,19 @@ impl AppState {
             agents_scroll: ScrollState::default(),
             theme: ColorTheme::default(),
             bottom_tab: BottomTab::Activity,
-            git_status_lines: vec![],
             git_diff_stat: None,
             git_branch: String::new(),
             git_ahead_behind: None,
-            git_last_commit: None,
-            git_file_changes: vec![],
+            git_staged_files: vec![],
+            git_unstaged_files: vec![],
+            git_untracked_files: vec![],
+            git_changed_file_count: 0,
             git_remote_url: String::new(),
             git_pr_number: None,
             git_scroll: ScrollState::default(),
             pane_task_progress: HashMap::new(),
             pane_task_dismissed: HashMap::new(),
+            pane_inactive_since: HashMap::new(),
             seen_agent_panes: std::collections::HashSet::new(),
             pane_tab_prefs: HashMap::new(),
             prev_focused_pane_id: None,
@@ -163,10 +171,6 @@ impl AppState {
         }
     }
 
-    pub fn scroll_agents(&mut self, delta: isize) {
-        self.agents_scroll.scroll(delta);
-    }
-
     pub fn next_bottom_tab(&mut self) {
         self.bottom_tab = match self.bottom_tab {
             BottomTab::Activity => BottomTab::GitStatus,
@@ -181,13 +185,24 @@ impl AppState {
         }
     }
 
+    /// Handle mouse scroll event, routing to agents or bottom panel based on Y position.
+    pub fn handle_mouse_scroll(&mut self, row: u16, term_height: u16, bottom_panel_height: u16, delta: isize) {
+        let bottom_start = term_height.saturating_sub(bottom_panel_height);
+        if row >= bottom_start {
+            self.scroll_bottom(delta);
+        } else {
+            self.agents_scroll.scroll(delta);
+        }
+    }
+
     pub fn apply_git_data(&mut self, data: crate::git::GitData) {
-        self.git_status_lines = data.status_lines;
         self.git_diff_stat = data.diff_stat;
         self.git_branch = data.branch;
         self.git_ahead_behind = data.ahead_behind;
-        self.git_last_commit = data.last_commit;
-        self.git_file_changes = data.file_changes;
+        self.git_staged_files = data.staged_files;
+        self.git_unstaged_files = data.unstaged_files;
+        self.git_untracked_files = data.untracked_files;
+        self.git_changed_file_count = data.changed_file_count;
         self.git_remote_url = data.remote_url;
         self.git_pr_number = data.pr_number;
     }
@@ -208,11 +223,9 @@ mod tests {
             status: PaneStatus::Running,
             attention: false,
             agent: AgentType::Claude,
-            pane_name: String::new(),
             path: "/tmp".into(),
-            command: "fish".into(),
-            role: String::new(),
             prompt: String::new(),
+            prompt_is_response: false,
             started_at: None,
             wait_reason: String::new(),
             permission_mode: PermissionMode::Default,
@@ -548,10 +561,204 @@ mod tests {
         state.refresh_task_progress();
         assert_eq!(state.pane_task_dismissed.get(&pane_id), Some(&1));
 
+        // Pane removed — both dismissed and inactive_since should be cleaned up
         state.repo_groups.clear();
+        state.pane_inactive_since
+            .insert(pane_id.clone(), 100);
         state.refresh_task_progress();
 
         assert!(state.pane_task_dismissed.is_empty());
+        assert!(state.pane_inactive_since.is_empty());
+        fs::remove_file(&log_path).ok();
+    }
+
+    #[test]
+    fn refresh_task_progress_dismisses_incomplete_tasks_when_agent_idle() {
+        let mut state = AppState::new("%99".into());
+        let pane_id = "%207".to_string();
+        let mut pane = test_pane(&pane_id);
+        pane.status = PaneStatus::Idle;
+        state.repo_groups = vec![RepoGroup {
+            name: "test".into(),
+            has_focus: true,
+            panes: vec![(pane, PaneGitInfo::default())],
+        }];
+        // 5 out of 6 tasks completed — agent is idle so it won't update further
+        let log_path = write_activity_log(
+            &pane_id,
+            "10:00|TaskCreate|#1 A\n10:01|TaskCreate|#2 B\n10:02|TaskCreate|#3 C\n10:03|TaskCreate|#4 D\n10:04|TaskCreate|#5 E\n10:05|TaskCreate|#6 F\n10:06|TaskUpdate|completed #1\n10:07|TaskUpdate|completed #2\n10:08|TaskUpdate|completed #3\n10:09|TaskUpdate|completed #4\n10:10|TaskUpdate|completed #5\n",
+        );
+
+        // First refresh: grace period starts, tasks still shown (not dismissed yet)
+        state.now = 100;
+        state.refresh_task_progress();
+        assert!(state.pane_task_progress.get(&pane_id).is_some());
+        assert!(state.pane_inactive_since.contains_key(&pane_id));
+
+        // After grace period (3s): should be dismissed
+        state.now = 104;
+        state.refresh_task_progress();
+        assert!(state.pane_task_progress.get(&pane_id).is_none());
+        assert_eq!(state.pane_task_dismissed.get(&pane_id), Some(&6));
+        fs::remove_file(&log_path).ok();
+    }
+
+    #[test]
+    fn refresh_task_progress_shows_incomplete_tasks_when_agent_running() {
+        let mut state = AppState::new("%99".into());
+        let pane_id = "%208".to_string();
+        // test_pane defaults to PaneStatus::Running
+        state.repo_groups = vec![RepoGroup {
+            name: "test".into(),
+            has_focus: true,
+            panes: vec![(test_pane(&pane_id), PaneGitInfo::default())],
+        }];
+        let log_path = write_activity_log(
+            &pane_id,
+            "10:00|TaskCreate|#1 A\n10:01|TaskCreate|#2 B\n10:02|TaskUpdate|completed #1\n10:03|TaskUpdate|in_progress #2\n",
+        );
+
+        state.refresh_task_progress();
+
+        // Agent is running, so incomplete tasks should still be shown
+        assert!(state.pane_task_progress.get(&pane_id).is_some());
+        assert_eq!(
+            state.pane_task_progress.get(&pane_id).map(|p| p.total()),
+            Some(2)
+        );
+        fs::remove_file(&log_path).ok();
+    }
+
+    #[test]
+    fn refresh_task_progress_dismisses_incomplete_tasks_when_agent_error() {
+        let mut state = AppState::new("%99".into());
+        let pane_id = "%209".to_string();
+        let mut pane = test_pane(&pane_id);
+        pane.status = PaneStatus::Error;
+        state.repo_groups = vec![RepoGroup {
+            name: "test".into(),
+            has_focus: true,
+            panes: vec![(pane, PaneGitInfo::default())],
+        }];
+        let log_path = write_activity_log(
+            &pane_id,
+            "10:00|TaskCreate|#1 A\n10:01|TaskUpdate|in_progress #1\n",
+        );
+
+        // First refresh: grace period starts, tasks still shown
+        state.now = 100;
+        state.refresh_task_progress();
+        assert!(state.pane_task_progress.get(&pane_id).is_some());
+
+        // After grace period: agent errored out — dismiss incomplete tasks
+        state.now = 104;
+        state.refresh_task_progress();
+        assert!(state.pane_task_progress.get(&pane_id).is_none());
+        assert_eq!(state.pane_task_dismissed.get(&pane_id), Some(&1));
+        fs::remove_file(&log_path).ok();
+    }
+
+    #[test]
+    fn refresh_task_progress_debounce_resets_when_agent_resumes() {
+        // Simulates brief idle flicker: agent goes idle then returns to running
+        // before the grace period expires — tasks should remain visible.
+        let mut state = AppState::new("%99".into());
+        let pane_id = "%210".to_string();
+        let mut pane = test_pane(&pane_id);
+        pane.status = PaneStatus::Idle;
+        state.repo_groups = vec![RepoGroup {
+            name: "test".into(),
+            has_focus: true,
+            panes: vec![(pane, PaneGitInfo::default())],
+        }];
+        let log_path = write_activity_log(
+            &pane_id,
+            "10:00|TaskCreate|#1 A\n10:01|TaskCreate|#2 B\n10:02|TaskUpdate|completed #1\n",
+        );
+
+        // Agent is idle — grace timer starts, tasks still shown
+        state.now = 100;
+        state.refresh_task_progress();
+        assert!(state.pane_task_progress.get(&pane_id).is_some());
+        assert!(state.pane_inactive_since.contains_key(&pane_id));
+
+        // Agent returns to running before grace expires — timer resets
+        let mut pane = test_pane(&pane_id);
+        pane.status = PaneStatus::Running;
+        state.repo_groups = vec![RepoGroup {
+            name: "test".into(),
+            has_focus: true,
+            panes: vec![(pane, PaneGitInfo::default())],
+        }];
+        state.now = 102;
+        state.refresh_task_progress();
+        assert!(state.pane_task_progress.get(&pane_id).is_some());
+        assert!(!state.pane_inactive_since.contains_key(&pane_id));
+
+        fs::remove_file(&log_path).ok();
+    }
+
+    #[test]
+    fn refresh_task_progress_debounce_exact_boundary() {
+        // Grace period is 3 seconds. At exactly 3s the condition is >=,
+        // so it should dismiss.
+        let mut state = AppState::new("%99".into());
+        let pane_id = "%211".to_string();
+        let mut pane = test_pane(&pane_id);
+        pane.status = PaneStatus::Idle;
+        state.repo_groups = vec![RepoGroup {
+            name: "test".into(),
+            has_focus: true,
+            panes: vec![(pane, PaneGitInfo::default())],
+        }];
+        let log_path = write_activity_log(
+            &pane_id,
+            "10:00|TaskCreate|#1 A\n10:01|TaskUpdate|in_progress #1\n",
+        );
+
+        // t=100: grace timer starts
+        state.now = 100;
+        state.refresh_task_progress();
+        assert!(state.pane_task_progress.get(&pane_id).is_some());
+
+        // t=102 (2s elapsed): still within grace period — tasks shown
+        state.now = 102;
+        state.refresh_task_progress();
+        assert!(state.pane_task_progress.get(&pane_id).is_some());
+
+        // t=103 (exactly 3s): grace expired (>= 3) — dismissed
+        state.now = 103;
+        state.refresh_task_progress();
+        assert!(state.pane_task_progress.get(&pane_id).is_none());
+        assert_eq!(state.pane_task_dismissed.get(&pane_id), Some(&1));
+
+        fs::remove_file(&log_path).ok();
+    }
+
+    #[test]
+    fn refresh_task_progress_waiting_does_not_start_debounce() {
+        // Waiting is an active state — inactive timer should not be set.
+        let mut state = AppState::new("%99".into());
+        let pane_id = "%212".to_string();
+        let mut pane = test_pane(&pane_id);
+        pane.status = PaneStatus::Waiting;
+        state.repo_groups = vec![RepoGroup {
+            name: "test".into(),
+            has_focus: true,
+            panes: vec![(pane, PaneGitInfo::default())],
+        }];
+        let log_path = write_activity_log(
+            &pane_id,
+            "10:00|TaskCreate|#1 A\n10:01|TaskUpdate|in_progress #1\n",
+        );
+
+        state.now = 100;
+        state.refresh_task_progress();
+
+        // Tasks shown and no inactive timer started
+        assert!(state.pane_task_progress.get(&pane_id).is_some());
+        assert!(!state.pane_inactive_since.contains_key(&pane_id));
+
         fs::remove_file(&log_path).ok();
     }
 
@@ -622,27 +829,32 @@ mod tests {
     fn apply_git_data_copies_all_fields() {
         let mut state = AppState::new("%99".into());
         let data = crate::git::GitData {
-            status_lines: vec![" M src/lib.rs".into(), "?? new.rs".into()],
             diff_stat: Some((10, 5)),
             branch: "feature/test".into(),
             ahead_behind: Some((2, 1)),
-            last_commit: Some(("abc1234".into(), "fix bug".into(), 1000)),
-            file_changes: vec![("lib.rs".into(), 15)],
+            staged_files: vec![crate::git::GitFileEntry {
+                status: 'M',
+                name: "lib.rs".into(),
+                additions: 10,
+                deletions: 5,
+            }],
+            unstaged_files: vec![],
+            untracked_files: vec!["new.rs".into()],
+            changed_file_count: 2,
             remote_url: "https://github.com/user/repo".into(),
             pr_number: Some("42".into()),
         };
 
         state.apply_git_data(data);
 
-        assert_eq!(state.git_status_lines, vec![" M src/lib.rs", "?? new.rs"]);
         assert_eq!(state.git_diff_stat, Some((10, 5)));
         assert_eq!(state.git_branch, "feature/test");
         assert_eq!(state.git_ahead_behind, Some((2, 1)));
-        assert_eq!(
-            state.git_last_commit,
-            Some(("abc1234".into(), "fix bug".into(), 1000))
-        );
-        assert_eq!(state.git_file_changes, vec![("lib.rs".into(), 15)]);
+        assert_eq!(state.git_staged_files.len(), 1);
+        assert_eq!(state.git_staged_files[0].status, 'M');
+        assert!(state.git_unstaged_files.is_empty());
+        assert_eq!(state.git_untracked_files, vec!["new.rs"]);
+        assert_eq!(state.git_changed_file_count, 2);
         assert_eq!(state.git_remote_url, "https://github.com/user/repo");
         assert_eq!(state.git_pr_number, Some("42".into()));
     }
@@ -657,12 +869,13 @@ mod tests {
         // Apply empty git data
         state.apply_git_data(crate::git::GitData::default());
 
-        assert!(state.git_status_lines.is_empty());
         assert_eq!(state.git_diff_stat, None);
         assert!(state.git_branch.is_empty());
         assert_eq!(state.git_ahead_behind, None);
-        assert_eq!(state.git_last_commit, None);
-        assert!(state.git_file_changes.is_empty());
+        assert!(state.git_staged_files.is_empty());
+        assert!(state.git_unstaged_files.is_empty());
+        assert!(state.git_untracked_files.is_empty());
+        assert_eq!(state.git_changed_file_count, 0);
         assert!(state.git_remote_url.is_empty());
         assert_eq!(state.git_pr_number, None);
     }
@@ -675,10 +888,8 @@ mod tests {
         let pane = test_pane("%1");
         let sessions = vec![SessionInfo {
             session_name: "main".into(),
-            attached: true,
             windows: vec![crate::tmux::WindowInfo {
                 window_id: "@0".into(),
-                window_index: 0,
                 window_name: "project".into(),
                 window_active: true,
                 auto_rename: false,
@@ -738,6 +949,81 @@ mod tests {
 
         state.scroll_bottom(2);
         assert_eq!(state.git_scroll.offset, 2);
+        assert_eq!(state.activity_scroll.offset, 0);
+    }
+
+    // ─── handle_mouse_scroll tests ────────────────────────────────────
+
+    #[test]
+    fn mouse_scroll_in_bottom_panel_scrolls_activity() {
+        let mut state = AppState::new("%99".into());
+        state.bottom_tab = BottomTab::Activity;
+        state.activity_scroll = ScrollState {
+            offset: 0,
+            total_lines: 30,
+            visible_height: 10,
+        };
+        // term_height=50, bottom_panel=20 → bottom starts at row 30
+        // mouse at row 35 → in bottom panel
+        state.handle_mouse_scroll(35, 50, 20, 3);
+        assert_eq!(state.activity_scroll.offset, 3);
+        assert_eq!(state.agents_scroll.offset, 0);
+    }
+
+    #[test]
+    fn mouse_scroll_in_agents_panel_scrolls_agents() {
+        let mut state = AppState::new("%99".into());
+        state.agents_scroll = ScrollState {
+            offset: 0,
+            total_lines: 40,
+            visible_height: 20,
+        };
+        // term_height=50, bottom_panel=20 → bottom starts at row 30
+        // mouse at row 10 → in agents panel
+        state.handle_mouse_scroll(10, 50, 20, 3);
+        assert_eq!(state.agents_scroll.offset, 3);
+        assert_eq!(state.activity_scroll.offset, 0);
+    }
+
+    #[test]
+    fn mouse_scroll_up_in_agents_panel() {
+        let mut state = AppState::new("%99".into());
+        state.agents_scroll = ScrollState {
+            offset: 5,
+            total_lines: 40,
+            visible_height: 20,
+        };
+        state.handle_mouse_scroll(10, 50, 20, -3);
+        assert_eq!(state.agents_scroll.offset, 2);
+    }
+
+    #[test]
+    fn mouse_scroll_at_boundary_row_goes_to_bottom() {
+        let mut state = AppState::new("%99".into());
+        state.bottom_tab = BottomTab::GitStatus;
+        state.git_scroll = ScrollState {
+            offset: 0,
+            total_lines: 20,
+            visible_height: 10,
+        };
+        // term_height=50, bottom_panel=20 → bottom starts at row 30
+        // mouse at exactly row 30 → in bottom panel
+        state.handle_mouse_scroll(30, 50, 20, 3);
+        assert_eq!(state.git_scroll.offset, 3);
+        assert_eq!(state.agents_scroll.offset, 0);
+    }
+
+    #[test]
+    fn mouse_scroll_just_above_boundary_goes_to_agents() {
+        let mut state = AppState::new("%99".into());
+        state.agents_scroll = ScrollState {
+            offset: 0,
+            total_lines: 40,
+            visible_height: 20,
+        };
+        // row 29, just above bottom_start=30
+        state.handle_mouse_scroll(29, 50, 20, 3);
+        assert_eq!(state.agents_scroll.offset, 3);
         assert_eq!(state.activity_scroll.offset, 0);
     }
 

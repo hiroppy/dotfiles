@@ -4,7 +4,7 @@ use std::sync::mpsc;
 use std::time::Duration;
 
 use crossterm::{
-    event::{self, Event, KeyCode},
+    event::{self, EnableMouseCapture, DisableMouseCapture, Event, KeyCode, MouseEventKind},
     execute,
     terminal::{EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode},
 };
@@ -18,6 +18,13 @@ use tmux_agent_sidebar::ui;
 static NEEDS_REFRESH: AtomicBool = AtomicBool::new(false);
 
 fn main() -> io::Result<()> {
+    // Check for CLI subcommands
+    let args: Vec<String> = std::env::args().skip(1).collect();
+    if let Some(code) = tmux_agent_sidebar::cli::run(&args) {
+        std::process::exit(code);
+    }
+
+    // No subcommand → launch TUI
     let tmux_pane = std::env::var("TMUX_PANE").unwrap_or_default();
     if tmux_pane.is_empty() {
         eprintln!("TMUX_PANE not set");
@@ -45,14 +52,14 @@ fn main() -> io::Result<()> {
 
     enable_raw_mode()?;
     let mut stdout = io::stdout();
-    execute!(stdout, EnterAlternateScreen)?;
+    execute!(stdout, EnterAlternateScreen, EnableMouseCapture)?;
     let backend = CrosstermBackend::new(stdout);
     let mut terminal = Terminal::new(backend)?;
 
     let result = run_app(&mut terminal, tmux_pane);
 
     disable_raw_mode()?;
-    execute!(terminal.backend_mut(), LeaveAlternateScreen)?;
+    execute!(terminal.backend_mut(), LeaveAlternateScreen, DisableMouseCapture)?;
 
     result
 }
@@ -148,6 +155,18 @@ fn run_app(
                         }
                         _ => {}
                     },
+                    Event::Mouse(mouse) => {
+                        let term_height = terminal.size().map(|s| s.height).unwrap_or(0);
+                        match mouse.kind {
+                            MouseEventKind::ScrollDown => {
+                                state.handle_mouse_scroll(mouse.row, term_height, ui::BOTTOM_PANEL_HEIGHT, 3);
+                            }
+                            MouseEventKind::ScrollUp => {
+                                state.handle_mouse_scroll(mouse.row, term_height, ui::BOTTOM_PANEL_HEIGHT, -3);
+                            }
+                            _ => {}
+                        }
+                    }
                     _ => {}
                 }
                 // Check if more events are queued (non-blocking)

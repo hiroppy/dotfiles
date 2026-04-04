@@ -7,14 +7,9 @@ pub struct PaneInfo {
     pub status: PaneStatus,
     pub attention: bool,
     pub agent: AgentType,
-    #[allow(dead_code)]
-    pub pane_name: String,
     pub path: String,
-    #[allow(dead_code)]
-    pub command: String,
-    #[allow(dead_code)]
-    pub role: String,
     pub prompt: String,
+    pub prompt_is_response: bool,
     pub started_at: Option<u64>,
     pub wait_reason: String,
     pub permission_mode: PermissionMode,
@@ -73,8 +68,6 @@ pub enum AgentType {
 #[derive(Debug, Clone)]
 pub struct WindowInfo {
     pub window_id: String,
-    #[allow(dead_code)]
-    pub window_index: u32,
     pub window_name: String,
     pub window_active: bool,
     pub auto_rename: bool,
@@ -84,8 +77,6 @@ pub struct WindowInfo {
 #[derive(Debug, Clone)]
 pub struct SessionInfo {
     pub session_name: String,
-    #[allow(dead_code)]
-    pub attached: bool,
     pub windows: Vec<WindowInfo>,
 }
 
@@ -118,7 +109,7 @@ impl PaneStatus {
         }
     }
 
-    pub fn icon(&self) -> &str {
+    pub fn icon(&self) -> &'static str {
         match self {
             Self::Running => "●",
             Self::Waiting => "◐",
@@ -129,7 +120,7 @@ impl PaneStatus {
     }
 }
 
-fn run_tmux(args: &[&str]) -> Option<String> {
+pub fn run_tmux(args: &[&str]) -> Option<String> {
     let output = Command::new("tmux").args(args).output().ok()?;
     if output.status.success() {
         Some(String::from_utf8_lossy(&output.stdout).to_string())
@@ -138,31 +129,88 @@ fn run_tmux(args: &[&str]) -> Option<String> {
     }
 }
 
+/// Query all sessions, windows, and panes in a single `tmux list-panes -a` call
+/// plus one `list-sessions` call, instead of N+1 subprocess invocations.
 pub fn query_sessions() -> Vec<SessionInfo> {
-    let session_output = match run_tmux(&[
-        "list-sessions",
-        "-F",
-        "#{session_name}|#{session_attached}|#{session_windows}",
-    ]) {
+    // 1. Get all panes across all sessions in one call
+    let pane_format = "#{session_name}|#{window_id}|#{window_index}|#{window_name}|#{window_active}|#{automatic-rename}|#{pane_active}|#{@pane_status}|#{@pane_attention}|#{@pane_agent}|#{@pane_name}|#{pane_current_path}|#{pane_current_command}|#{@pane_role}|#{pane_id}|#{@pane_prompt}|#{@pane_prompt_source}|#{@pane_started_at}|#{@pane_wait_reason}|#{pane_pid}|#{@pane_subagents}|#{@pane_cwd}|#{@pane_permission_mode}";
+    let all_panes_output = match run_tmux(&["list-panes", "-a", "-F", pane_format]) {
         Some(s) => s,
         None => return vec![],
     };
 
-    let mut sessions = Vec::new();
+    // 2. Build the session→window→pane hierarchy
+    use indexmap::IndexMap;
+    let mut sessions_map: IndexMap<String, IndexMap<String, WindowInfo>> = IndexMap::new();
+    // Track (window_id, pane_index_in_window, pid) for codex permission mode resolution
+    let mut codex_pids: Vec<(String, usize, u32)> = Vec::new();
 
-    for line in session_output.lines() {
-        let parts: Vec<&str> = line.splitn(3, '|').collect();
-        if parts.len() < 3 {
+    for line in all_panes_output.lines() {
+        let parts: Vec<&str> = line.splitn(23, '|').collect();
+        if parts.len() < 23 {
             continue;
         }
-        let session_name = parts[0].to_string();
-        let attached = parts[1] == "1";
 
-        let windows = query_windows(&session_name);
+        let session_name = parts[0];
+        let window_id = parts[1];
+        let pane_line = parts[6..].join("|");
+
+        let sessions_entry = sessions_map
+            .entry(session_name.to_string())
+            .or_default();
+
+        let window = sessions_entry
+            .entry(window_id.to_string())
+            .or_insert_with(|| WindowInfo {
+                window_id: window_id.to_string(),
+                window_name: parts[3].to_string(),
+                window_active: parts[4] == "1",
+                auto_rename: parts[5] == "1",
+                panes: Vec::new(),
+            });
+
+        if let Some(pane) = parse_pane_line(&pane_line) {
+            if pane.agent == AgentType::Codex {
+                if let Some(pid) = pane.pane_pid {
+                    codex_pids.push((window_id.to_string(), window.panes.len(), pid));
+                }
+            }
+            window.panes.push(pane);
+        }
+    }
+
+    // 3. Single `ps` call for all Codex panes across all windows
+    if !codex_pids.is_empty() {
+        if let Ok(output) = Command::new("ps").args(["-eo", "ppid,args"]).output() {
+            if output.status.success() {
+                let ps_out = String::from_utf8_lossy(&output.stdout);
+                for (_session_name, windows) in &mut sessions_map {
+                    for (window_id, window) in windows.iter_mut() {
+                        let window_pids: Vec<(usize, u32)> = codex_pids
+                            .iter()
+                            .filter(|(wid, _, _)| wid == window_id)
+                            .map(|(_, idx, pid)| (*idx, *pid))
+                            .collect();
+                        if !window_pids.is_empty() {
+                            apply_codex_permission_modes(
+                                &mut window.panes,
+                                &window_pids,
+                                &ps_out,
+                            );
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // 4. Assemble final Vec<SessionInfo>
+    let mut sessions = Vec::new();
+    for (session_name, windows) in sessions_map {
+        let windows: Vec<WindowInfo> = windows.into_values().collect();
         if windows.iter().any(|w| !w.panes.is_empty()) {
             sessions.push(SessionInfo {
                 session_name,
-                attached,
                 windows,
             });
         }
@@ -171,85 +219,11 @@ pub fn query_sessions() -> Vec<SessionInfo> {
     sessions
 }
 
-fn query_windows(session_name: &str) -> Vec<WindowInfo> {
-    let window_output = match run_tmux(&[
-        "list-windows",
-        "-t",
-        session_name,
-        "-F",
-        "#{window_id}|#{window_index}|#{window_name}|#{window_active}|#{automatic-rename}",
-    ]) {
-        Some(s) => s,
-        None => return vec![],
-    };
-
-    let mut windows = Vec::new();
-
-    for line in window_output.lines() {
-        let parts: Vec<&str> = line.splitn(5, '|').collect();
-        if parts.len() < 5 {
-            continue;
-        }
-
-        let panes = query_panes(parts[0]);
-        windows.push(WindowInfo {
-            window_id: parts[0].to_string(),
-            window_index: parts[1].parse().unwrap_or(0),
-            window_name: parts[2].to_string(),
-            window_active: parts[3] == "1",
-            auto_rename: parts[4] == "1",
-            panes,
-        });
-    }
-
-    windows
-}
-
-fn query_panes(window_id: &str) -> Vec<PaneInfo> {
-    let pane_output = match run_tmux(&[
-        "list-panes",
-        "-t",
-        window_id,
-        "-F",
-        "#{pane_active}|#{@pane_status}|#{@pane_attention}|#{@pane_agent}|#{@pane_name}|#{pane_current_path}|#{pane_current_command}|#{@pane_role}|#{pane_id}|#{@pane_prompt}|#{@pane_started_at}|#{@pane_wait_reason}|#{pane_pid}|#{@pane_subagents}|#{@pane_cwd}|#{@pane_permission_mode}",
-    ]) {
-        Some(s) => s,
-        None => return vec![],
-    };
-
-    let mut panes = Vec::new();
-    let mut codex_pids: Vec<(usize, u32)> = Vec::new();
-
-    for line in pane_output.lines() {
-        if let Some(pane) = parse_pane_line(line) {
-            let idx = panes.len();
-            if pane.agent == AgentType::Codex {
-                if let Some(pid) = pane.pane_pid {
-                    codex_pids.push((idx, pid));
-                }
-            }
-            panes.push(pane);
-        }
-    }
-
-    // Detect Codex permission modes from process args
-    if !codex_pids.is_empty() {
-        if let Ok(output) = Command::new("ps").args(["-eo", "ppid,args"]).output() {
-            if output.status.success() {
-                let ps_out = String::from_utf8_lossy(&output.stdout);
-                apply_codex_permission_modes(&mut panes, &codex_pids, &ps_out);
-            }
-        }
-    }
-
-    panes
-}
-
 /// Parse a single pane line from `tmux list-panes -F`.
-/// Returns None if the line has fewer than 16 fields, is a sidebar, or has no agent.
+/// Returns None if the line has fewer than 17 fields, is a sidebar, or has no agent.
 pub(crate) fn parse_pane_line(line: &str) -> Option<PaneInfo> {
-    let parts: Vec<&str> = line.splitn(16, '|').collect();
-    if parts.len() < 16 {
+    let parts: Vec<&str> = line.splitn(17, '|').collect();
+    if parts.len() < 17 {
         return None;
     }
 
@@ -259,10 +233,10 @@ pub(crate) fn parse_pane_line(line: &str) -> Option<PaneInfo> {
 
     let agent = AgentType::from_str(parts[3])?;
 
-    let pane_pid: Option<u32> = parts[12].parse().ok();
+    let pane_pid: Option<u32> = parts[13].parse().ok();
 
     // Prefer @pane_cwd (set by hook from agent's cwd) over pane_current_path
-    let pane_cwd = parts[14];
+    let pane_cwd = parts[15];
     let path = if !pane_cwd.is_empty() {
         pane_cwd.to_string()
     } else {
@@ -272,26 +246,30 @@ pub(crate) fn parse_pane_line(line: &str) -> Option<PaneInfo> {
     // Claude: read permission_mode from hook-set tmux variable
     // Codex: no permission_mode in hooks, detect from process args later
     let permission_mode = if agent == AgentType::Claude {
-        PermissionMode::from_str(parts[15])
+        PermissionMode::from_str(parts[16])
     } else {
         PermissionMode::Default
     };
+
+    let prompt_source = parts[10];
+    let prompt_is_response = prompt_source == "response";
+
+    // Sanitize prompt: replace pipes/newlines, filter system-injected messages, truncate
+    let prompt = sanitize_prompt(parts[9], prompt_is_response);
 
     Some(PaneInfo {
         pane_active: parts[0] == "1",
         status: PaneStatus::from_str(parts[1]),
         attention: !parts[2].is_empty(),
         agent,
-        pane_name: parts[4].to_string(),
         path,
-        command: parts[6].to_string(),
-        role: parts[7].to_string(),
         pane_id: parts[8].to_string(),
-        prompt: parts[9].replace('|', " ").replace('\n', " "),
-        started_at: parts[10].parse().ok(),
-        wait_reason: parts[11].to_string(),
+        prompt,
+        prompt_is_response,
+        started_at: parts[11].parse().ok(),
+        wait_reason: parts[12].to_string(),
         permission_mode,
-        subagents: parse_subagents(parts[13]),
+        subagents: parse_subagents(parts[14]),
         pane_pid,
     })
 }
@@ -329,15 +307,51 @@ fn apply_codex_permission_modes(
     }
 }
 
+/// Sanitize prompt text from tmux variable so it's safe for display.
+fn sanitize_prompt(raw: &str, _is_response: bool) -> String {
+    if raw.is_empty() {
+        return String::new();
+    }
+    // Filter system-injected messages (e.g. <task-notification>, <system-reminder>)
+    if raw.contains('<') && raw.contains('>') {
+        return String::new();
+    }
+    // Truncate to 200 chars
+    let s = raw;
+    if s.chars().count() > 200 {
+        s.chars().take(200).collect()
+    } else {
+        s.to_string()
+    }
+}
+
 /// Parse subagent list from tmux variable.
-/// Format: comma-separated "type" entries, e.g. "Explore,Plan,Bash"
+/// Format: comma-separated "type" entries, e.g. "Explore,Explore,Plan"
+/// Assigns sequential numbers when the same type appears multiple times:
+/// "Explore,Explore,Plan" → ["Explore #1", "Explore #2", "Plan"]
 fn parse_subagents(raw: &str) -> Vec<String> {
     if raw.is_empty() {
         return vec![];
     }
-    raw.split(',')
-        .map(|s| s.trim().to_string())
-        .filter(|s| !s.is_empty())
+    let items: Vec<&str> = raw.split(',').map(|s| s.trim()).filter(|s| !s.is_empty()).collect();
+    // Count occurrences of each type
+    let mut counts: std::collections::HashMap<&str, usize> = std::collections::HashMap::new();
+    for item in &items {
+        *counts.entry(item).or_insert(0) += 1;
+    }
+    // Assign numbers for duplicates
+    let mut seen: std::collections::HashMap<&str, usize> = std::collections::HashMap::new();
+    items
+        .iter()
+        .map(|item| {
+            let n = seen.entry(item).or_insert(0);
+            *n += 1;
+            if counts[item] > 1 {
+                format!("{} #{}", item, n)
+            } else {
+                item.to_string()
+            }
+        })
         .collect()
 }
 
@@ -370,6 +384,21 @@ pub fn get_option(name: &str) -> Option<String> {
     run_tmux(&["show", "-gv", name])
         .map(|s| s.trim().to_string())
         .filter(|s| !s.is_empty())
+}
+
+/// Fetch all global tmux options in a single subprocess call.
+/// Returns a map of option name → value.
+pub fn get_all_global_options() -> std::collections::HashMap<String, String> {
+    let mut map = std::collections::HashMap::new();
+    if let Some(output) = run_tmux(&["show", "-g"]) {
+        for line in output.lines() {
+            // Format: "option-name value" or "@user_option value"
+            if let Some((key, value)) = line.split_once(' ') {
+                map.insert(key.to_string(), value.trim_matches('"').to_string());
+            }
+        }
+    }
+    map
 }
 
 pub fn get_pane_path(pane_id: &str) -> Option<String> {
@@ -442,6 +471,26 @@ pub(crate) fn pick_active_pane(
 /// even when the focused pane has no agent running.
 pub fn focused_pane_path(sidebar_pane: &str) -> Option<String> {
     find_active_pane(sidebar_pane).map(|(_, path)| path)
+}
+
+pub fn set_pane_option(pane: &str, key: &str, value: &str) {
+    let _ = run_tmux(&["set", "-t", pane, "-p", key, value]);
+}
+
+pub fn unset_pane_option(pane: &str, key: &str) {
+    let _ = run_tmux(&["set", "-t", pane, "-p", "-u", key]);
+}
+
+pub fn get_pane_option_value(pane: &str, key: &str) -> String {
+    run_tmux(&["show", "-t", pane, "-pv", key])
+        .map(|s| s.trim().to_string())
+        .unwrap_or_default()
+}
+
+pub fn display_message(target: &str, format: &str) -> String {
+    run_tmux(&["display-message", "-t", target, "-p", format])
+        .map(|s| s.trim().to_string())
+        .unwrap_or_default()
 }
 
 pub fn select_pane(pane_id: &str) {
@@ -550,11 +599,9 @@ mod tests {
             status: PaneStatus::Idle,
             attention: false,
             agent: AgentType::Codex,
-            pane_name: "one".into(),
             path: "/tmp".into(),
-            command: "codex".into(),
-            role: String::new(),
             prompt: String::new(),
+            prompt_is_response: false,
             started_at: None,
             wait_reason: String::new(),
             permission_mode: PermissionMode::Default,
@@ -567,6 +614,33 @@ mod tests {
         apply_codex_permission_modes(&mut panes, &pids, ps_out);
         assert_eq!(panes[0].permission_mode, PermissionMode::Auto);
     }
+
+    // ─── sanitize_prompt tests ──────────────────────────────────────
+
+    #[test]
+    fn sanitize_prompt_filters_system_injected() {
+        assert_eq!(sanitize_prompt("<system-reminder>noise</system-reminder>", false), "");
+        assert_eq!(sanitize_prompt("hello <task-notification>abc</task-notification> world", false), "");
+    }
+
+    #[test]
+    fn sanitize_prompt_passes_normal_text() {
+        assert_eq!(sanitize_prompt("fix the bug", false), "fix the bug");
+    }
+
+    #[test]
+    fn sanitize_prompt_truncates_long_text() {
+        let long = "a".repeat(300);
+        let result = sanitize_prompt(&long, false);
+        assert_eq!(result.chars().count(), 200);
+    }
+
+    #[test]
+    fn sanitize_prompt_empty() {
+        assert_eq!(sanitize_prompt("", false), "");
+    }
+
+    // ─── parse_subagents tests ──────────────────────────────────────
 
     #[test]
     fn parse_subagents_empty() {
@@ -588,8 +662,9 @@ mod tests {
 
     #[test]
     fn parse_subagents_numbered() {
+        // Duplicate types get sequential numbers
         assert_eq!(
-            parse_subagents("Explore #1,Explore #2,Plan"),
+            parse_subagents("Explore,Explore,Plan"),
             vec!["Explore #1", "Explore #2", "Plan"]
         );
     }
@@ -600,7 +675,7 @@ mod tests {
         fields.join("|")
     }
 
-    fn full_16_fields() -> Vec<&'static str> {
+    fn full_fields() -> Vec<&'static str> {
         vec![
             "1",                   // 0: pane_active
             "running",             // 1: @pane_status
@@ -612,26 +687,27 @@ mod tests {
             "",                    // 7: @pane_role
             "%1",                  // 8: pane_id
             "fix the bug",         // 9: @pane_prompt
-            "1700000000",          // 10: @pane_started_at
-            "",                    // 11: @pane_wait_reason
-            "12345",               // 12: pane_pid
-            "Explore,Plan",        // 13: @pane_subagents
-            "/custom/cwd",         // 14: @pane_cwd
-            "auto",                // 15: @pane_permission_mode
+            "user",                // 10: @pane_prompt_source
+            "1700000000",          // 11: @pane_started_at
+            "",                    // 12: @pane_wait_reason
+            "12345",               // 13: pane_pid
+            "Explore,Plan",        // 14: @pane_subagents
+            "/custom/cwd",         // 15: @pane_cwd
+            "auto",                // 16: @pane_permission_mode
         ]
     }
 
     #[test]
-    fn parse_pane_line_full_16_fields() {
-        let line = make_pane_line(&full_16_fields());
-        let pane = parse_pane_line(&line).expect("should parse 16 fields");
+    fn parse_pane_line_full_fields() {
+        let line = make_pane_line(&full_fields());
+        let pane = parse_pane_line(&line).expect("should parse 17 fields");
         assert!(pane.pane_active);
         assert_eq!(pane.status, PaneStatus::Running);
         assert_eq!(pane.agent, AgentType::Claude);
-        assert_eq!(pane.pane_name, "my-agent");
         assert_eq!(pane.path, "/custom/cwd"); // pane_cwd preferred
         assert_eq!(pane.pane_id, "%1");
         assert_eq!(pane.prompt, "fix the bug");
+        assert!(!pane.prompt_is_response);
         assert_eq!(pane.started_at, Some(1700000000));
         assert_eq!(pane.pane_pid, Some(12345));
         assert_eq!(pane.subagents, vec!["Explore", "Plan"]);
@@ -639,26 +715,35 @@ mod tests {
     }
 
     #[test]
-    fn parse_pane_line_rejects_fewer_than_16_fields() {
-        // Only 14 fields — should be rejected
-        let fields_14 = "1|running||claude|name|/path|fish||%1|prompt|1700000000||12345|Explore";
-        assert!(
-            parse_pane_line(fields_14).is_none(),
-            "14 fields should be rejected"
-        );
+    fn parse_pane_line_response_prompt_source() {
+        let mut fields = full_fields();
+        fields[10] = "response"; // @pane_prompt_source
+        let line = make_pane_line(&fields);
+        let pane = parse_pane_line(&line).unwrap();
+        assert!(pane.prompt_is_response);
+    }
 
-        // 15 fields — still rejected
-        let fields_15 =
-            "1|running||claude|name|/path|fish||%1|prompt|1700000000||12345|Explore|/cwd";
+    #[test]
+    fn parse_pane_line_rejects_fewer_than_17_fields() {
+        // Only 15 fields — should be rejected
+        let fields_15 = "1|running||claude|name|/path|fish||%1|prompt|1700000000||12345|Explore|/cwd";
         assert!(
             parse_pane_line(fields_15).is_none(),
             "15 fields should be rejected"
+        );
+
+        // 16 fields — still rejected
+        let fields_16 =
+            "1|running||claude|name|/path|fish||%1|prompt|user|1700000000||12345|Explore|/cwd";
+        assert!(
+            parse_pane_line(fields_16).is_none(),
+            "16 fields should be rejected"
         );
     }
 
     #[test]
     fn parse_pane_line_rejects_sidebar_role() {
-        let mut fields = full_16_fields();
+        let mut fields = full_fields();
         fields[7] = "sidebar";
         let line = make_pane_line(&fields);
         assert!(
@@ -669,7 +754,7 @@ mod tests {
 
     #[test]
     fn parse_pane_line_rejects_unknown_agent() {
-        let mut fields = full_16_fields();
+        let mut fields = full_fields();
         fields[3] = ""; // no agent type
         let line = make_pane_line(&fields);
         assert!(
@@ -680,8 +765,8 @@ mod tests {
 
     #[test]
     fn parse_pane_line_falls_back_to_pane_current_path() {
-        let mut fields = full_16_fields();
-        fields[14] = ""; // empty pane_cwd
+        let mut fields = full_fields();
+        fields[15] = ""; // empty pane_cwd
         let line = make_pane_line(&fields);
         let pane = parse_pane_line(&line).unwrap();
         assert_eq!(
@@ -768,7 +853,7 @@ mod tests {
 
     #[test]
     fn parse_pane_line_codex_ignores_permission_mode_field() {
-        let mut fields = full_16_fields();
+        let mut fields = full_fields();
         fields[3] = "codex";
         fields[15] = "auto"; // should be ignored for codex
         let line = make_pane_line(&fields);
