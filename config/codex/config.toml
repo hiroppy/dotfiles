@@ -9,12 +9,3 @@ codex_hooks = true
 
 [plugins."github@openai-curated"]
 enabled = true
-
-[projects."/Users/hiroppy/dotfiles"]
-trust_level = "trusted"
-
-[projects."/Users/hiroppy/Programming/stock"]
-trust_level = "trusted"
-
-[projects."/Users/hiroppy/Programming/site"]
-trust_level = "trusted"
