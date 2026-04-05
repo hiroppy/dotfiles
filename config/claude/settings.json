@@ -50,7 +50,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash ~/.config/tmux-agent-sidebar/hook.sh claude notification"
+            "command": "bash ~/.tmux/plugins/tmux-agent-sidebar/hook.sh claude notification"
           },
           {
             "type": "command",
@@ -65,7 +65,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash ~/.config/tmux-agent-sidebar/hook.sh claude stop"
+            "command": "bash ~/.tmux/plugins/tmux-agent-sidebar/hook.sh claude stop"
           },
           {
             "type": "command",
@@ -80,7 +80,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash ~/.config/tmux-agent-sidebar/hook.sh claude stop-failure"
+            "command": "bash ~/.tmux/plugins/tmux-agent-sidebar/hook.sh claude stop-failure"
           }
         ]
       }
@@ -91,7 +91,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash ~/.config/tmux-agent-sidebar/hook.sh claude user-prompt-submit"
+            "command": "bash ~/.tmux/plugins/tmux-agent-sidebar/hook.sh claude user-prompt-submit"
           }
         ]
       }
@@ -102,7 +102,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash ~/.config/tmux-agent-sidebar/hook.sh claude session-start"
+            "command": "bash ~/.tmux/plugins/tmux-agent-sidebar/hook.sh claude session-start"
           }
         ]
       }
@@ -113,7 +113,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash ~/.config/tmux-agent-sidebar/hook.sh claude activity-log"
+            "command": "bash ~/.tmux/plugins/tmux-agent-sidebar/hook.sh claude activity-log"
           }
         ]
       }
@@ -124,7 +124,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash ~/.config/tmux-agent-sidebar/hook.sh claude session-end"
+            "command": "bash ~/.tmux/plugins/tmux-agent-sidebar/hook.sh claude session-end"
           }
         ]
       }
@@ -135,7 +135,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash ~/.config/tmux-agent-sidebar/hook.sh claude subagent-start"
+            "command": "bash ~/.tmux/plugins/tmux-agent-sidebar/hook.sh claude subagent-start"
           }
         ]
       }
@@ -146,7 +146,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash ~/.config/tmux-agent-sidebar/hook.sh claude subagent-stop"
+            "command": "bash ~/.tmux/plugins/tmux-agent-sidebar/hook.sh claude subagent-stop"
           }
         ]
       }
