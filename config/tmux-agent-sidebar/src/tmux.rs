@@ -255,7 +255,7 @@ pub(crate) fn parse_pane_line(line: &str) -> Option<PaneInfo> {
     let prompt_is_response = prompt_source == "response";
 
     // Sanitize prompt: replace pipes/newlines, filter system-injected messages, truncate
-    let prompt = sanitize_prompt(parts[9], prompt_is_response);
+    let prompt = sanitize_prompt(parts[9]);
 
     Some(PaneInfo {
         pane_active: parts[0] == "1",
@@ -308,7 +308,7 @@ fn apply_codex_permission_modes(
 }
 
 /// Sanitize prompt text from tmux variable so it's safe for display.
-fn sanitize_prompt(raw: &str, _is_response: bool) -> String {
+fn sanitize_prompt(raw: &str) -> String {
     if raw.is_empty() {
         return String::new();
     }
@@ -316,12 +316,10 @@ fn sanitize_prompt(raw: &str, _is_response: bool) -> String {
     if raw.contains('<') && raw.contains('>') {
         return String::new();
     }
-    // Truncate to 200 chars
-    let s = raw;
-    if s.chars().count() > 200 {
-        s.chars().take(200).collect()
+    if raw.chars().count() > 200 {
+        raw.chars().take(200).collect()
     } else {
-        s.to_string()
+        raw.to_string()
     }
 }
 
@@ -619,25 +617,25 @@ mod tests {
 
     #[test]
     fn sanitize_prompt_filters_system_injected() {
-        assert_eq!(sanitize_prompt("<system-reminder>noise</system-reminder>", false), "");
-        assert_eq!(sanitize_prompt("hello <task-notification>abc</task-notification> world", false), "");
+        assert_eq!(sanitize_prompt("<system-reminder>noise</system-reminder>"), "");
+        assert_eq!(sanitize_prompt("hello <task-notification>abc</task-notification> world"), "");
     }
 
     #[test]
     fn sanitize_prompt_passes_normal_text() {
-        assert_eq!(sanitize_prompt("fix the bug", false), "fix the bug");
+        assert_eq!(sanitize_prompt("fix the bug"), "fix the bug");
     }
 
     #[test]
     fn sanitize_prompt_truncates_long_text() {
         let long = "a".repeat(300);
-        let result = sanitize_prompt(&long, false);
+        let result = sanitize_prompt(&long);
         assert_eq!(result.chars().count(), 200);
     }
 
     #[test]
     fn sanitize_prompt_empty() {
-        assert_eq!(sanitize_prompt("", false), "");
+        assert_eq!(sanitize_prompt(""), "");
     }
 
     // ─── parse_subagents tests ──────────────────────────────────────

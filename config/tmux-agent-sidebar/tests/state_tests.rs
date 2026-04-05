@@ -251,7 +251,7 @@ fn test_scroll_git_empty_is_noop() {
 #[test]
 fn test_scroll_git_bounds() {
     let mut state = make_state(vec![]);
-    state.git_unstaged_files = vec![tmux_agent_sidebar::git::GitFileEntry {
+    state.git.unstaged_files = vec![tmux_agent_sidebar::git::GitFileEntry {
         status: 'M',
         name: "file.rs".into(),
         additions: 0,
@@ -294,22 +294,21 @@ fn test_apply_git_data() {
         untracked_files: vec![],
         remote_url: "https://github.com/user/repo".into(),
         pr_number: Some("42".into()),
-        changed_file_count: 1,
     };
 
     state.apply_git_data(data);
 
-    assert_eq!(state.git_staged_files.len(), 1);
-    assert_eq!(state.git_staged_files[0].status, 'M');
-    assert_eq!(state.git_staged_files[0].name, "src/lib.rs");
-    assert!(state.git_unstaged_files.is_empty());
-    assert!(state.git_untracked_files.is_empty());
-    assert_eq!(state.git_changed_file_count, 1);
-    assert_eq!(state.git_diff_stat, Some((10, 5)));
-    assert_eq!(state.git_branch, "feature/test");
-    assert_eq!(state.git_ahead_behind, Some((2, 1)));
-    assert_eq!(state.git_remote_url, "https://github.com/user/repo");
-    assert_eq!(state.git_pr_number, Some("42".into()));
+    assert_eq!(state.git.staged_files.len(), 1);
+    assert_eq!(state.git.staged_files[0].status, 'M');
+    assert_eq!(state.git.staged_files[0].name, "src/lib.rs");
+    assert!(state.git.unstaged_files.is_empty());
+    assert!(state.git.untracked_files.is_empty());
+    assert_eq!(state.git.changed_file_count(), 1);
+    assert_eq!(state.git.diff_stat, Some((10, 5)));
+    assert_eq!(state.git.branch, "feature/test");
+    assert_eq!(state.git.ahead_behind, Some((2, 1)));
+    assert_eq!(state.git.remote_url, "https://github.com/user/repo");
+    assert_eq!(state.git.pr_number, Some("42".into()));
 }
 
 // ─── State: new Tests ───────────────────────────────────────────────
@@ -332,9 +331,9 @@ fn test_state_new_defaults() {
     assert_eq!(state.agents_scroll.total_lines, 0);
     assert_eq!(state.agents_scroll.visible_height, 0);
     assert_eq!(state.bottom_tab, BottomTab::Activity);
-    assert!(state.git_branch.is_empty());
+    assert!(state.git.branch.is_empty());
     assert_eq!(state.git_scroll.offset, 0);
-    assert!(state.git_pr_number.is_none());
+    assert!(state.git.pr_number.is_none());
 }
 
 // ─── State: move_agent_selection return value Tests ─────────────────
@@ -379,7 +378,7 @@ fn test_move_agent_selection_return_value() {
 fn test_scroll_bottom_dispatches_to_git() {
     let mut state = make_state(vec![]);
     state.bottom_tab = BottomTab::GitStatus;
-    state.git_unstaged_files = vec![tmux_agent_sidebar::git::GitFileEntry {
+    state.git.unstaged_files = vec![tmux_agent_sidebar::git::GitFileEntry {
         status: 'M',
         name: "file.rs".into(),
         additions: 0,

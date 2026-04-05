@@ -59,15 +59,7 @@ pub struct AppState {
     pub agents_scroll: ScrollState,
     pub theme: ColorTheme,
     pub bottom_tab: BottomTab,
-    pub git_diff_stat: Option<(usize, usize)>,
-    pub git_branch: String,
-    pub git_ahead_behind: Option<(usize, usize)>,
-    pub git_staged_files: Vec<crate::git::GitFileEntry>,
-    pub git_unstaged_files: Vec<crate::git::GitFileEntry>,
-    pub git_untracked_files: Vec<String>,
-    pub git_changed_file_count: usize,
-    pub git_remote_url: String,
-    pub git_pr_number: Option<String>,
+    pub git: crate::git::GitData,
     pub git_scroll: ScrollState,
     pub pane_task_progress: HashMap<String, TaskProgress>,
     pub pane_task_dismissed: HashMap<String, usize>,
@@ -106,15 +98,7 @@ impl AppState {
             agents_scroll: ScrollState::default(),
             theme: ColorTheme::default(),
             bottom_tab: BottomTab::Activity,
-            git_diff_stat: None,
-            git_branch: String::new(),
-            git_ahead_behind: None,
-            git_staged_files: vec![],
-            git_unstaged_files: vec![],
-            git_untracked_files: vec![],
-            git_changed_file_count: 0,
-            git_remote_url: String::new(),
-            git_pr_number: None,
+            git: crate::git::GitData::default(),
             git_scroll: ScrollState::default(),
             pane_task_progress: HashMap::new(),
             pane_task_dismissed: HashMap::new(),
@@ -196,15 +180,7 @@ impl AppState {
     }
 
     pub fn apply_git_data(&mut self, data: crate::git::GitData) {
-        self.git_diff_stat = data.diff_stat;
-        self.git_branch = data.branch;
-        self.git_ahead_behind = data.ahead_behind;
-        self.git_staged_files = data.staged_files;
-        self.git_unstaged_files = data.unstaged_files;
-        self.git_untracked_files = data.untracked_files;
-        self.git_changed_file_count = data.changed_file_count;
-        self.git_remote_url = data.remote_url;
-        self.git_pr_number = data.pr_number;
+        self.git = data;
     }
 }
 
@@ -840,44 +816,43 @@ mod tests {
             }],
             unstaged_files: vec![],
             untracked_files: vec!["new.rs".into()],
-            changed_file_count: 2,
             remote_url: "https://github.com/user/repo".into(),
             pr_number: Some("42".into()),
         };
 
         state.apply_git_data(data);
 
-        assert_eq!(state.git_diff_stat, Some((10, 5)));
-        assert_eq!(state.git_branch, "feature/test");
-        assert_eq!(state.git_ahead_behind, Some((2, 1)));
-        assert_eq!(state.git_staged_files.len(), 1);
-        assert_eq!(state.git_staged_files[0].status, 'M');
-        assert!(state.git_unstaged_files.is_empty());
-        assert_eq!(state.git_untracked_files, vec!["new.rs"]);
-        assert_eq!(state.git_changed_file_count, 2);
-        assert_eq!(state.git_remote_url, "https://github.com/user/repo");
-        assert_eq!(state.git_pr_number, Some("42".into()));
+        assert_eq!(state.git.diff_stat, Some((10, 5)));
+        assert_eq!(state.git.branch, "feature/test");
+        assert_eq!(state.git.ahead_behind, Some((2, 1)));
+        assert_eq!(state.git.staged_files.len(), 1);
+        assert_eq!(state.git.staged_files[0].status, 'M');
+        assert!(state.git.unstaged_files.is_empty());
+        assert_eq!(state.git.untracked_files, vec!["new.rs"]);
+        assert_eq!(state.git.changed_file_count(), 2);
+        assert_eq!(state.git.remote_url, "https://github.com/user/repo");
+        assert_eq!(state.git.pr_number, Some("42".into()));
     }
 
     #[test]
     fn apply_git_data_with_defaults() {
         let mut state = AppState::new("%99".into());
         // Pre-fill some state
-        state.git_branch = "old-branch".into();
-        state.git_pr_number = Some("99".into());
+        state.git.branch = "old-branch".into();
+        state.git.pr_number = Some("99".into());
 
         // Apply empty git data
         state.apply_git_data(crate::git::GitData::default());
 
-        assert_eq!(state.git_diff_stat, None);
-        assert!(state.git_branch.is_empty());
-        assert_eq!(state.git_ahead_behind, None);
-        assert!(state.git_staged_files.is_empty());
-        assert!(state.git_unstaged_files.is_empty());
-        assert!(state.git_untracked_files.is_empty());
-        assert_eq!(state.git_changed_file_count, 0);
-        assert!(state.git_remote_url.is_empty());
-        assert_eq!(state.git_pr_number, None);
+        assert_eq!(state.git.diff_stat, None);
+        assert!(state.git.branch.is_empty());
+        assert_eq!(state.git.ahead_behind, None);
+        assert!(state.git.staged_files.is_empty());
+        assert!(state.git.unstaged_files.is_empty());
+        assert!(state.git.untracked_files.is_empty());
+        assert_eq!(state.git.changed_file_count(), 0);
+        assert!(state.git.remote_url.is_empty());
+        assert_eq!(state.git.pr_number, None);
     }
 
     #[test]

@@ -256,14 +256,13 @@ fn test_git_summary_modified_uses_badge_auto_color() {
     state.bottom_tab = BottomTab::GitStatus;
     state.focus = Focus::ActivityLog;
     state.sidebar_focused = true;
-    state.git_branch = "main".into();
-    state.git_unstaged_files = vec![tmux_agent_sidebar::git::GitFileEntry {
+    state.git.branch = "main".into();
+    state.git.unstaged_files = vec![tmux_agent_sidebar::git::GitFileEntry {
         status: 'M',
         name: "src/lib.rs".into(),
         additions: 5,
         deletions: 2,
     }];
-    state.git_changed_file_count = 1;
 
     let styled = render_to_styled_string(&mut state, 28, 24);
     // Modified count uses badge_auto (221)
@@ -409,9 +408,9 @@ fn test_pr_link_uses_pr_link_color() {
     state.bottom_tab = BottomTab::GitStatus;
     state.focus = Focus::ActivityLog;
     state.sidebar_focused = true;
-    state.git_branch = "feature/test".into();
-    state.git_pr_number = Some("99".into());
-    state.git_remote_url = "https://github.com/user/repo".into();
+    state.git.branch = "feature/test".into();
+    state.git.pr_number = Some("99".into());
+    state.git.remote_url = "https://github.com/user/repo".into();
 
     let styled = render_to_styled_string(&mut state, 28, 24);
     // pr_link color is 117 (pale blue)
@@ -444,8 +443,8 @@ fn test_diff_stat_added_uses_diff_added_color() {
     state.bottom_tab = BottomTab::GitStatus;
     state.focus = Focus::ActivityLog;
     state.sidebar_focused = true;
-    state.git_branch = "main".into();
-    state.git_diff_stat = Some((42, 10));
+    state.git.branch = "main".into();
+    state.git.diff_stat = Some((42, 10));
 
     let styled = render_to_styled_string(&mut state, 28, 24);
     // diff_added color is 114
@@ -477,8 +476,8 @@ fn test_diff_stat_deleted_uses_diff_deleted_color() {
     state.bottom_tab = BottomTab::GitStatus;
     state.focus = Focus::ActivityLog;
     state.sidebar_focused = true;
-    state.git_branch = "main".into();
-    state.git_diff_stat = Some((0, 25));
+    state.git.branch = "main".into();
+    state.git.diff_stat = Some((0, 25));
 
     let styled = render_to_styled_string(&mut state, 28, 24);
     // diff_deleted color is 174
@@ -510,14 +509,13 @@ fn test_file_change_stat_uses_file_change_color() {
     state.bottom_tab = BottomTab::GitStatus;
     state.focus = Focus::ActivityLog;
     state.sidebar_focused = true;
-    state.git_branch = "main".into();
-    state.git_unstaged_files = vec![tmux_agent_sidebar::git::GitFileEntry {
+    state.git.branch = "main".into();
+    state.git.unstaged_files = vec![tmux_agent_sidebar::git::GitFileEntry {
         status: 'M',
         name: "lib.rs".into(),
         additions: 40,
         deletions: 10,
     }];
-    state.git_changed_file_count = 1;
 
     let styled = render_to_styled_string(&mut state, 28, 24);
     // Modified status uses badge_auto (221)

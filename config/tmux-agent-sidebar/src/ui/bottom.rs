@@ -141,12 +141,12 @@ fn render_git_header(state: &AppState, inner_w: usize) -> Vec<Line<'static>> {
     let mut lines: Vec<Line<'static>> = Vec::new();
 
     // Line 1: branch (left) + PR number (right)
-    if !state.git_branch.is_empty() {
+    if !state.git.branch.is_empty() {
         let mut left_spans: Vec<Span> = Vec::new();
 
         // Build branch text with ahead/behind
-        let mut branch_text = format!(" {}", state.git_branch);
-        if let Some((ahead, behind)) = state.git_ahead_behind {
+        let mut branch_text = format!(" {}", state.git.branch);
+        if let Some((ahead, behind)) = state.git.ahead_behind {
             if ahead > 0 {
                 branch_text.push_str(&format!(" ↑{ahead}"));
             }
@@ -157,7 +157,7 @@ fn render_git_header(state: &AppState, inner_w: usize) -> Vec<Line<'static>> {
 
         // Build PR text (no trailing space — underline should not extend)
         let pr_text = state
-            .git_pr_number
+            .git.pr_number
             .as_ref()
             .map(|n| format!("#{n}"));
 
@@ -190,8 +190,8 @@ fn render_git_header(state: &AppState, inner_w: usize) -> Vec<Line<'static>> {
     }
 
     // Blank line between branch and diff summary
-    let has_changes = state.git_diff_stat.is_some() || state.git_changed_file_count > 0;
-    if !state.git_branch.is_empty() && has_changes {
+    let has_changes = state.git.diff_stat.is_some() || state.git.changed_file_count() > 0;
+    if !state.git.branch.is_empty() && has_changes {
         lines.push(Line::from(""));
     }
 
@@ -202,7 +202,7 @@ fn render_git_header(state: &AppState, inner_w: usize) -> Vec<Line<'static>> {
 
         left_spans.push(Span::raw(" "));
 
-        if let Some((ins, del)) = state.git_diff_stat {
+        if let Some((ins, del)) = state.git.diff_stat {
             let s_ins = format!("+{ins}");
             left_w += display_width(&s_ins);
             left_spans.push(Span::styled(s_ins, Style::default().fg(theme.diff_added)));
@@ -215,7 +215,7 @@ fn render_git_header(state: &AppState, inner_w: usize) -> Vec<Line<'static>> {
             left_spans.push(Span::styled(s_del, Style::default().fg(theme.diff_deleted)));
         }
 
-        let files_text = format!("{} files ", state.git_changed_file_count);
+        let files_text = format!("{} files ", state.git.changed_file_count());
         let files_w = display_width(&files_text);
         let gap = pad_to(left_w + files_w, inner_w);
         left_spans.push(Span::raw(gap));
@@ -359,11 +359,11 @@ fn draw_git_content(frame: &mut Frame, state: &mut AppState, inner: Rect) {
     let inner_w = inner.width as usize;
 
     // No git data loaded yet
-    if state.git_branch.is_empty()
-        && state.git_staged_files.is_empty()
-        && state.git_unstaged_files.is_empty()
-        && state.git_untracked_files.is_empty()
-        && state.git_diff_stat.is_none()
+    if state.git.branch.is_empty()
+        && state.git.staged_files.is_empty()
+        && state.git.unstaged_files.is_empty()
+        && state.git.untracked_files.is_empty()
+        && state.git.diff_stat.is_none()
     {
         render_centered(frame, inner, "Working tree clean", theme.text_muted);
         return;
@@ -399,9 +399,9 @@ fn draw_git_content(frame: &mut Frame, state: &mut AppState, inner: Rect) {
     // Build scrollable content
     let mut lines: Vec<Line<'_>> = Vec::new();
 
-    let staged = render_file_section("Staged", &state.git_staged_files, inner_w, theme, true);
-    let unstaged = render_file_section("Unstaged", &state.git_unstaged_files, inner_w, theme, true);
-    let untracked = render_untracked_section(&state.git_untracked_files, inner_w, theme);
+    let staged = render_file_section("Staged", &state.git.staged_files, inner_w, theme, true);
+    let unstaged = render_file_section("Unstaged", &state.git.unstaged_files, inner_w, theme, true);
+    let untracked = render_untracked_section(&state.git.untracked_files, inner_w, theme);
 
     if !staged.is_empty() {
         lines.extend(staged);
@@ -467,8 +467,8 @@ mod tests {
     #[test]
     fn pr_number_no_trailing_underline() {
         let mut state = crate::state::AppState::new(String::new());
-        state.git_branch = "main".into();
-        state.git_pr_number = Some("5".into());
+        state.git.branch = "main".into();
+        state.git.pr_number = Some("5".into());
         let lines = render_git_header(&state, 30);
         let spans = &lines[0].spans;
         let pr_span = spans.iter().find(|s| s.content.contains('#')).unwrap();
@@ -519,9 +519,8 @@ mod tests {
     #[test]
     fn header_blank_line_between_branch_and_diff() {
         let mut state = crate::state::AppState::new(String::new());
-        state.git_branch = "main".into();
-        state.git_diff_stat = Some((1, 0));
-        state.git_changed_file_count = 1;
+        state.git.branch = "main".into();
+        state.git.diff_stat = Some((1, 0));
         let lines = render_git_header(&state, 40);
         assert_eq!(lines.len(), 4);
         assert!(line_text(&lines[1]).is_empty());
@@ -530,7 +529,7 @@ mod tests {
     #[test]
     fn header_no_blank_line_without_changes() {
         let mut state = crate::state::AppState::new(String::new());
-        state.git_branch = "main".into();
+        state.git.branch = "main".into();
         let lines = render_git_header(&state, 40);
         assert_eq!(lines.len(), 2);
     }
@@ -580,10 +579,9 @@ mod tests {
     #[test]
     fn narrow_width_header_fits() {
         let mut state = crate::state::AppState::new(String::new());
-        state.git_branch = "feature/branch".into();
-        state.git_pr_number = Some("1".into());
-        state.git_diff_stat = Some((999, 888));
-        state.git_changed_file_count = 10;
+        state.git.branch = "feature/branch".into();
+        state.git.pr_number = Some("1".into());
+        state.git.diff_stat = Some((999, 888));
         let lines = render_git_header(&state, 20);
         for line in &lines {
             let text = line_text(line);

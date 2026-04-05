@@ -40,7 +40,7 @@ fn test_scroll_bottom_dispatches() {
     state.activity_scroll.visible_height = 4;
 
     // Set up git scroll state
-    state.git_unstaged_files = vec![
+    state.git.unstaged_files = vec![
         tmux_agent_sidebar::git::GitFileEntry {
             status: 'M',
             name: "file1.rs".into(),
@@ -54,7 +54,7 @@ fn test_scroll_bottom_dispatches() {
             deletions: 0,
         },
     ];
-    state.git_untracked_files = vec!["file3.rs".into()];
+    state.git.untracked_files = vec!["file3.rs".into()];
     state.git_scroll.total_lines = 3;
     state.git_scroll.visible_height = 1;
 
@@ -90,9 +90,9 @@ fn snapshot_git_status_tab_ui() {
     state.bottom_tab = BottomTab::GitStatus;
     state.focus = Focus::ActivityLog;
     state.sidebar_focused = true;
-    state.git_branch = "feature/sidebar".into();
-    state.git_ahead_behind = Some((2, 1));
-    state.git_unstaged_files = vec![
+    state.git.branch = "feature/sidebar".into();
+    state.git.ahead_behind = Some((2, 1));
+    state.git.unstaged_files = vec![
         tmux_agent_sidebar::git::GitFileEntry {
             status: 'M',
             name: "src/ui/agents.rs".into(),
@@ -106,9 +106,8 @@ fn snapshot_git_status_tab_ui() {
             deletions: 5,
         },
     ];
-    state.git_untracked_files = vec!["new_file.rs".into()];
-    state.git_diff_stat = Some((42, 15));
-    state.git_changed_file_count = 3;
+    state.git.untracked_files = vec!["new_file.rs".into()];
+    state.git.diff_stat = Some((42, 15));
 
     let output = render_to_string(&mut state, 28, 24);
     // Verify key elements are present in the new layout
@@ -243,10 +242,10 @@ fn snapshot_git_full_info_ui() {
     state.bottom_tab = BottomTab::GitStatus;
     state.focus = Focus::ActivityLog;
     state.sidebar_focused = true;
-    state.git_branch = "main".into();
-    state.git_ahead_behind = Some((0, 0));
-    state.git_diff_stat = Some((120, 30));
-    state.git_unstaged_files = vec![
+    state.git.branch = "main".into();
+    state.git.ahead_behind = Some((0, 0));
+    state.git.diff_stat = Some((120, 30));
+    state.git.unstaged_files = vec![
         tmux_agent_sidebar::git::GitFileEntry {
             status: 'M',
             name: "src/state.rs".into(),
@@ -260,8 +259,7 @@ fn snapshot_git_full_info_ui() {
             deletions: 20,
         },
     ];
-    state.git_untracked_files = vec!["new_file.rs".into()];
-    state.git_changed_file_count = 3;
+    state.git.untracked_files = vec!["new_file.rs".into()];
 
     // Use plain render since elapsed time varies
     let output = render_to_string(&mut state, 28, 24);
@@ -291,8 +289,8 @@ fn snapshot_git_long_filename_truncated_ui() {
     state.bottom_tab = BottomTab::GitStatus;
     state.focus = Focus::ActivityLog;
     state.sidebar_focused = true;
-    state.git_branch = "main".into();
-    state.git_unstaged_files = vec![
+    state.git.branch = "main".into();
+    state.git.unstaged_files = vec![
         tmux_agent_sidebar::git::GitFileEntry {
             status: 'M',
             name: "very-long-filename-that-should-be-truncated.rs".into(),
@@ -306,7 +304,6 @@ fn snapshot_git_long_filename_truncated_ui() {
             deletions: 2,
         },
     ];
-    state.git_changed_file_count = 2;
 
     // Verify the long filename is truncated (contains ellipsis)
     let plain = render_to_string(&mut state, 28, 24);
@@ -339,8 +336,8 @@ fn snapshot_git_more_than_5_files() {
     state.bottom_tab = BottomTab::GitStatus;
     state.focus = Focus::ActivityLog;
     state.sidebar_focused = true;
-    state.git_branch = "main".into();
-    state.git_unstaged_files = vec![
+    state.git.branch = "main".into();
+    state.git.unstaged_files = vec![
         tmux_agent_sidebar::git::GitFileEntry { status: 'M', name: "a.rs".into(), additions: 100, deletions: 0 },
         tmux_agent_sidebar::git::GitFileEntry { status: 'M', name: "b.rs".into(), additions: 80, deletions: 0 },
         tmux_agent_sidebar::git::GitFileEntry { status: 'M', name: "c.rs".into(), additions: 60, deletions: 0 },
@@ -349,7 +346,6 @@ fn snapshot_git_more_than_5_files() {
         tmux_agent_sidebar::git::GitFileEntry { status: 'M', name: "f.rs".into(), additions: 10, deletions: 0 },
         tmux_agent_sidebar::git::GitFileEntry { status: 'M', name: "g.rs".into(), additions: 5, deletions: 0 },
     ];
-    state.git_changed_file_count = 7;
 
     // Verify file list rendering (scroll to see overflow)
     let plain = render_to_string(&mut state, 28, 40);
@@ -386,8 +382,8 @@ fn snapshot_git_branch_only_no_changes() {
     state.bottom_tab = BottomTab::GitStatus;
     state.focus = Focus::ActivityLog;
     state.sidebar_focused = true;
-    state.git_branch = "feature/long-branch-name".into();
-    state.git_ahead_behind = Some((5, 0));
+    state.git.branch = "feature/long-branch-name".into();
+    state.git.ahead_behind = Some((5, 0));
 
     let plain = render_to_string(&mut state, 38, 20);
     assert!(plain.contains("feature/long-branch-name"));
@@ -413,10 +409,10 @@ fn snapshot_git_pr_number_ui() {
     state.bottom_tab = BottomTab::GitStatus;
     state.focus = Focus::ActivityLog;
     state.sidebar_focused = true;
-    state.git_branch = "feature/fix".into();
-    state.git_pr_number = Some("42".into());
-    state.git_remote_url = "https://github.com/user/repo".into();
-    state.git_diff_stat = Some((10, 3));
+    state.git.branch = "feature/fix".into();
+    state.git.pr_number = Some("42".into());
+    state.git.remote_url = "https://github.com/user/repo".into();
+    state.git.diff_stat = Some((10, 3));
 
     let output = render_to_styled_string(&mut state, 28, 14);
     // PR number should be underlined and blue
@@ -433,8 +429,8 @@ fn snapshot_git_pr_number_ui() {
 fn test_normalize_git_url() {
     // Test via state: set remote URL and check it's normalized
     let mut state = make_state(vec![]);
-    state.git_remote_url = "https://github.com/user/repo".into();
-    assert_eq!(state.git_remote_url, "https://github.com/user/repo");
+    state.git.remote_url = "https://github.com/user/repo".into();
+    assert_eq!(state.git.remote_url, "https://github.com/user/repo");
 }
 
 #[test]
@@ -456,10 +452,10 @@ fn snapshot_git_pr_with_diff_ui() {
     state.bottom_tab = BottomTab::GitStatus;
     state.focus = Focus::ActivityLog;
     state.sidebar_focused = true;
-    state.git_branch = "main".into();
-    state.git_pr_number = Some("123".into());
-    state.git_remote_url = "https://github.com/user/repo".into();
-    state.git_diff_stat = Some((55, 20));
+    state.git.branch = "main".into();
+    state.git.pr_number = Some("123".into());
+    state.git.remote_url = "https://github.com/user/repo".into();
+    state.git.diff_stat = Some((55, 20));
 
     let plain = render_to_string(&mut state, 28, 14);
     // PR on left, diff stat on right
@@ -628,7 +624,7 @@ fn snapshot_git_branch_loaded_no_changes_shows_inline_clean() {
     state.focus = Focus::ActivityLog;
     state.sidebar_focused = true;
     // Branch loaded, but no changes/commits — should still show "Working tree clean"
-    state.git_branch = "main".into();
+    state.git.branch = "main".into();
 
     let plain = render_to_string(&mut state, 28, 24);
     assert!(
@@ -695,8 +691,8 @@ fn test_git_behind_only() {
     state.bottom_tab = BottomTab::GitStatus;
     state.focus = Focus::ActivityLog;
     state.sidebar_focused = true;
-    state.git_branch = "main".into();
-    state.git_ahead_behind = Some((0, 3));
+    state.git.branch = "main".into();
+    state.git.ahead_behind = Some((0, 3));
 
     let plain = render_to_string(&mut state, 28, 14);
     assert!(plain.contains("↓3"), "should show behind count");
@@ -722,8 +718,8 @@ fn test_git_ahead_and_behind() {
     state.bottom_tab = BottomTab::GitStatus;
     state.focus = Focus::ActivityLog;
     state.sidebar_focused = true;
-    state.git_branch = "main".into();
-    state.git_ahead_behind = Some((2, 3));
+    state.git.branch = "main".into();
+    state.git.ahead_behind = Some((2, 3));
 
     let plain = render_to_string(&mut state, 38, 14);
     assert!(plain.contains("↑2"), "should show ahead count");
@@ -751,8 +747,8 @@ fn test_git_diff_insertions_only() {
     state.bottom_tab = BottomTab::GitStatus;
     state.focus = Focus::ActivityLog;
     state.sidebar_focused = true;
-    state.git_branch = "main".into();
-    state.git_diff_stat = Some((25, 0));
+    state.git.branch = "main".into();
+    state.git.diff_stat = Some((25, 0));
 
     let plain = render_to_string(&mut state, 28, 14);
     assert!(plain.contains("+25"), "should show insertions");
@@ -777,8 +773,8 @@ fn test_git_diff_deletions_only() {
     state.bottom_tab = BottomTab::GitStatus;
     state.focus = Focus::ActivityLog;
     state.sidebar_focused = true;
-    state.git_branch = "main".into();
-    state.git_diff_stat = Some((0, 15));
+    state.git.branch = "main".into();
+    state.git.diff_stat = Some((0, 15));
 
     let plain = render_to_string(&mut state, 28, 14);
     assert!(plain.contains("-15"), "should show deletions");
@@ -843,11 +839,10 @@ fn snapshot_git_staged_unstaged_untracked_ui() {
     state.bottom_tab = BottomTab::GitStatus;
     state.focus = Focus::ActivityLog;
     state.sidebar_focused = true;
-    state.git_branch = "main".into();
-    state.git_pr_number = Some("5".into());
-    state.git_diff_stat = Some((12, 3));
-    state.git_changed_file_count = 4;
-    state.git_staged_files = vec![
+    state.git.branch = "main".into();
+    state.git.pr_number = Some("5".into());
+    state.git.diff_stat = Some((12, 3));
+    state.git.staged_files = vec![
         tmux_agent_sidebar::git::GitFileEntry {
             status: 'M',
             name: "app.rs".into(),
@@ -861,13 +856,13 @@ fn snapshot_git_staged_unstaged_untracked_ui() {
             deletions: 0,
         },
     ];
-    state.git_unstaged_files = vec![tmux_agent_sidebar::git::GitFileEntry {
+    state.git.unstaged_files = vec![tmux_agent_sidebar::git::GitFileEntry {
         status: 'M',
         name: "config.toml".into(),
         additions: 0,
         deletions: 1,
     }];
-    state.git_untracked_files = vec!["debug.log".into()];
+    state.git.untracked_files = vec!["debug.log".into()];
 
     let output = render_to_string(&mut state, 28, 30);
     let expected = indoc! {r#"
@@ -908,11 +903,10 @@ fn snapshot_git_long_branch_with_pr_ui() {
     state.bottom_tab = BottomTab::GitStatus;
     state.focus = Focus::ActivityLog;
     state.sidebar_focused = true;
-    state.git_branch = "feature/very-long-branch-name".into();
-    state.git_pr_number = Some("123".into());
-    state.git_diff_stat = Some((5, 2));
-    state.git_changed_file_count = 1;
-    state.git_unstaged_files = vec![tmux_agent_sidebar::git::GitFileEntry {
+    state.git.branch = "feature/very-long-branch-name".into();
+    state.git.pr_number = Some("123".into());
+    state.git.diff_stat = Some((5, 2));
+    state.git.unstaged_files = vec![tmux_agent_sidebar::git::GitFileEntry {
         status: 'M',
         name: "main.rs".into(),
         additions: 5,
@@ -945,10 +939,9 @@ fn snapshot_git_staged_only_ui() {
     state.bottom_tab = BottomTab::GitStatus;
     state.focus = Focus::ActivityLog;
     state.sidebar_focused = true;
-    state.git_branch = "main".into();
-    state.git_diff_stat = Some((20, 0));
-    state.git_changed_file_count = 1;
-    state.git_staged_files = vec![tmux_agent_sidebar::git::GitFileEntry {
+    state.git.branch = "main".into();
+    state.git.diff_stat = Some((20, 0));
+    state.git.staged_files = vec![tmux_agent_sidebar::git::GitFileEntry {
         status: 'A',
         name: "new_feature.rs".into(),
         additions: 20,
@@ -989,9 +982,8 @@ fn snapshot_git_many_files_more_indicator_ui() {
     state.bottom_tab = BottomTab::GitStatus;
     state.focus = Focus::ActivityLog;
     state.sidebar_focused = true;
-    state.git_branch = "dev".into();
-    state.git_changed_file_count = 7;
-    state.git_unstaged_files = (0..7)
+    state.git.branch = "dev".into();
+    state.git.unstaged_files = (0..7)
         .map(|i| tmux_agent_sidebar::git::GitFileEntry {
             status: 'M',
             name: format!("f{i}.rs"),

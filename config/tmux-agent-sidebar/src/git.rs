@@ -20,7 +20,12 @@ pub struct GitData {
     pub untracked_files: Vec<String>,
     pub remote_url: String,
     pub pr_number: Option<String>,
-    pub changed_file_count: usize,
+}
+
+impl GitData {
+    pub fn changed_file_count(&self) -> usize {
+        self.staged_files.len() + self.unstaged_files.len() + self.untracked_files.len()
+    }
 }
 
 /// Fetch all git data for a given path. Runs blocking subprocess calls.
@@ -55,9 +60,6 @@ pub fn fetch_git_data(path: &str) -> GitData {
 
     apply_numstat(path, &["diff", "--cached", "--numstat"], &mut data.staged_files);
     apply_numstat(path, &["diff", "--numstat"], &mut data.unstaged_files);
-
-    data.changed_file_count =
-        data.staged_files.len() + data.unstaged_files.len() + data.untracked_files.len();
 
     if let Some(text) = run_git(path, &["remote", "get-url", "origin"]) {
         data.remote_url = normalize_git_url(&text);
@@ -128,7 +130,12 @@ pub(crate) fn parse_status_short(text: &str, data: &mut GitData) {
         } else {
             raw_name
         };
-        let basename = name.rsplit('/').next().unwrap_or(name).to_string();
+        let is_dir = name.ends_with('/');
+        let name_trimmed = name.trim_end_matches('/');
+        let mut basename = name_trimmed.rsplit('/').next().unwrap_or(name_trimmed).to_string();
+        if is_dir {
+            basename.push('/');
+        }
 
         if x == '?' && y == '?' {
             data.untracked_files.push(basename);
@@ -347,6 +354,20 @@ mod tests {
         assert!(data.staged_files.is_empty());
         assert!(data.unstaged_files.is_empty());
         assert_eq!(data.untracked_files, vec!["debug.log"]);
+    }
+
+    #[test]
+    fn parse_status_short_untracked_directory() {
+        let mut data = GitData::default();
+        parse_status_short("?? docs/superpowers/specs/", &mut data);
+        assert_eq!(data.untracked_files, vec!["specs/"]);
+    }
+
+    #[test]
+    fn parse_status_short_untracked_top_level_directory() {
+        let mut data = GitData::default();
+        parse_status_short("?? mydir/", &mut data);
+        assert_eq!(data.untracked_files, vec!["mydir/"]);
     }
 
     #[test]

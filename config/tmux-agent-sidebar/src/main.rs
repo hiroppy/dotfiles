@@ -98,7 +98,6 @@ fn run_app(
         let spinner_timeout = spinner_interval.saturating_sub(last_spinner.elapsed());
         let timeout = refresh_timeout.min(spinner_timeout);
         if event::poll(timeout)? {
-            // Drain all pending events to avoid lag
             loop {
                 let ev = event::read()?;
                 match ev {
@@ -166,7 +165,6 @@ fn run_app(
                     }
                     _ => {}
                 }
-                // Check if more events are queued (non-blocking)
                 if !event::poll(Duration::ZERO)? {
                     break;
                 }
@@ -178,13 +176,9 @@ fn run_app(
             last_spinner = std::time::Instant::now();
         }
 
-        if NEEDS_REFRESH.swap(false, Ordering::Relaxed) {
-            state.refresh();
-            git_tab_active.store(state.bottom_tab == BottomTab::GitStatus, Ordering::Relaxed);
-            last_refresh = std::time::Instant::now();
-        }
-
-        if last_refresh.elapsed() >= refresh_interval {
+        if NEEDS_REFRESH.swap(false, Ordering::Relaxed)
+            || last_refresh.elapsed() >= refresh_interval
+        {
             state.refresh();
             git_tab_active.store(state.bottom_tab == BottomTab::GitStatus, Ordering::Relaxed);
             last_refresh = std::time::Instant::now();
