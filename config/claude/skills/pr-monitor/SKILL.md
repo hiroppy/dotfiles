@@ -23,7 +23,7 @@ PRの特定方法（優先順位）:
 ### 2. CI監視と修正
 
 ```
-gh pr checks <PR番号> --json name,state,description,detailsUrl
+gh pr checks <PR番号> --json name,state,description,link
 ```
 
 failedなcheckがある場合:
