@@ -43,30 +43,7 @@
     ],
     "defaultMode": "auto"
   },
-  "hooks": {
-    "Notification": [
-      {
-        "matcher": "",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "bash ~/.config/tmux/scripts/notify-hook.sh claude notification"
-          }
-        ]
-      }
-    ],
-    "Stop": [
-      {
-        "matcher": "",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "bash ~/.config/tmux/scripts/notify-hook.sh claude stop"
-          }
-        ]
-      }
-    ]
-  },
+  "hooks": {},
   "enabledPlugins": {
     "superpowers@claude-plugins-official": true,
     "frontend-design@claude-plugins-official": true,
@@ -98,6 +75,7 @@
   },
   "language": "日本語",
   "alwaysThinkingEnabled": true,
+  "skipDangerousModePermissionPrompt": true,
   "voiceEnabled": true,
-  "skipDangerousModePermissionPrompt": true
+  "effortLevel": "high"
 }
