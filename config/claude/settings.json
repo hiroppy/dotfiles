@@ -75,7 +75,7 @@
   },
   "language": "日本語",
   "alwaysThinkingEnabled": true,
+  "effortLevel": "high",
   "skipDangerousModePermissionPrompt": true,
-  "voiceEnabled": true,
-  "effortLevel": "high"
+  "voiceEnabled": true
 }
