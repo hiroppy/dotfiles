@@ -204,3 +204,6 @@ end
 
 # LM Studio CLI (lms)
 fish_add_path --global $HOME/.lmstudio/bin
+
+# opencode
+fish_add_path /Users/hiroppy/.opencode/bin
