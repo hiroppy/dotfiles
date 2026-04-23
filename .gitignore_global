@@ -2,3 +2,4 @@
 .python-version
 npm-debug.log
 settings.local.json
+.worktrees
