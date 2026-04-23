@@ -1,7 +1,7 @@
 function fish_prompt
     set last_status $status
 
-    if [ $status -eq 0 ]
+    if [ $last_status -eq 0 ]
         set_color 69DC85
         echo -n '(๑˃̵ᴗ˂̵)و'
         set_color normal
