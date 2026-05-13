@@ -35,10 +35,15 @@ install:
 	mkdir -p ~/.claude
 	ln -sfnv ~/dotfiles/config/claude/settings.json ~/.claude/settings.json
 	ln -sfnv ~/dotfiles/config/claude/mcp.json ~/.claude/mcp.json
-	ln -sfnv ~/dotfiles/config/claude/skills ~/.claude/skills
+	ln -sfnv ~/dotfiles/agents/skills ~/.claude/skills
 	mkdir -p ~/.codex
 	ln -sfnv ~/dotfiles/config/codex/config.toml ~/.codex/config.toml
 	ln -sfnv ~/dotfiles/config/codex/hooks.json ~/.codex/hooks.json
+	mkdir -p ~/.codex/skills
+	@for skill in ~/dotfiles/agents/skills/*; do \
+		[ -d "$$skill" ] || continue; \
+		ln -sfnv "$$skill" ~/.codex/skills/$$(basename "$$skill"); \
+	done
 	@$(foreach val, $(DOTFILES_FILES), ln -sfnv $(abspath $(val)) $(HOME)/$(val);)
 
 	$(call section,"Eza theme")

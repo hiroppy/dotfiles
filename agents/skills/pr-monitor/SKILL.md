@@ -1,6 +1,6 @@
 ---
 name: pr-monitor
-description: Monitor a GitHub PR for CI failures and review comments, then automatically fix issues. Use this skill when the user wants to watch a PR, fix CI, respond to review comments, or automate PR maintenance. Triggers on "PR監視", "PRを見て", "CIが落ちた", "レビュー対応", "pr monitor", "watch pr", "fix ci", "pr fix". Works well with /loop for continuous monitoring.
+description: Monitor a GitHub PR for CI failures and review comments, then automatically fix issues. Use this skill when the user wants to watch a PR, fix CI, respond to review comments, or automate PR maintenance. Triggers on "PR監視", "PRを見て", "CIが落ちた", "レビュー対応", "pr monitor", "watch pr", "fix ci", or "pr fix".
 ---
 
 # PR Monitor
@@ -44,7 +44,7 @@ CIが全て通るまでこのループを繰り返す。ただし同じエラー
 gh api repos/{owner}/{repo}/pulls/<PR番号>/comments --jq '.[] | select(.in_reply_to_id == null)'
 ```
 
-未対応のレビューコメント（自分がまだ返信していないスレッド）を検出する。
+未対応のレビューコメント（エージェントがまだ返信していないスレッド）を検出する。
 
 各コメントに対して:
 
@@ -74,26 +74,14 @@ gh api repos/{owner}/{repo}/pulls/<PR番号>/comments --jq '.[] | select(.in_rep
 - レビュー: 対応したコメント数、修正/反論の内訳
 - 未解決: 自動対応できなかった項目
 
-## 継続監視（自動スケジューリング）
+## 継続監視
 
-このskillは実行されたら、ワークフロー（1〜4）を完了した後に**必ず自身を5分ごとに再実行するcronジョブを登録する**。
+ユーザーが継続監視を求めている場合は、利用中の環境で利用できるループ機能やスケジューラを使い、ワークフロー（1〜4）を一定間隔で再実行する。
 
-手順:
-
-1. まず `CronList` で既存の `/pr-monitor` ジョブがあるかを確認する
-2. 既にある場合は再登録しない（重複防止）
-3. ない場合のみ `CronCreate` を以下の引数で呼ぶ:
-   - `cron`: `*/5 * * * *`
-   - `prompt`: `/pr-monitor`
-   - `recurring`: `true`
-4. 登録したジョブID、失効までの期間（7日）、`CronDelete <ID>` で停止できる旨をユーザーに伝える
-
-ユーザーが明示的に「1回だけ」「ループ不要」と指示した場合はこのステップをスキップする。
-
-停止したいとき:
-```
-CronDelete <ID>
-```
+- デフォルトの間隔は5分
+- 重複実行を避けるため、既存の監視ジョブやループがある場合は再登録しない
+- ユーザーが「1回だけ」「ループ不要」と指示した場合は継続監視を設定しない
+- 継続監視を設定した場合は、停止方法をユーザーに伝える
 
 ## 注意事項
 
