@@ -1,8 +1,8 @@
-model = "gpt-5.4-mini"
+model = "gpt-5.5"
 model_reasoning_effort = "medium"
 
 [features]
-codex_hooks = true
+hooks = true
 
 [notice.model_migrations]
 "gpt-5.3-codex" = "gpt-5.4"
