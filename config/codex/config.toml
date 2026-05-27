@@ -3,6 +3,7 @@ model_reasoning_effort = "medium"
 
 [features]
 hooks = true
+goals = true
 
 [notice.model_migrations]
 "gpt-5.3-codex" = "gpt-5.4"
