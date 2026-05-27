@@ -39,6 +39,7 @@ install:
 	mkdir -p ~/.codex
 	ln -sfnv ~/dotfiles/config/codex/config.toml ~/.codex/config.toml
 	ln -sfnv ~/dotfiles/config/codex/hooks.json ~/.codex/hooks.json
+	ln -sfnv ~/dotfiles/config/codex/AGENTS.md ~/.codex/AGENTS.md
 	mkdir -p ~/.codex/skills
 	@for skill in ~/dotfiles/agents/skills/*; do \
 		[ -d "$$skill" ] || continue; \
