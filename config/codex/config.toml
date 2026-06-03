@@ -1,12 +1,35 @@
 model = "gpt-5.5"
 model_reasoning_effort = "medium"
 
+[mcp_servers.chrome-devtools]
+command = "npx"
+args = ["-y", "chrome-devtools-mcp@latest", "--autoConnect"]
+
+[mcp_servers.context7]
+command = "npx"
+args = ["-y", "@upstash/context7-mcp"]
+
+[plugins."github@openai-curated"]
+enabled = true
+
+[plugins."superpowers@openai-curated"]
+enabled = true
+
+[plugins."cloudflare@openai-curated"]
+enabled = true
+
+[plugins."build-web-apps@openai-curated"]
+enabled = true
+
+[plugins."build-ios-apps@openai-curated"]
+enabled = true
+
 [features]
 hooks = true
 goals = true
 
-[notice.model_migrations]
-"gpt-5.3-codex" = "gpt-5.4"
+[projects."/Users/hiroppy/dotfiles"]
+trust_level = "trusted"
 
-[plugins."github@openai-curated"]
-enabled = true
+[tui.model_availability_nux]
+"gpt-5.5" = 1
