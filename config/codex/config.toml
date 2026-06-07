@@ -28,8 +28,5 @@ enabled = true
 hooks = true
 goals = true
 
-[projects."/Users/hiroppy/dotfiles"]
-trust_level = "trusted"
-
 [tui.model_availability_nux]
 "gpt-5.5" = 1
