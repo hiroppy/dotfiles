@@ -25,6 +25,7 @@ end
 # set empty defaults to avoid .npmrc errors when .env is missing
 set -gx NPM_TOKEN ""
 set -gx GITHUB_TOKEN ""
+set -gx HOMEBREW_NO_UPGRADE_AUTO_UPDATES_CASKS 1
 
 envsource ~/.env
 
