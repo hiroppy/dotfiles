@@ -76,8 +76,9 @@
   "language": "日本語",
   "alwaysThinkingEnabled": true,
   "effortLevel": "high",
+  "tui": "fullscreen",
   "skipDangerousModePermissionPrompt": true,
+  "theme": "dark-daltonized",
   "skipAutoPermissionPrompt": true,
-  "voiceEnabled": true,
-  "theme": "dark-daltonized"
+  "voiceEnabled": true
 }
