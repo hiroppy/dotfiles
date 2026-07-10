@@ -1,9 +1,9 @@
 #!/bin/bash
-# Usage: popup-icon.sh <pane_current_path>
+# Usage: popup-icon.sh
 # Outputs: tmux-formatted popup icon string or empty
 # Background is always orange (#da7756); icon changes by agent status.
 
-session="popup_$(basename "$1")"
+session="popup"
 tmux has-session -t "$session" 2>/dev/null || exit 0
 
 status=$(~/.config/tmux/scripts/check-agent-status.sh "$session" 2>/dev/null)
