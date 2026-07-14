@@ -1,7 +1,7 @@
-tap "sanemat/font"
-tap "johanhaleby/kubetail"
-tap "bufbuild/buf"
-tap "hashicorp/tap"
+tap "sanemat/font", trusted: true
+tap "johanhaleby/kubetail", trusted: true
+tap "bufbuild/buf", trusted: true
+tap "hashicorp/tap", trusted: true
 
 # [Network]
 brew "bandwhich" # Bandwidth utilization by process
