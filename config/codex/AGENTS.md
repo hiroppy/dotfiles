@@ -1,5 +1,9 @@
 # Global Codex Instructions
 
+## Code Changes
+
+- After completing code changes, run `$simplify` once before committing. Then run the relevant tests, type checks, lint, and formatting checks against the simplified code when available.
+
 ## Pull Requests
 
 - Write pull request titles that follow Conventional Commits.
