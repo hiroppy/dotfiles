@@ -7,7 +7,17 @@
 ## Pull Requests
 
 - Write pull request titles that follow Conventional Commits.
+- Do not add tool or agent labels such as `[codex]` to pull request titles.
 - If the repository contains a pull request template, use it as the basis for the pull request description.
+
+## Git Worktrees
+
+- Create and use a dedicated Git worktree when starting development work.
+- After a pull request is merged, remove its associated Git worktree.
+
+## Environment
+
+- `LINEAR_API_KEY` is available in the fish shell environment.
 
 ## QA and Test Design
 
