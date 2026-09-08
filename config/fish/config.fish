@@ -234,6 +234,11 @@ end
 # mise
 /opt/homebrew/bin/mise activate fish | source
 
+# direnv
+if type -q direnv
+    direnv hook fish | source
+end
+
 # LM Studio CLI (lms)
 fish_add_path --global $HOME/.lmstudio/bin
 
