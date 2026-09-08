@@ -13,6 +13,7 @@
 ## Git Worktrees
 
 - Create and use a dedicated Git worktree when starting development work.
+- Create the worktree from the latest `main` branch. If the `main` worktree already contains changes, leave them untouched.
 - After a pull request is merged, remove its associated Git worktree.
 
 ## Environment
