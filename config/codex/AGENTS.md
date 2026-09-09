@@ -9,6 +9,8 @@
 - Write pull request titles that follow Conventional Commits.
 - Do not add tool or agent labels such as `[codex]` to pull request titles.
 - If the repository contains a pull request template, use it as the basis for the pull request description.
+- Create pull requests as ready for review by default. Use draft only when the user explicitly requests it or the work is intentionally incomplete and not ready for review.
+- After successfully creating or publishing a pull request, automatically invoke `$pr-monitor` in the same task and begin monitoring immediately. Do not wait for the user to request monitoring separately. Skip this only when the user explicitly opts out.
 
 ## Git Worktrees
 
