@@ -161,7 +161,7 @@ gh pr view <PR番号> --json state,mergedAt,isDraft,mergeable,mergeStateStatus,r
 
 ### Codex reviewの追跡
 
-各ポーリングでissue comments、PR本体のreactions、reviews、review threadsを取得し、Codex reviewの開始、完了、指摘を追跡する。Codex GitHub botは `chatgpt-codex-connector[bot]` として識別する。
+各ポーリングでissue comments、PR本体のreactions、reviews、review threadsを取得し、Codex reviewの開始、完了、指摘を追跡する。GitHub APIによってbotのloginが `chatgpt-codex-connector` または `chatgpt-codex-connector[bot]` と返るため、比較時は末尾の `[bot]` を除去して `chatgpt-codex-connector` に正規化する。
 
 ```bash
 # Codex review summaryを含むissue comments
@@ -174,6 +174,7 @@ gh api \
 ```
 
 判定ルール:
+- issue comments、reactions、reviews、review threadsのすべてでauthor loginを同じ方法で正規化する。`chatgpt-codex-connector` と `chatgpt-codex-connector[bot]` はどちらもCodex botとして扱い、それ以外の部分一致は許容しない
 - `headRefOid` ごとにCodex reviewの状態と通過通知済みフラグを管理する。pushでHEADが変わったら、新しいレビュー周期として通過状態と通知済みフラグをリセットする
 - Codex review summaryは、Codex botによるissue commentの本文に `<!-- codex-pull-request-review-summary -->` が含まれるかで検出する。これにより `PR opened` をトリガーとする自動レビューも検出できる
 - Codex botによる `eyes` reaction、review summary、review、issue comment、review threadのいずれかがあれば、Codex reviewが存在する、または実行されたと判断する
