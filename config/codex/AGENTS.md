@@ -2,7 +2,7 @@
 
 ## Code Changes
 
-- After completing code changes, run `$simplify` once before committing. Then run the relevant tests, type checks, lint, and formatting checks against the simplified code when available.
+- After completing code changes, run one behavior-preserving simplification pass before committing. Use `$simplify` by default; when the repository specifies an equivalent skill such as `refactor`, use it instead to satisfy this requirement. Run the relevant tests, type checks, lint, and formatting checks against the final code. Do not repeat the same pass or successful checks before pushing unless further changes, failures, or unresolved concerns require it.
 
 ## Pull Requests
 
