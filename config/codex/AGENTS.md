@@ -12,11 +12,17 @@
 - Create pull requests as ready for review by default. Use draft only when the user explicitly requests it or the work is intentionally incomplete and not ready for review.
 - After successfully creating or publishing a pull request, automatically invoke `$pr-monitor` in the same task and begin monitoring immediately. Do not wait for the user to request monitoring separately. Skip this only when the user explicitly opts out.
 
+## Post-Merge Continuation
+
+- After confirming that a pull request is merged, complete cleanup in the same task: remove its associated Git worktree and delete its local branch when it is safe to do so. Preserve unrelated or uncommitted work.
+- Treat merge confirmation as a continuation point: finish cleanup, then immediately proceed to the next pending task already requested or authorized by the user. Do not stop at a merge report or ask for confirmation again unless the next action requires new authorization or missing information.
+- When multiple tasks are queued, repeat the implementation, review, PR monitoring, merge confirmation, and cleanup cycle until all authorized tasks are complete or a blocker requires user input. If no task remains, report completion after cleanup.
+
 ## Git Worktrees
 
 - Create and use a dedicated Git worktree when starting development work.
 - Create the worktree from the latest `main` branch. If the `main` worktree already contains changes, leave them untouched.
-- After a pull request is merged, remove its associated Git worktree.
+- After a pull request is merged, follow the Post-Merge Continuation workflow.
 
 ## Environment
 
