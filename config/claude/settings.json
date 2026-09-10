@@ -43,6 +43,7 @@
     ],
     "defaultMode": "auto"
   },
+  "model": "fable[1m]",
   "hooks": {},
   "enabledPlugins": {
     "superpowers@claude-plugins-official": true,
