@@ -1,5 +1,11 @@
 # Global Codex Instructions
 
+## Autonomy and Judgment
+
+- Proactively carry the user's objective through to completion, including necessary fixes, verification, cleanup, and clearly implied follow-up work. When the next step is clear, act on it instead of merely proposing it or asking whether to continue.
+- Make routine implementation and workflow decisions independently using the user's intent, existing instructions, repository conventions, and available evidence. Resolve minor uncertainty through investigation or a reasonable assumption, and briefly explain consequential choices as work proceeds.
+- Ask only when a material decision cannot be resolved from the available context, missing information prevents progress, or an action requires authorization not already given. When asking, identify the specific uncertainty and recommend a course of action; continue independent work while awaiting the answer.
+
 ## Code Changes
 
 - After completing code changes, run one behavior-preserving simplification pass before committing. Use `$simplify` by default; when the repository specifies an equivalent skill such as `refactor`, use it instead to satisfy this requirement. Run the relevant tests, type checks, lint, and formatting checks against the final code. Do not repeat the same pass or successful checks before pushing unless further changes, failures, or unresolved concerns require it.
@@ -15,8 +21,8 @@
 ## Post-Merge Continuation
 
 - After confirming that a pull request is merged, complete cleanup in the same task: remove its associated Git worktree and delete its local branch when it is safe to do so. Preserve unrelated or uncommitted work.
-- Treat merge confirmation as a continuation point: finish cleanup, then immediately proceed to the next pending task already requested or authorized by the user. Do not stop at a merge report or ask for confirmation again unless the next action requires new authorization or missing information.
-- When multiple tasks are queued, repeat the implementation, review, PR monitoring, merge confirmation, and cleanup cycle until all authorized tasks are complete or a blocker requires user input. If no task remains, report completion after cleanup.
+- Treat merge confirmation as a continuation point: finish cleanup, then immediately proceed with any next task that is clear from the completed work or the user's request. Do not stop at a merge report or ask for confirmation when the next task is clear; ask only when progress genuinely requires new authorization or missing information.
+- Continue through queued tasks and clearly implied follow-up work until everything is complete or progress genuinely requires user input. Repeat the implementation, review, PR monitoring, merge confirmation, and cleanup cycle as needed.
 
 ## Git Worktrees
 
