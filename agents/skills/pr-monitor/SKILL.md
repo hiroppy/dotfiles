@@ -139,9 +139,9 @@ gh pr view <PR番号> --json state,mergedAt,isDraft,mergeable,mergeStateStatus,r
 ```
 
 終了条件:
-- `state == "MERGED"` または `mergedAt` が入ったら、マージ後cleanupを行って監視を終了する
-- `state == "CLOSED"` かつ未マージなら、監視を終了し、close理由が分かる範囲で報告する
-- ユーザーが「1回だけ」「ループ不要」「監視停止」と指示した場合は継続監視を設定しない/停止する
+- `state == "MERGED"` または `mergedAt` が入ったら、マージ後cleanupと報告を行い、監視設定を削除する
+- `state == "CLOSED"` かつ未マージなら、close理由が分かる範囲で報告し、監視設定を削除する
+- ユーザーが「1回だけ」「ループ不要」と指示した場合は継続監視を設定しない。「監視停止」の場合は既存の監視設定を削除する。ただし一時停止を明示された場合だけ `PAUSED` にする
 
 監視中の動作:
 - デフォルトの間隔は2分
@@ -158,7 +158,11 @@ gh pr view <PR番号> --json state,mergedAt,isDraft,mergeable,mergeStateStatus,r
 1. リポジトリの `AGENTS.md` やCodex設定を確認し、dispose処理が明示的に定義されている場合だけ実行する。定義がなければスキップし、コマンドを推測・創作しない
 2. dispose処理が成功したことを確認する。失敗した場合はworktreeを削除せず、エラーを報告する
 3. 未コミット・未pushの変更がないことを確認してから、関連worktreeを安全な別ディレクトリから削除する。実行中の環境から自身のworktreeを直接削除できない場合は、利用可能なCodexのworktree破棄機構へ引き渡す
-4. dispose処理の実行またはスキップ、worktree削除の結果、マージ済みURL/時刻を報告して監視を終了する
+4. dispose処理の実行またはスキップ、worktree削除の結果、マージ済みURL/時刻を報告する
+
+### 監視設定の削除
+
+PRのマージまたは未マージcloseによる監視終了時は、上記の必要なcleanupと報告を終えた後、対象PRの監視automationを削除する。`PAUSED` は再開を予定した一時停止にだけ使い、完了済みの監視設定を残す目的では使わない。削除対象は監視automationのみで、PRやCodexのタスク履歴は削除しない。cleanupが失敗した場合は結果を報告し、未完了の作業を扱える状態を保つ。
 
 ### Codex reviewの追跡
 
