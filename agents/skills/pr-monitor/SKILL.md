@@ -1,11 +1,11 @@
 ---
 name: pr-monitor
-description: Monitor a GitHub PR for CI failures and review comments, then automatically fix issues. Use this skill when the user wants to watch a PR, fix CI, respond to review comments, or automate PR maintenance. Triggers on "PR監視", "PRを見て", "CIが落ちた", "レビュー対応", "pr monitor", "watch pr", "fix ci", or "pr fix".
+description: Monitor a GitHub PR for CI failures, merge conflicts, and review comments, then automatically fix issues. Use this skill when the user wants to watch a PR, fix CI or conflicts, respond to review comments, or automate PR maintenance. Triggers on "PR監視", "PRを見て", "CIが落ちた", "コンフリクト解消", "レビュー対応", "pr monitor", "watch pr", "fix ci", or "pr fix".
 ---
 
 # PR Monitor
 
-GitHub PRのCIステータスとレビューコメントを監視し、自動で修正・対応するスキル。
+GitHub PRのCIステータス、コンフリクト、レビューコメントを監視し、自動で修正・対応するスキル。
 
 ## 前提
 
@@ -42,7 +42,18 @@ push前にローカルで該当するlint/format/build/testを実行できる場
 
 CIが全て通るまでこのループを繰り返す。ただし同じエラーが3回連続で解消しない場合は、ユーザーに報告して停止する。
 
-### 3. レビューコメント対応
+### 3. コンフリクト監視と修正
+
+PR状態の `mergeable == "CONFLICTING"` または `mergeStateStatus == "DIRTY"` を検出した場合:
+
+1. **対象確認**: `gh pr view <PR番号> --json headRefName,baseRefName,headRepositoryOwner,mergeable,mergeStateStatus` でheadとbaseを確定し、PRのheadブランチで作業する
+2. **base取得**: baseブランチの最新をfetchし、headへ通常のmergeで取り込む。rebaseやforce pushは使わない
+3. **解消**: 競合した両側の意図と周辺コードを確認し、PRの変更目的とbaseの最新の振る舞いを両立する最小限の修正で解消する
+4. **安全性確認**: 競合マーカーや未解消ファイルが残っていないことを確認する。意味的に安全な解消方針を判断できない場合はmergeをabortし、選択肢と影響をユーザーに報告してpushしない
+5. **簡略化と検証**: 解消が一通り終わったら、コミット前に一度だけ`$simplify`を実行し、関連するlint/format/build/testを実行する
+6. **コミット&プッシュ**: `fix: resolve merge conflicts` の形式でmerge commitを完了し、push後にPR状態を再取得してコンフリクト解消を確認する
+
+### 4. レビューコメント対応
 
 RESTのreview commentsだけでなく、GraphQLのreview threadも取得して `isResolved` を確認する。解決済みthreadは対象外にする。
 
@@ -120,10 +131,11 @@ query($owner:String!, $repo:String!, $number:Int!) {
 
 レビューコメント対応でコード修正を行った場合は、対象コメントの修正を一通り終えてからコミット前に一度だけ`$simplify`を実行する。その後、ローカルで該当するlint/format/build/testを実行できる場合は必ず通してからコミット&プッシュする。
 
-### 4. 報告
+### 5. 報告
 
 1回の実行で行った対応をまとめてユーザーに報告:
 - CI: 修正した内容と結果
+- コンフリクト: 解消したファイルと検証結果
 - レビュー: 対応したコメント数、修正/反論の内訳
 - Simplify: `$simplify`の実行結果
 - 未解決: 自動対応できなかった項目
@@ -146,9 +158,9 @@ gh pr view <PR番号> --json state,mergedAt,isDraft,mergeable,mergeStateStatus,r
 監視中の動作:
 - デフォルトの間隔は2分
 - 重複実行を避けるため、既存の監視ジョブやループがある場合は再登録しない
-- CI失敗や未resolvedレビューコメントがあればワークフロー（1〜4）で対応する
+- CI失敗、コンフリクト、または未resolvedレビューコメントがあればワークフロー（1〜5）で対応する
 - 現在のHEADに対するCodex botの `+1` を初めて検出したら、Codex reviewが通過したことをユーザーへ一度だけ通知する。通知文には必ず `👍` を含め、CI成功など別の通過理由と区別できるようにする（例: `Codex reviewの 👍 を確認しました`）。その後は新しいコメントとPR状態を静かに監視する
-- CIがgreenかつ未resolvedレビューコメントがない場合は、PRがマージまたはcloseされるまで不要な通知を出さない
+- CIがgreen、コンフリクトなし、かつ未resolvedレビューコメントがない場合は、PRがマージまたはcloseされるまで不要な通知を出さない
 - 継続監視を設定した場合は、停止方法と「マージまたは未マージcloseまで監視する」ことをユーザーに伝える
 
 ### マージ後cleanup
