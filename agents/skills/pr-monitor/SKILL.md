@@ -156,7 +156,7 @@ gh pr view <PR番号> --json state,mergedAt,isDraft,mergeable,mergeStateStatus,r
 - ユーザーが「1回だけ」「ループ不要」と指示した場合は継続監視を設定しない。「監視停止」の場合は既存の監視設定を削除する。ただし一時停止を明示された場合だけ `PAUSED` にする
 
 監視中の動作:
-- デフォルトの間隔は2分
+- デフォルトの間隔は1分
 - 重複実行を避けるため、既存の監視ジョブやループがある場合は再登録しない
 - CI失敗、コンフリクト、または未resolvedレビューコメントがあればワークフロー（1〜5）で対応する
 - 現在のHEADに対するCodex botの `+1` を初めて検出したら、Codex reviewが通過したことをユーザーへ一度だけ通知する。通知文には必ず `👍` を含め、CI成功など別の通過理由と区別できるようにする（例: `Codex reviewの 👍 を確認しました`）。その後は新しいコメントとPR状態を静かに監視する
@@ -197,7 +197,7 @@ gh api \
 - Codex botによる `eyes` reaction、review summary、review、issue comment、review threadのいずれかがあれば、Codex reviewが存在する、または実行されたと判断する
 - Codex botの `+1` だけで通過と判断しない。review summaryの最新レビューがcompletedで、そのcommitが現在の `headRefOid` と一致する場合にだけ、現在のHEADに対する通過とみなす。古いHEADのsummaryやreactionは無視する
 - 通過通知では、判定根拠がCodex reviewであることが一目で分かるよう `Codex reviewの 👍` と表現する。可能なら対象commitの短縮SHAも添える
-- Codexの新しい指摘が見つかった場合は、`+1` を待たずワークフロー3で対応する。対応完了時は修正内容とpushしたcommitを通知し、新しいHEADの監視を2分ごとに続ける。自動対応できない場合も、その時点で理由を通知する
+- Codexの新しい指摘が見つかった場合は、`+1` を待たずワークフロー4で対応する。対応完了時は修正内容とpushしたcommitを通知し、新しいHEADの監視を1分ごとに続ける。自動対応できない場合も、その時点で理由を通知する
 - Codex reviewを示すコメント、reaction、review、threadがまだ何もなければ、未設定と開始前を区別できないため「現時点では未検出」と扱う。`+1` 待ちだけを理由に停止せず、PRがマージまたはcloseされるまで通常監視を続ける
 
 ## 注意事項
