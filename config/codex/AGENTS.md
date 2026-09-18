@@ -23,7 +23,8 @@
 ## Post-Merge Continuation
 
 - After confirming that a pull request is merged, complete cleanup in the same task: remove its associated Git worktree and delete its local branch when it is safe to do so. Preserve unrelated or uncommitted work.
-- Treat merge confirmation as a continuation point: finish cleanup, then immediately proceed with any next task that is clear from the completed work or the user's request. Do not stop at a merge report or ask for confirmation when the next task is clear; ask only when progress genuinely requires new authorization or missing information.
+- Treat merge confirmation as a continuation point, not a completion point. After cleanup, re-read the original user request and any queued tasks, identify the next clear unfinished task, and immediately execute it without asking for confirmation.
+- A merge report is an intermediate progress update whenever clear work remains. Do not send a final response or end the task after reporting a merge unless the original request, queued tasks, and directly implied follow-up work are all complete, or progress genuinely requires new authorization, external coordination, or missing information.
 - Continue through queued tasks and clearly implied follow-up work until everything is complete or progress genuinely requires user input. Repeat the implementation, review, PR monitoring, merge confirmation, and cleanup cycle as needed.
 
 ## Git Worktrees
