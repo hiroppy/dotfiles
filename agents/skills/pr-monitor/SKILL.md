@@ -178,6 +178,12 @@ gh pr view <PR番号> --json state,mergedAt,isDraft,mergeable,mergeStateStatus,r
 
 PRのマージまたは未マージcloseによる監視終了時は、上記の必要なcleanupと報告を終えた後、対象PRの監視automationを削除する。`PAUSED` は再開を予定した一時停止にだけ使い、完了済みの監視設定を残す目的では使わない。削除対象は監視automationのみで、PRやCodexのタスク履歴は削除しない。cleanupが失敗した場合は結果を報告し、未完了の作業を扱える状態を保つ。
 
+### マージ後のタスク継続
+
+マージ後のcleanupと監視設定の削除が完了したら、元のユーザー要求とタスク列に戻る。明確な次タスクや今回の変更から直接必要になる後続作業があれば、確認を求めずにそのまま進む。別のPRが必要なら、最新のbaseから新しいworktreeを作り、実装から監視・cleanupまでのサイクルを続ける。
+
+マージ報告は中間進捗であり、明確な次タスクが残っている場合の終了条件ではない。要求された作業と自明な後続作業がすべて完了した場合、または新たな権限・外部調整・ユーザー判断が必要な場合にだけ停止する。無関係な作業は新たに作らない。
+
 ### Codex reviewの追跡
 
 各ポーリングでissue comments、PR本体のreactions、reviews、review threadsを取得し、Codex reviewの開始、完了、指摘を追跡する。GitHub APIによってbotのloginが `chatgpt-codex-connector` または `chatgpt-codex-connector[bot]` と返るため、比較時は末尾の `[bot]` を除去して `chatgpt-codex-connector` に正規化する。
