@@ -197,6 +197,7 @@ gh api \
 - `headRefOid` ごとにCodex reviewの状態と通過通知済みフラグを管理する。pushでHEADが変わったら、新しいレビュー周期として通過状態と通知済みフラグをリセットする
 - Codex review summaryは、Codex botによるissue commentの本文に `<!-- codex-pull-request-review-summary -->` が含まれるかで検出する。これにより `PR opened` をトリガーとする自動レビューも検出できる
 - Codex botによる `eyes` reaction、review summary、review、issue comment、review threadのいずれかがあれば、Codex reviewが存在する、または実行されたと判断する
+- **マージ禁止**: Codex botの `eyes`（👀）reactionがPRに付いている間は、マージしない。`gh pr merge`、GitHub UI、squash/rebase/mergeいずれの方法も使わない。CIがgreenでも、未resolvedコメントがなくてもマージしない。👀 はレビュー実行中であり、承認ではない。`+1` が同時にあっても `eyes` が残っているならマージしない。例外は、ユーザーがそのPRを明示的にマージするよう指示した場合だけ（「このPRをマージして」など）。監視開始時の包括指示や「準備できたらマージ」では足りない
 - Codex botの `+1` だけで通過と判断しない。review summaryの最新レビューがcompletedで、そのcommitが現在の `headRefOid` と一致する場合にだけ、現在のHEADに対する通過とみなす。古いHEADのsummaryやreactionは無視する
 - 通過通知では、判定根拠がCodex reviewであることが一目で分かるよう `Codex reviewの 👍` と表現する。可能なら対象commitの短縮SHAも添える
 - Codexの新しい指摘が見つかった場合は、`+1` を待たずワークフロー4で対応する。対応完了時は修正内容とpushしたcommitを通知し、新しいHEADの監視を1分ごとに続ける。自動対応できない場合も、その時点で理由を通知する
