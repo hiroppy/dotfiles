@@ -64,33 +64,38 @@ OWNER=${OWNER_REPO%/*}
 REPO=${OWNER_REPO#*/}
 PR_NUMBER=<PR番号>
 
-# issue comments（PR全体コメント）
-gh api repos/$OWNER/$REPO/issues/$PR_NUMBER/comments
+# issue comments（PR全体コメント。必ず全ページ取得）
+gh api --paginate repos/$OWNER/$REPO/issues/$PR_NUMBER/comments
 
 # review threads（inline comments / resolved状態つき）
 gh api graphql -f owner="$OWNER" -f repo="$REPO" -F number="$PR_NUMBER" -f query='\
-query($owner:String!, $repo:String!, $number:Int!) {
+query($owner:String!, $repo:String!, $number:Int!, $threadsCursor:String) {
   repository(owner:$owner, name:$repo) {
     pullRequest(number:$number) {
-      reviewThreads(first:100) {
+      reviewThreads(first:100, after:$threadsCursor) {
         nodes {
           id
           isResolved
           path
           line
-          comments(first:20) {
+          comments(first:100) {
             nodes { id author { login } body url createdAt }
+            pageInfo { hasNextPage endCursor }
           }
         }
+        pageInfo { hasNextPage endCursor }
       }
     }
   }
 }'
 ```
 
+上記は1ページ分のquery例である。`reviewThreads.pageInfo.hasNextPage` が `false` になるまで `endCursor` を `threadsCursor` に渡して取得する。各threadの `comments.pageInfo.hasNextPage` が `true` の場合も、そのthreadの全コメントを追加queryで取得する。先頭100件だけを見て「未対応なし」と判断しない。
+
 未対応コメントを検出する:
-- **review threads（inline comments）**: `isResolved == false` かつエージェントがまだ返信していないスレッドを対象にする
-- **issue comments（PR全体の通常コメント）**: 本文を読んで、指摘・修正依頼・質問・CI/QA報告など対応が必要な内容なら review thread と同様に対象にする。単なる通知、botの進捗ログ、既に対応済みと判断できるコメントは対象外
+- **review threads（inline comments）**: `isResolved == false` の全threadを時系列で評価する。最後のエージェント返信より後にレビュアーのコメントが1件でもあれば、新規または追加の指摘として再び対象にする。エージェントが過去に一度返信したことだけを理由に除外しない
+- **返信者の識別**: `gh api user --jq .login` で現在のGitHub loginを取得し、そのloginと、この監視が実際に返信へ使用したbot loginだけをエージェントとして扱う。作者不明、別bot、レビュアーをエージェント扱いしない
+- **issue comments（PR全体の通常コメント）**: 全ページを時系列で読み、指摘・修正依頼・質問・CI/QA報告など対応が必要な内容を対象にする。以前の対応済み返信より後に追加質問や再指摘があれば再び対象にする。単なる通知、botの進捗ログ、現在も対応済みと確認できるコメントは対象外
 
 各コメントに対して:
 
@@ -158,9 +163,11 @@ gh pr view <PR番号> --json state,mergedAt,isDraft,mergeable,mergeStateStatus,r
 
 監視中の動作:
 - Ready for review後の通常監視間隔は1分
-- 重複実行を避けるため、既存の監視ジョブやループがある場合は再登録しない
+- 継続監視はheartbeat automationまたは同等の永続的な実行機構として登録し、登録後に対象PR、実行間隔、`ACTIVE`状態を確認する。スキルを1回実行しただけで監視中と扱わない
+- automationのpromptには、PR URL、作業worktree、PR状態、CI、全ページのissue comments、reviews、reactions、全ページのreview threadsとnested comments、追加指摘の時系列判定、修正・検証・push・返信・resolveまでを明記する
+- 重複実行を避けるため、同じPRの監視ジョブやループが既に`ACTIVE`なら再登録しない。既存ジョブが`PAUSED`または無効なら、監視中と報告せず、ユーザーが停止・一時停止を指示していない限り再開または置換して`ACTIVE`を確認する
 - `isDraft == true` の間は5分ごとにPRのstateと `isDraft` のみを確認し、CI修正、コンフリクト解消、レビュー対応は実行しない
-- CI失敗、コンフリクト、または未resolvedレビューコメントがあればワークフロー（1〜5）で対応する
+- CI失敗、コンフリクト、または未resolvedの新規・追加レビューコメントがあればワークフロー（1〜5）で対応する
 - 現在のHEADに対するCodex botの `+1` を初めて検出したら、Codex reviewが通過したことをユーザーへ一度だけ通知する。通知文には必ず `👍` を含め、CI成功など別の通過理由と区別できるようにする（例: `Codex reviewの 👍 を確認しました`）。その後は新しいコメントとPR状態を静かに監視する
 - CIがgreen、コンフリクトなし、かつ未resolvedレビューコメントがない場合は、PRがマージまたはcloseされるまで不要な通知を出さない
 - 継続監視を設定した場合は、停止方法と「マージまたは未マージcloseまで監視する」ことをユーザーに伝える
