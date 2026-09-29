@@ -1,220 +1,45 @@
 ---
 name: pr-monitor
-description: Monitor a GitHub PR for CI failures, merge conflicts, and review comments, then automatically fix issues. Use this skill when the user wants to watch a PR, fix CI or conflicts, respond to review comments, or automate PR maintenance. Triggers on "PR監視", "PRを見て", "CIが落ちた", "コンフリクト解消", "レビュー対応", "pr monitor", "watch pr", "fix ci", or "pr fix".
+description: Monitor GitHub PRs using a bundled check script; fix CI failures, merge conflicts, and review feedback. Use for PR監視, watch pr, fix ci, コンフリクト解消, and レビュー対応.
 ---
 
 # PR Monitor
 
-GitHub PRのCIステータス、コンフリクト、レビューコメントを監視し、自動で修正・対応するスキル。
+GitHub取得・差分判定はスクリプト、未対応イベントの判断・修正はCodexが担当する。
 
-## 前提
+## 確認
 
-- `gh` CLIが認証済みであること
-- 対象リポジトリのローカルクローン内で実行すること
-
-## ワークフロー
-
-### 1. PR特定
-
-PRの特定方法（優先順位）:
-- ユーザーがPR番号を指定した場合はそれを使う
-- 指定がなければ現在のブランチに紐づくPRを `gh pr view --json number` で取得
-- PR特定後に `isDraft` を確認する。Ready for reviewなら明示的な追加指示を待たずに監視を開始する
-- DraftならPR状態だけ5分ごとに静かに確認し、Ready for reviewへの変更を検出した時点で通常の監視を開始して、開始をユーザーに一度だけ通知する
-
-### 2. CI監視と修正
-
-```
-gh pr checks <PR番号> --json name,state,description,link
-```
-
-failedなcheckがある場合:
-
-1. **ログ取得**: `gh run view <run-id> --log-failed` でエラーログを取得
-2. **原因分析**: エラーメッセージからlint/format/build/testのどれが失敗したか判別
-3. **修正**: コードを読み、原因を特定して修正。修正は最小限に留める
-4. **簡略化**: 修正が一通り終わったら、コミット前に一度だけ`$simplify`を実行する
-5. **検証**: `$simplify`後にローカルで同等のコマンド、lint、formatを実行して修正後の挙動を確認（可能な場合）
-6. **コミット&プッシュ**: 修正をコミットしてpush
-
-コミットメッセージは `fix: <何を修正したか>` の形式で簡潔に。
-
-push前にローカルで該当するlint/format/build/testを実行できる場合は、必ず先にローカルで通してからpushする。ローカル実行ができない場合は、その理由をユーザーへの報告に含める。
-
-CIが全て通るまでこのループを繰り返す。ただし同じエラーが3回連続で解消しない場合は、ユーザーに報告して停止する。
-
-### 3. コンフリクト監視と修正
-
-PR状態の `mergeable == "CONFLICTING"` または `mergeStateStatus == "DIRTY"` を検出した場合:
-
-1. **対象確認**: `gh pr view <PR番号> --json headRefName,baseRefName,headRepositoryOwner,mergeable,mergeStateStatus` でheadとbaseを確定し、PRのheadブランチで作業する
-2. **base取得**: baseブランチの最新をfetchし、headへ通常のmergeで取り込む。rebaseやforce pushは使わない
-3. **解消**: 競合した両側の意図と周辺コードを確認し、PRの変更目的とbaseの最新の振る舞いを両立する最小限の修正で解消する
-4. **安全性確認**: 競合マーカーや未解消ファイルが残っていないことを確認する。意味的に安全な解消方針を判断できない場合はmergeをabortし、選択肢と影響をユーザーに報告してpushしない
-5. **簡略化と検証**: 解消が一通り終わったら、コミット前に一度だけ`$simplify`を実行し、関連するlint/format/build/testを実行する
-6. **コミット&プッシュ**: `fix: resolve merge conflicts` の形式でmerge commitを完了し、push後にPR状態を再取得してコンフリクト解消を確認する
-
-### 4. レビューコメント対応
-
-RESTのreview commentsだけでなく、GraphQLのreview threadも取得して `isResolved` を確認する。解決済みthreadは対象外にする。
+指定PRを使う。未指定なら `gh pr view --json number,url` と `gh repo view --json nameWithOwner` で特定する。`<skill-dir>`はこのskillのディレクトリ。
 
 ```bash
-OWNER_REPO=$(gh repo view --json nameWithOwner --jq .nameWithOwner)
-OWNER=${OWNER_REPO%/*}
-REPO=${OWNER_REPO#*/}
-PR_NUMBER=<PR番号>
-
-# issue comments（PR全体コメント。必ず全ページ取得）
-gh api --paginate repos/$OWNER/$REPO/issues/$PR_NUMBER/comments
-
-# review threads（inline comments / resolved状態つき）
-gh api graphql -f owner="$OWNER" -f repo="$REPO" -F number="$PR_NUMBER" -f query='\
-query($owner:String!, $repo:String!, $number:Int!, $threadsCursor:String) {
-  repository(owner:$owner, name:$repo) {
-    pullRequest(number:$number) {
-      reviewThreads(first:100, after:$threadsCursor) {
-        nodes {
-          id
-          isResolved
-          path
-          line
-          comments(first:100) {
-            nodes { id author { login } body url createdAt }
-            pageInfo { hasNextPage endCursor }
-          }
-        }
-        pageInfo { hasNextPage endCursor }
-      }
-    }
-  }
-}'
+python3 <skill-dir>/scripts/check.py check --repo OWNER/REPO --pr NUMBER
 ```
 
-上記は1ページ分のquery例である。`reviewThreads.pageInfo.hasNextPage` が `false` になるまで `endCursor` を `threadsCursor` に渡して取得する。各threadの `comments.pageInfo.hasNextPage` が `true` の場合も、そのthreadの全コメントを追加queryで取得する。先頭100件だけを見て「未対応なし」と判断しない。
+| 結果 | 動作 |
+| --- | --- |
+| ok、eventsなし | 静かに終了 |
+| eventsあり | [response.md](references/response.md) で対応 |
+| draft / busy | 修正せず次回確認 |
+| error | 取得失敗として扱う。問題なしと判断しない |
+| terminal | [lifecycle.md](references/lifecycle.md) で終了処理 |
 
-未対応コメントを検出する:
-- **review threads（inline comments）**: `isResolved == false` の全threadを時系列で評価する。最後のエージェント返信より後にレビュアーのコメントが1件でもあれば、新規または追加の指摘として再び対象にする。エージェントが過去に一度返信したことだけを理由に除外しない
-- **返信者の識別**: `gh api user --jq .login` で現在のGitHub loginを取得し、そのloginと、この監視が実際に返信へ使用したbot loginだけをエージェントとして扱う。作者不明、別bot、レビュアーをエージェント扱いしない
-- **issue comments（PR全体の通常コメント）**: 全ページを時系列で読み、指摘・修正依頼・質問・CI/QA報告など対応が必要な内容を対象にする。以前の対応済み返信より後に追加質問や再指摘があれば再び対象にする。単なる通知、botの進捗ログ、現在も対応済みと確認できるコメントは対象外
+取得済みの全CI・全コメントを再取得せず、必要なファイル・失敗ログだけ読む。
 
-各コメントに対して:
+## 対応済みの記録
 
-1. **コンテキスト理解**: 指摘されたファイルと行を読み、周辺コードを把握
-2. **指摘の評価**: 以下の観点で指摘が正当かを判断
-   - **正確性**: コードにバグや誤りがあるか
-   - **設計**: より良い設計パターンがあるか、責務の分離は適切か
-   - **バグ**: エッジケースやエラーハンドリングの漏れがないか
-3. **対応を決定**:
-
-#### 指摘が正しく、修正方針に自信がある場合
-- コードを修正する
-- コミット&プッシュ後に修正内容を該当コメントへ返信する。replyには「どのコミット/変更で直したか」「実行した検証」を短く含める
-- review threadの場合は、**修正をpushし、ローカル検証またはCIで修正が確認できたら、そのreview threadをresolvedに変更する**
-- issue comment（通常コメント）の場合はGitHub上にresolved状態がないため、返信で対応済みを明記するだけでよい
-
-  ```bash
-  gh api graphql -f threadId="<reviewThread.id>" -f query='\
-  mutation($threadId: ID!) {
-    resolveReviewThread(input: {threadId: $threadId}) {
-      thread { id isResolved }
-    }
-  }'
-  ```
-
-  review thread resolved化後は同じthreadを再取得して `isResolved: true` を確認する。issue commentにはresolved化APIがないため、この手順は不要。
-
-#### 指摘が正しいが、修正方針に自信がない場合
-- まず依頼範囲内で調査、原因特定、実装案の具体化、可能な検証を進める
-- 合理的な仮定を置いても結果を左右する不確実性が残り、複数の妥当な方針からユーザーの判断が必要な場合だけ、pushせずに方針を確認する
-- 何が不明確か、どういう選択肢があり、それぞれ結果にどう影響するかを提示する
-- 自分で修正できていないため、threadはresolvedにしない
-
-#### 指摘が正しくない場合
-- 技術的な根拠を添えて、なぜ現状の実装が妥当かをスレッドに返信
-- 攻撃的にならず、建設的に。コードや仕様を引用して具体的に説明する
-- 判断に自信がない場合（60%未満）は、その旨も正直に伝えて議論を促す
-- 反論や質問だけの場合は、レビュアー判断待ちとしてthreadはresolvedにしない
-
-レビューコメント対応でコード修正を行った場合は、対象コメントの修正を一通り終えてからコミット前に一度だけ`$simplify`を実行する。その後、ローカルで該当するlint/format/build/testを実行できる場合は必ず通してからコミット&プッシュする。
-
-### 5. 報告
-
-1回の実行で行った対応をまとめてユーザーに報告:
-- CI: 修正した内容と結果
-- コンフリクト: 解消したファイルと検証結果
-- レビュー: 対応したコメント数、修正/反論の内訳
-- Simplify: `$simplify`の実行結果
-- 未解決: 自動対応できなかった項目
-
-## 継続監視
-
-PR監視を求められた場合は、Ready for reviewになった時点で通常の監視を開始し、PRがマージまたはcloseされるまで続ける。CIが一度greenになっただけ、レビューコメントを一通り処理しただけ、またはCodex botの `+1` を検出しただけでは終了しない。
-
-各ポーリングの最初にPR状態を確認する:
+対応と検証が完了したイベント、対応不要と判断したイベントだけackする。保留は理由を記録し、ユーザー回答後に再開する。
 
 ```bash
-gh pr view <PR番号> --json state,mergedAt,isDraft,mergeable,mergeStateStatus,reviewDecision,statusCheckRollup,headRefOid,url
+python3 <skill-dir>/scripts/check.py ack --repo OWNER/REPO --pr NUMBER \
+  --event EVENT_ID --reason 'commit・検証・返信ID、対応不要または保留の理由'
 ```
 
-終了条件:
-- `state == "MERGED"` または `mergedAt` が入ったら、マージ後cleanupと報告を行い、監視設定を削除する
-- `state == "CLOSED"` かつ未マージなら、close理由が分かる範囲で報告し、監視設定を削除する
-- ユーザーが「1回だけ」「ループ不要」と指示した場合は継続監視を設定しない。「監視停止」の場合は既存の監視設定を削除する。ただし一時停止を明示された場合だけ `PAUSED` にする
+取得しただけでackしない。自身の返信もIDごとに評価し、作者単位で全発言を無視しない。
 
-監視中の動作:
-- Ready for review後の通常監視間隔は1分
-- 継続監視はheartbeat automationまたは同等の永続的な実行機構として登録し、登録後に対象PR、実行間隔、`ACTIVE`状態を確認する。スキルを1回実行しただけで監視中と扱わない
-- automationのpromptには、PR URL、作業worktree、PR状態、CI、全ページのissue comments、reviews、reactions、全ページのreview threadsとnested comments、追加指摘の時系列判定、修正・検証・push・返信・resolveまでを明記する
-- 重複実行を避けるため、同じPRの監視ジョブやループが既に`ACTIVE`なら再登録しない。既存ジョブが`PAUSED`または無効なら、監視中と報告せず、ユーザーが停止・一時停止を指示していない限り再開または置換して`ACTIVE`を確認する
-- `isDraft == true` の間は5分ごとにPRのstateと `isDraft` のみを確認し、CI修正、コンフリクト解消、レビュー対応は実行しない
-- CI失敗、コンフリクト、または未resolvedの新規・追加レビューコメントがあればワークフロー（1〜5）で対応する
-- 現在のHEADに対するCodex botの `+1` を初めて検出したら、Codex reviewが通過したことをユーザーへ一度だけ通知する。通知文には必ず `👍` を含め、CI成功など別の通過理由と区別できるようにする（例: `Codex reviewの 👍 を確認しました`）。その後は新しいコメントとPR状態を静かに監視する
-- CIがgreen、コンフリクトなし、かつ未resolvedレビューコメントがない場合は、PRがマージまたはcloseされるまで不要な通知を出さない
-- 継続監視を設定した場合は、停止方法と「マージまたは未マージcloseまで監視する」ことをユーザーに伝える
+## 制約と参照
 
-### マージ後cleanup
-
-マージを検出したら、監視を終了する前に次の順でcleanupする:
-
-1. リポジトリの `AGENTS.md` やCodex設定を確認し、dispose処理が明示的に定義されている場合だけ実行する。定義がなければスキップし、コマンドを推測・創作しない
-2. dispose処理が成功したことを確認する。失敗した場合はworktreeを削除せず、エラーを報告する
-3. 未コミット・未pushの変更がないことを確認してから、関連worktreeを安全な別ディレクトリから削除する。実行中の環境から自身のworktreeを直接削除できない場合は、利用可能なCodexのworktree破棄機構へ引き渡す
-4. dispose処理の実行またはスキップ、worktree削除の結果、マージ済みURL/時刻を報告する
-
-### 監視設定の削除
-
-PRのマージまたは未マージcloseによる監視終了時は、上記の必要なcleanupと報告を終えた後、対象PRの監視automationを削除する。`PAUSED` は再開を予定した一時停止にだけ使い、完了済みの監視設定を残す目的では使わない。削除対象は監視automationのみで、PRやCodexのタスク履歴は削除しない。cleanupが失敗した場合は結果を報告し、未完了の作業を扱える状態を保つ。
-
-### Codex reviewの追跡
-
-各ポーリングでissue comments、PR本体のreactions、reviews、review threadsを取得し、Codex reviewの開始、完了、指摘を追跡する。GitHub APIによってbotのloginが `chatgpt-codex-connector` または `chatgpt-codex-connector[bot]` と返るため、比較時は末尾の `[bot]` を除去して `chatgpt-codex-connector` に正規化する。
-
-```bash
-# Codex review summaryを含むissue comments
-gh api repos/$OWNER/$REPO/issues/$PR_NUMBER/comments
-
-# CodexがPR本体に付けた 👀 / 👍 reaction
-gh api \
-  -H "Accept: application/vnd.github+json" \
-  repos/$OWNER/$REPO/issues/$PR_NUMBER/reactions
-```
-
-判定ルール:
-- issue comments、reactions、reviews、review threadsのすべてでauthor loginを同じ方法で正規化する。`chatgpt-codex-connector` と `chatgpt-codex-connector[bot]` はどちらもCodex botとして扱い、それ以外の部分一致は許容しない
-- `headRefOid` ごとにCodex reviewの状態と通過通知済みフラグを管理する。pushでHEADが変わったら、新しいレビュー周期として通過状態と通知済みフラグをリセットする
-- Codex review summaryは、Codex botによるissue commentの本文に `<!-- codex-pull-request-review-summary -->` が含まれるかで検出する。これにより `PR opened` をトリガーとする自動レビューも検出できる
-- Codex botによる `eyes` reaction、review summary、review、issue comment、review threadのいずれかがあれば、Codex reviewが存在する、または実行されたと判断する
-- **マージ禁止**: Codex botの `eyes`（👀）reactionがPRに付いている間は、マージしない。`gh pr merge`、GitHub UI、squash/rebase/mergeいずれの方法も使わない。CIがgreenでも、未resolvedコメントがなくてもマージしない。👀 はレビュー実行中であり、承認ではない。`+1` が同時にあっても `eyes` が残っているならマージしない。例外は、ユーザーがそのPRを明示的にマージするよう指示した場合だけ（「このPRをマージして」など）。監視開始時の包括指示や「準備できたらマージ」では足りない
-- Codex botの `+1` だけで通過と判断しない。review summaryの最新レビューがcompletedで、そのcommitが現在の `headRefOid` と一致する場合にだけ、現在のHEADに対する通過とみなす。古いHEADのsummaryやreactionは無視する
-- 通過通知では、判定根拠がCodex reviewであることが一目で分かるよう `Codex reviewの 👍` と表現する。可能なら対象commitの短縮SHAも添える
-- Codexの新しい指摘が見つかった場合は、`+1` を待たずワークフロー4で対応する。対応完了時は修正内容とpushしたcommitを通知し、新しいHEADの監視を1分ごとに続ける。自動対応できない場合も、その時点で理由を通知する
-- Codex reviewを示すコメント、reaction、review、threadがまだ何もなければ、未設定と開始前を区別できないため「現時点では未検出」と扱う。`+1` 待ちだけを理由に停止せず、PRがマージまたはcloseされるまで通常監視を続ける
-
-## 注意事項
-
-- force pushはしない。常に新しいコミットで修正する
-- push前にローカルで確認可能な検証コマンドがある場合は、必ずローカルで通してからpushする
-- 依頼されたPR対応の範囲内で、根拠のある修正方針を選べる場合は、追加確認を待たずに修正、検証、コミット、push、コメント対応まで自走する。作業領域だけを理由に一律停止しない
-- ユーザーへの確認は、合理的な仮定では埋められない不確実性があり、選択によって結果が大きく変わる場合に限る
-- レビュアーとの議論が平行線になった場合（同じスレッドで2往復以上）は、ユーザーに判断を委ねる
-- 既存のコードスタイルやプロジェクトの規約に従う
+- 👀がPR上のどこかにあればマージ禁止。UNKNOWNは競合なしの証拠にしない。
+- 監視依頼から自動マージの許可を推測しない。force push/rebaseはしない。
+- 同じ問題3回失敗、レビュー2往復以上の平行線、重要な不確実性は保留して報告する。
+- 継続監視・停止・cleanup・review通過通知: [lifecycle.md](references/lifecycle.md)。heartbeatを使い、launchdや別Codexプロセスは登録しない。「1回だけ」は監視登録しない。
+- 状態調査・スクリプト変更/検証: [script.md](references/script.md)。
