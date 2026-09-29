@@ -18,10 +18,12 @@ python3 <skill-dir>/scripts/check.py check --repo OWNER/REPO --pr NUMBER
 | 結果 | 動作 |
 | --- | --- |
 | ok、eventsなし | 静かに終了 |
-| eventsあり | [response.md](references/response.md) で対応 |
+| action_required（eventsあり） | [response.md](references/response.md) で対応 |
 | draft / busy | 修正せず次回確認 |
 | error | 取得失敗として扱う。問題なしと判断しない |
 | terminal | [lifecycle.md](references/lifecycle.md) で終了処理 |
+
+終了コード0は取得成功を表し、対応不要を意味しない。`action_required`ではCI失敗・レビュー・コメントを評価し、必要な修正・検証・pushまで進める。前回と同じイベントでも未対応なら継続する。進められない場合は理由と必要な判断を通知し、黙って終了しない。
 
 取得済みの全CI・全コメントを再取得せず、必要なファイル・失敗ログだけ読む。
 

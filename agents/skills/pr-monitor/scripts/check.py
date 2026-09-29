@@ -395,14 +395,18 @@ def main():
             return 1
         save(path, state)
         pr = snapshot["pr"]
+        if pr["state"] != "OPEN":
+            status = "terminal"
+        elif pr["isDraft"]:
+            status = "draft"
+        elif state["pending"]:
+            status = "action_required"
+        else:
+            status = "ok"
         print(
             json.dumps(
                 {
-                    "status": "terminal"
-                    if pr["state"] != "OPEN"
-                    else "draft"
-                    if pr["isDraft"]
-                    else "ok",
+                    "status": status,
                     "head": pr["headRefOid"],
                     "url": pr["url"],
                     "mergeable": pr["mergeable"],

@@ -252,6 +252,55 @@ class MonitorTests(unittest.TestCase):
             self.assertEqual(initial["lastSuccessAt"], after["lastSuccessAt"])
             self.assertEqual("API down", after["lastError"])
 
+    def test_cli_status_for_pending_events_and_lifecycle(self):
+        cases = [
+            ("ci", {"statusCheckRollup": [{"conclusion": "FAILURE"}]}),
+            ("comment", {"comments": [thread()["comments"][0]]}),
+            (
+                "review",
+                {"reviews": [{"id": "r1", "state": "CHANGES_REQUESTED", "body": "fix it"}]},
+            ),
+            ("thread", {"reviewThreads": [thread()]}),
+        ]
+        for kind, changes in cases:
+            with self.subTest(kind=kind), tempfile.TemporaryDirectory() as directory:
+                data = snapshot()
+                if kind == "ci":
+                    data["pr"].update(changes)
+                else:
+                    data.update(changes)
+                fixture = Path(directory) / "fixture.json"
+                base = [
+                    sys.executable,
+                    str(Path(check.__file__)),
+                    "check",
+                    "--repo",
+                    "o/r",
+                    "--pr",
+                    "1",
+                    "--state-dir",
+                    directory,
+                    "--fixture",
+                    str(fixture),
+                ]
+
+                def run():
+                    fixture.write_text(json.dumps(data))
+                    result = subprocess.run(base, capture_output=True, text=True)
+                    self.assertEqual(0, result.returncode, result.stderr)
+                    return json.loads(result.stdout)
+
+                first = run()
+                self.assertEqual("action_required", first["status"])
+                self.assertEqual([kind], [event["kind"] for event in first["events"]])
+                repeated = run()
+                self.assertEqual(first["events"], repeated["events"])
+                self.assertEqual("action_required", repeated["status"])
+                data["pr"]["isDraft"] = True
+                self.assertEqual("draft", run()["status"])
+                data["pr"]["state"] = "MERGED"
+                self.assertEqual("terminal", run()["status"])
+
     def test_cli_fixture_ack_and_status(self):
         with tempfile.TemporaryDirectory() as directory:
             fixture = Path(directory) / "fixture.json"
@@ -273,11 +322,14 @@ class MonitorTests(unittest.TestCase):
                 return json.loads(subprocess.check_output(base + list(args), text=True))
 
             first = run("check", "--fixture", str(fixture))
+            self.assertEqual("action_required", first["status"])
             key = first["events"][0]["id"]
             self.assertEqual(
                 1, run("ack", "--event", key, "--reason", "fixed")["count"]
             )
-            self.assertFalse(run("check", "--fixture", str(fixture))["events"])
+            after = run("check", "--fixture", str(fixture))
+            self.assertEqual("ok", after["status"])
+            self.assertFalse(after["events"])
             self.assertEqual(0, run("status")["pendingCount"])
 
 

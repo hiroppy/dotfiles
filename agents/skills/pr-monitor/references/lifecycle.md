@@ -8,7 +8,7 @@
 
 promptにはPR URL、repo/number、作業worktree、承認範囲・保留事項を入れ、毎回の最初に上のcheckコマンドを1回実行して結果だけを見ることを指定する。全GitHub履歴の再取得をpromptへ書かない。通常1分、Draft5分を目安に、ユーザー指定を優先する。登録後は対象、間隔、有効状態を確認する。
 
-CI greenやreview通過だけで終了せずmerged/closedまで続ける。変化なしでは通知しない。状態確認は `check.py status --repo OWNER/REPO --pr NUMBER` で最終取得成功時刻、エラー、未対応件数を見られる。
+CI greenやreview通過だけで終了せずmerged/closedまで続ける。未対応イベントがなく、通知すべき変化もない場合だけ通知しない。未対応イベントが残る場合は前回と同じ状態でも対応を続け、進められない場合は理由と必要な判断を通知する。この条件をautomationのpromptにも明記する。状態確認は `check.py status --repo OWNER/REPO --pr NUMBER` で最終取得成功時刻、エラー、未対応件数を見られる。
 
 この方式でもheartbeatごとのモデル起動は残る。節約するのは毎回のコマンド選択・大量の取得結果の読解であり、待機中の消費がゼロになるとは説明しない。既存automationのpromptはskill変更だけでは置き換わらない。
 
