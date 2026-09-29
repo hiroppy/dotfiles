@@ -14,7 +14,7 @@ CI greenやreview通過だけで終了せずmerged/closedまで続ける。変�
 
 ## Codex reviewの通過通知
 
-通知するときだけ保存snapshotのsummary、reviews、reactionを確認する。bot loginは末尾の[bot]だけを除去してchatgpt-codex-connectorに完全一致させる。現在HEADと一致するcompleted summaryとbotの+1が揃った場合にHEADごとに1回 `Codex reviewの 👍` を通知する。+1単独や古いHEADでは判断しない。snapshotで送信者などを確定できない場合だけ、必要なAPIを追加取得する。
+check.pyの`codex_passed`イベントを受けたら、対象PRとHEADを添えて `Codex reviewの 👍` をユーザーへ通知し、通知後にackする。check.pyがCodex作者のcompleted summaryと現在HEAD、PRへのbotの+1を照合する。通知済みHEADはリアクションの削除・再追加後も再通知しない。+1単独、別作者、古いHEAD、未対応のsummary形式では通知しない。通知からマージ許可を推測しない。
 
 ## 終了・cleanup
 

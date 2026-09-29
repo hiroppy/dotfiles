@@ -123,7 +123,50 @@ def collect(repo, number):
     data["reactions"] = graphql(query, owner=owner, repo=name, number=number)[
         "repository"
     ]["pullRequest"]["reactionGroups"]
+    pages = gh(
+        "api",
+        f"repos/{repo}/issues/{number}/reactions?per_page=100",
+        "--paginate",
+        "--slurp",
+    )
+    data["prReactions"] = [reaction for page in pages for reaction in page]
     return data
+
+
+def codex_author(author):
+    return (author or {}).get("login", "").removesuffix(
+        "[bot]"
+    ) == "chatgpt-codex-connector"
+
+
+def codex_passed(snapshot):
+    head = snapshot["pr"]["headRefOid"]
+    if not any(
+        reaction.get("content") == "+1" and codex_author(reaction.get("user"))
+        for reaction in snapshot.get("prReactions", [])
+    ):
+        return False
+    for comment in snapshot["comments"]:
+        body = comment["body"]
+        if (
+            not codex_author(comment.get("author"))
+            or "<!-- codex-pull-request-review-summary -->" not in body
+        ):
+            continue
+        rows = [
+            line.split("|")
+            for line in body.splitlines()
+            if line.startswith("|") and "**Code Review**" in line
+        ]
+        if rows and all(
+            len(row) >= 5
+            and "✅ **Completed**" in row[2]
+            and re.fullmatch(r"`[0-9a-f]{7,40}`", row[3].strip())
+            and head.startswith(row[3].strip().strip("`"))
+            for row in rows
+        ):
+            return True
+    return False
 
 
 def digest(value):
@@ -150,6 +193,8 @@ def events(snapshot):
     if pr["isDraft"]:
         return found
     head = pr["headRefOid"]
+    if codex_passed(snapshot):
+        add("codex_passed", head, {"head": head})
     for check in pr.get("statusCheckRollup") or []:
         outcome = check.get("conclusion") or check.get("state")
         if outcome in {
@@ -235,7 +280,9 @@ def update(state, snapshot):
     pending = {}
     for key, event in current.items():
         # Reopening a resolved thread or reappearing failure creates a new occurrence.
-        if key not in previous:
+        if event["kind"] == "codex_passed":
+            generation[key] = 1
+        elif key not in previous:
             generation[key] = generation.get(key, 0) + 1
         occurrence = key + ":" + str(generation[key])
         event = dict(event, id=occurrence)

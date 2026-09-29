@@ -48,6 +48,62 @@ def thread():
 
 
 class MonitorTests(unittest.TestCase):
+    def test_codex_pass_decision_table_and_once_per_head(self):
+        data = snapshot()
+        data["pr"]["headRefOid"] = "abcdef0123456789"
+        comment = {
+            "id": "summary",
+            "updatedAt": "now",
+            "author": {"login": "chatgpt-codex-connector[bot]"},
+            "body": "<!-- codex-pull-request-review-summary -->\n"
+            "| 📝 **Code Review** | ✅ **Completed** | `abcdef0` | PR opened |",
+        }
+        data["comments"] = [comment]
+        reaction = {"content": "+1", "user": {"login": "chatgpt-codex-connector[bot]"}}
+        self.assertFalse(check.codex_passed(data))
+        data["prReactions"] = [reaction]
+        self.assertTrue(check.codex_passed(data))
+        for login in ("someone", "chatgpt-codex-connector-fake", ""):
+            with self.subTest(login=login):
+                reaction["user"]["login"] = login
+                self.assertFalse(check.codex_passed(data))
+        reaction["user"]["login"] = "chatgpt-codex-connector"
+        original = comment["body"]
+        for body in (
+            original.replace("Completed", "In progress"),
+            original.replace("abcdef0", "1234567"),
+            original.replace("abcdef0", "abc"),
+            original.replace("codex-pull-request-review-summary", "fake"),
+        ):
+            comment["body"] = body
+            self.assertFalse(check.codex_passed(data))
+        comment["body"] = original
+        comment["author"]["login"] = "someone"
+        self.assertFalse(check.codex_passed(data))
+        comment["author"]["login"] = "chatgpt-codex-connector"
+        state = check.update({}, data)
+        key = next(
+            k for k, e in state["pending"].items() if e["kind"] == "codex_passed"
+        )
+        self.assertIn(key, check.update(state, data)["pending"])
+        state["acknowledged"][key] = "notified"
+        data["prReactions"] = []
+        state = check.update(state, data)
+        data["prReactions"] = [reaction]
+        state = check.update(state, data)
+        self.assertFalse(
+            any(e["kind"] == "codex_passed" for e in state["pending"].values())
+        )
+        data["pr"]["headRefOid"] = "123456789abcdef0"
+        self.assertFalse(check.codex_passed(data))
+        comment["body"] = original.replace("abcdef0", "1234567")
+        self.assertTrue(
+            any(
+                e["kind"] == "codex_passed"
+                for e in check.update(state, data)["pending"].values()
+            )
+        )
+
     def test_ci_ack_retry_and_head(self):
         data = snapshot()
         self.assertFalse(check.update({}, data)["pending"])
@@ -156,7 +212,7 @@ class MonitorTests(unittest.TestCase):
             }
 
         with (
-            patch.object(check, "gh", return_value=pr),
+            patch.object(check, "gh", side_effect=[pr, [[], []]]),
             patch.object(check, "graphql", side_effect=api),
         ):
             result = check.collect("o/r", 1)
