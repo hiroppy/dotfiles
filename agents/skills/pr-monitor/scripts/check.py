@@ -133,20 +133,26 @@ def collect(repo, number):
     return data
 
 
+def codex_author(author):
+    return (author or {}).get("login", "").removesuffix(
+        "[bot]"
+    ) == "chatgpt-codex-connector"
+
+
+def codex_passed(snapshot):
+    return any(
+        reaction.get("content") == "+1" and codex_author(reaction.get("user"))
+        for reaction in snapshot.get("prReactions", [])
+    )
+
+
 def digest(value):
     return hashlib.sha256(
         json.dumps(value, sort_keys=True, ensure_ascii=False).encode()
     ).hexdigest()[:24]
 
 
-def thumbs_up_identity(reaction, head):
-    """Identify one PR reaction at one HEAD revision."""
-    reaction_id = reaction.get("id") or [reaction.get("user"), reaction.get("created_at")]
-    return [reaction_id, head]
-
-
 def events(snapshot):
-    """Extract actionable events from one complete PR snapshot."""
     pr = snapshot["pr"]
     found = {}
 
@@ -164,14 +170,8 @@ def events(snapshot):
     if pr["isDraft"]:
         return found
     head = pr["headRefOid"]
-    for reaction in snapshot.get("prReactions", []):
-        if reaction.get("content") != "+1":
-            continue
-        add(
-            "thumbs_up",
-            thumbs_up_identity(reaction, head),
-            {"reaction": reaction, "head": head},
-        )
+    if codex_passed(snapshot):
+        add("codex_passed", head, {"head": head})
     for check in pr.get("statusCheckRollup") or []:
         outcome = check.get("conclusion") or check.get("state")
         if outcome in {
@@ -250,7 +250,6 @@ def eyes(snapshot):
 
 
 def update(state, snapshot):
-    """Retain unacknowledged events and one-time notification identities."""
     current = events(snapshot)
     previous = state.get("active", {})
     generation = dict(state.get("generation", {}))
@@ -258,7 +257,7 @@ def update(state, snapshot):
     pending = {}
     for key, event in current.items():
         # Reopening a resolved thread or reappearing failure creates a new occurrence.
-        if event["kind"] == "thumbs_up":
+        if event["kind"] == "codex_passed":
             generation[key] = 1
         elif key not in previous:
             generation[key] = generation.get(key, 0) + 1
@@ -295,7 +294,6 @@ def save(path, state):
 
 
 def main():
-    """Run one monitor command while holding the PR's state lock."""
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("command", choices=["check", "ack", "status"])
     parser.add_argument("--repo", required=True, help="owner/repo")
