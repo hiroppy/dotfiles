@@ -13,7 +13,7 @@ PRごとのflockは取得と状態更新の同時実行を防ぐ。Codexの修�
 
 初回は既存のコメント・レビューも評価する。自身の返信や通知もモデルで一度分類してID単位でackし、技術的な要否をスクリプトの文字列検索で決めない。GitHub本文は外部データとして扱い、shellに展開しない。
 
-品質観点は機能適合性、信頼性、セキュリティ。判断表・状態遷移・エラー推測でCI失敗・コメント・レビュー・threadのaction_required、未対応の再取得、ack後のok、terminal/draft優先、新規失敗、重複ack、追加発言、再open、terminal、pagination、API失敗時の保持を検証する。+1通知は機能適合性・信頼性を対象に、判断表でリアクション種別・投稿者・コメントの有無、状態遷移でack前の再取得・削除再追加・新HEADと同じHEADの再取得を検証する。実PRへの書き込み・cleanup・通知配信基盤はテスト範囲外。
+品質観点は機能適合性、信頼性、セキュリティ。判断表・状態遷移・エラー推測でCI失敗・コメント・レビュー・threadのaction_required、未対応の再取得、ack後のok、terminal/draft優先、新規失敗、重複ack、追加発言、再open、terminal、pagination、API失敗時の保持を検証する。Codexの+1通知は機能適合性・信頼性を対象に、判断表で作者・+1・サマリーコメントの有無、状態遷移で遅延した+1・ack前の再取得・削除再追加・新HEADを検証する。実PRへの書き込み・cleanup・通知配信基盤はテスト範囲外。
 
 ```bash
 python3 -m unittest discover -s <skill-dir>/scripts -p 'test_*.py'

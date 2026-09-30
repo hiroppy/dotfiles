@@ -48,71 +48,46 @@ def thread():
 
 
 class MonitorTests(unittest.TestCase):
-    def test_plus_one_is_independent_of_codex_summary_and_scoped_to_head(self):
-        """A PR +1 is notified once per HEAD, regardless of summary comments."""
+    def test_codex_pass_decision_table_and_once_per_head(self):
         data = snapshot()
-        reaction = {
-            "id": 12, "content": "+1",
-            "user": {"login": "chatgpt-codex-connector[bot]"},
-        }
+        data["pr"]["headRefOid"] = "abcdef0123456789"
+        reaction = {"content": "+1", "user": {"login": "chatgpt-codex-connector[bot]"}}
+        self.assertFalse(check.codex_passed(data))
         data["prReactions"] = [reaction]
-        state = check.update({}, data)
-        event = next(iter(state["pending"].values()))
-        self.assertEqual("thumbs_up", event["kind"])
-        self.assertEqual(reaction, event["reaction"])
-        self.assertEqual("abc", event["head"])
-
-        summary = {
+        self.assertTrue(check.codex_passed(data))
+        for login in ("someone", "chatgpt-codex-connector-fake", ""):
+            with self.subTest(login=login):
+                reaction["user"]["login"] = login
+                self.assertFalse(check.codex_passed(data))
+        reaction["user"]["login"] = "chatgpt-codex-connector"
+        self.assertTrue(check.codex_passed(data))
+        data["comments"] = [{
             "id": "summary", "updatedAt": "now",
             "author": {"login": "chatgpt-codex-connector[bot]"},
-            "body": "<!-- codex-pull-request-review-summary -->\n"
-            "| 📝 **Code Review** | ✅ **Completed** | `abcdef0` | PR opened |",
-        }
-        data["comments"] = [summary]
-        data["pr"]["headRefOid"] = "abcdef0123456789"
-        state["acknowledged"][event["id"]] = "notified"
-        state = check.update(state, data)
-        kinds = {item["kind"] for item in state["pending"].values()}
-        self.assertEqual({"comment", "thumbs_up"}, kinds)
-        new_event = next(
-            item for item in state["pending"].values()
-            if item["kind"] == "thumbs_up"
+            "body": "Review in progress for an old commit",
+        }]
+        self.assertTrue(check.codex_passed(data))
+        state = check.update({}, data)
+        key = next(
+            k for k, e in state["pending"].items() if e["kind"] == "codex_passed"
         )
-        self.assertEqual("abcdef0123456789", new_event["head"])
-        state["acknowledged"][new_event["id"]] = "notified"
-        state = check.update(state, data)
-        self.assertEqual(
-            ["comment"], [item["kind"] for item in state["pending"].values()]
-        )
-
-        data["comments"] = []
-        data["pr"]["headRefOid"] = "123456789abcdef0"
-        state = check.update(state, data)
-        self.assertEqual(
-            ["thumbs_up"], [item["kind"] for item in state["pending"].values()]
-        )
-        third_event = next(iter(state["pending"].values()))
-        state["acknowledged"][third_event["id"]] = "notified"
+        self.assertIn(key, check.update(state, data)["pending"])
+        state["acknowledged"][key] = "notified"
         data["prReactions"] = []
         state = check.update(state, data)
         data["prReactions"] = [reaction]
-        self.assertFalse(check.update(state, data)["pending"])
-
-    def test_plus_one_filters_other_reactions_and_tracks_each_identity(self):
-        data = snapshot()
-        data["prReactions"] = [
-            {"id": 10, "content": "+1", "user": {"login": "reviewer"}},
-            {"id": 11, "content": "-1", "user": {"login": "reviewer"}},
-        ]
-        state = check.update({}, data)
-        events = list(state["pending"].values())
-        self.assertEqual([10], [event["reaction"]["id"] for event in events])
-        state["acknowledged"][events[0]["id"]] = "notified"
-        data["prReactions"].append(
-            {"id": 13, "content": "+1", "user": {"login": "reviewer"}}
+        state = check.update(state, data)
+        self.assertFalse(
+            any(e["kind"] == "codex_passed" for e in state["pending"].values())
         )
-        pending = check.update(state, data)["pending"].values()
-        self.assertEqual([13], [event["reaction"]["id"] for event in pending])
+        data["pr"]["headRefOid"] = "123456789abcdef0"
+        self.assertTrue(check.codex_passed(data))
+        self.assertTrue(
+            any(
+                e["kind"] == "codex_passed"
+                for e in check.update(state, data)["pending"].values()
+            )
+        )
 
     def test_ci_ack_retry_and_head(self):
         data = snapshot()
