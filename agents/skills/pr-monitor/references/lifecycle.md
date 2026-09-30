@@ -16,7 +16,7 @@ CI greenやreview通過だけで終了せずmerged/closedまで続ける。未�
 
 check.pyの`codex_passed`イベントを受けたら、対象PRとHEADを添えて `Codex reviewの 👍` をユーザーへ通知し、通知後にackする。check.pyがCodex作者のcompleted summaryと現在HEAD、PRへのbotの+1を照合する。通知済みHEADはリアクションの削除・再追加後も再通知しない。+1単独、別作者、古いHEAD、未対応のsummary形式ではreview通過と判断しない。通知からマージ許可を推測しない。
 
-`thumbs_up`イベントは、PRに付いた+1を投稿者とPR URLとともに通知してからackする。Codexの+1単独もここで通知する。`codex_passed`と同時に成立したCodexの+1は重複通知しない。+1だけをreview通過やマージ許可として扱わない。
+`thumbs_up`イベントは、PRに付いた+1を投稿者とPR URLとともに通知してからackする。Codexの+1単独もここで通知する。`codex_passed`と同時に成立したCodexの+1は重複通知せず、通過通知のackで対象リアクションも通知済みにする。+1だけをreview通過やマージ許可として扱わない。
 
 ## 終了・cleanup
 

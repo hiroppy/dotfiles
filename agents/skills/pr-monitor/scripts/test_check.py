@@ -48,6 +48,39 @@ def thread():
 
 
 class MonitorTests(unittest.TestCase):
+    def test_codex_pass_ack_covers_same_reaction_after_head_change(self):
+        """A later HEAD must not turn a notified Codex +1 into a new alert."""
+        data = snapshot()
+        data["pr"]["headRefOid"] = "abcdef0123456789"
+        data["comments"] = [{
+            "id": "summary", "updatedAt": "now",
+            "author": {"login": "chatgpt-codex-connector[bot]"},
+            "body": "<!-- codex-pull-request-review-summary -->\n"
+            "| 📝 **Code Review** | ✅ **Completed** | `abcdef0` | PR opened |",
+        }]
+        data["prReactions"] = [{
+            "id": 12, "content": "+1",
+            "user": {"login": "chatgpt-codex-connector[bot]"},
+        }]
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "o--r-1.json"
+            state = check.update({}, data)
+            check.save(path, state)
+            passed = next(
+                event_id for event_id, event in state["pending"].items()
+                if event["kind"] == "codex_passed"
+            )
+            with patch.object(sys, "argv", [
+                "check.py", "ack", "--repo", "o/r", "--pr", "1",
+                "--state-dir", directory, "--event", passed,
+                "--reason", "notified",
+            ]), patch("builtins.print"):
+                self.assertEqual(0, check.main())
+            state = json.loads(path.read_text())
+            data["pr"]["headRefOid"] = "123456789abcdef0"
+            data["comments"] = []
+            self.assertFalse(check.update(state, data)["pending"])
+
     def test_plus_one_notification_once_and_codex_pass_deduplication(self):
         data = snapshot()
         data["prReactions"] = [
