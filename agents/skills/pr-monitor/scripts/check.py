@@ -139,9 +139,10 @@ def digest(value):
     ).hexdigest()[:24]
 
 
-def thumbs_up_identity(reaction):
-    """Keep a PR reaction stable across HEAD changes and repeated checks."""
-    return reaction.get("id") or [reaction.get("user"), reaction.get("created_at")]
+def thumbs_up_identity(reaction, head):
+    """Identify one PR reaction at one HEAD revision."""
+    reaction_id = reaction.get("id") or [reaction.get("user"), reaction.get("created_at")]
+    return [reaction_id, head]
 
 
 def events(snapshot):
@@ -166,7 +167,11 @@ def events(snapshot):
     for reaction in snapshot.get("prReactions", []):
         if reaction.get("content") != "+1":
             continue
-        add("thumbs_up", thumbs_up_identity(reaction), {"reaction": reaction})
+        add(
+            "thumbs_up",
+            thumbs_up_identity(reaction, head),
+            {"reaction": reaction, "head": head},
+        )
     for check in pr.get("statusCheckRollup") or []:
         outcome = check.get("conclusion") or check.get("state")
         if outcome in {

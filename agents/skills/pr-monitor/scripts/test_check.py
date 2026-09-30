@@ -48,8 +48,8 @@ def thread():
 
 
 class MonitorTests(unittest.TestCase):
-    def test_plus_one_is_independent_of_codex_summary_and_head(self):
-        """A PR +1 is one notification even as comments and HEAD change."""
+    def test_plus_one_is_independent_of_codex_summary_and_scoped_to_head(self):
+        """A PR +1 is notified once per HEAD, regardless of summary comments."""
         data = snapshot()
         reaction = {
             "id": 12, "content": "+1",
@@ -60,6 +60,7 @@ class MonitorTests(unittest.TestCase):
         event = next(iter(state["pending"].values()))
         self.assertEqual("thumbs_up", event["kind"])
         self.assertEqual(reaction, event["reaction"])
+        self.assertEqual("abc", event["head"])
 
         summary = {
             "id": "summary", "updatedAt": "now",
@@ -70,13 +71,28 @@ class MonitorTests(unittest.TestCase):
         data["comments"] = [summary]
         data["pr"]["headRefOid"] = "abcdef0123456789"
         state["acknowledged"][event["id"]] = "notified"
-        pending = check.update(state, data)["pending"].values()
-        self.assertEqual(["comment"], [item["kind"] for item in pending])
+        state = check.update(state, data)
+        kinds = {item["kind"] for item in state["pending"].values()}
+        self.assertEqual({"comment", "thumbs_up"}, kinds)
+        new_event = next(
+            item for item in state["pending"].values()
+            if item["kind"] == "thumbs_up"
+        )
+        self.assertEqual("abcdef0123456789", new_event["head"])
+        state["acknowledged"][new_event["id"]] = "notified"
+        state = check.update(state, data)
+        self.assertEqual(
+            ["comment"], [item["kind"] for item in state["pending"].values()]
+        )
 
         data["comments"] = []
         data["pr"]["headRefOid"] = "123456789abcdef0"
         state = check.update(state, data)
-        self.assertFalse(state["pending"])
+        self.assertEqual(
+            ["thumbs_up"], [item["kind"] for item in state["pending"].values()]
+        )
+        third_event = next(iter(state["pending"].values()))
+        state["acknowledged"][third_event["id"]] = "notified"
         data["prReactions"] = []
         state = check.update(state, data)
         data["prReactions"] = [reaction]
