@@ -48,6 +48,37 @@ def thread():
 
 
 class MonitorTests(unittest.TestCase):
+    def test_plus_one_notification_once_and_codex_pass_deduplication(self):
+        data = snapshot()
+        data["prReactions"] = [
+            {"id": 10, "content": "+1", "user": {"login": "reviewer"}},
+            {"id": 11, "content": "-1", "user": {"login": "reviewer"}},
+        ]
+        state = check.update({}, data)
+        event = next(e for e in state["pending"].values() if e["kind"] == "thumbs_up")
+        self.assertEqual(event["reaction"]["id"], 10)
+        state["acknowledged"][event["id"]] = "notified"
+        self.assertFalse(check.update(state, data)["pending"])
+        data["prReactions"] = []
+        state = check.update(state, data)
+        data["prReactions"] = [{"id": 10, "content": "+1", "user": {"login": "reviewer"}}]
+        self.assertFalse(check.update(state, data)["pending"])
+
+        data["pr"]["headRefOid"] = "abcdef0123456789"
+        data["comments"] = [{
+            "id": "summary", "updatedAt": "now",
+            "author": {"login": "chatgpt-codex-connector[bot]"},
+            "body": "<!-- codex-pull-request-review-summary -->\n"
+            "| 📝 **Code Review** | ✅ **Completed** | `abcdef0` | PR opened |",
+        }]
+        data["prReactions"] = [{
+            "id": 12, "content": "+1",
+            "user": {"login": "chatgpt-codex-connector[bot]"},
+        }]
+        kinds = {e["kind"] for e in check.update({}, data)["pending"].values()}
+        self.assertIn("codex_passed", kinds)
+        self.assertNotIn("thumbs_up", kinds)
+
     def test_codex_pass_decision_table_and_once_per_head(self):
         data = snapshot()
         data["pr"]["headRefOid"] = "abcdef0123456789"
