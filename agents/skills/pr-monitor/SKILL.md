@@ -43,5 +43,5 @@ python3 <skill-dir>/scripts/check.py ack --repo OWNER/REPO --pr NUMBER \
 - 👀がPR上のどこかにあればマージ禁止。UNKNOWNは競合なしの証拠にしない。
 - 監視依頼から自動マージの許可を推測しない。force push/rebaseはしない。
 - 同じ問題3回失敗、レビュー2往復以上の平行線、重要な不確実性は保留して報告する。
-- 継続監視・停止・cleanup・+1/review通過通知: [lifecycle.md](references/lifecycle.md)。heartbeatを使い、launchdや別Codexプロセスは登録しない。「1回だけ」は監視登録しない。
+- 継続監視・停止・cleanup・+1通知: [lifecycle.md](references/lifecycle.md)。heartbeatを使い、launchdや別Codexプロセスは登録しない。「1回だけ」は監視登録しない。
 - 状態調査・スクリプト変更/検証: [script.md](references/script.md)。

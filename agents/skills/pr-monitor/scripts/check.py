@@ -133,42 +133,6 @@ def collect(repo, number):
     return data
 
 
-def codex_author(author):
-    return (author or {}).get("login", "").removesuffix(
-        "[bot]"
-    ) == "chatgpt-codex-connector"
-
-
-def codex_passed(snapshot):
-    head = snapshot["pr"]["headRefOid"]
-    if not any(
-        reaction.get("content") == "+1" and codex_author(reaction.get("user"))
-        for reaction in snapshot.get("prReactions", [])
-    ):
-        return False
-    for comment in snapshot["comments"]:
-        body = comment["body"]
-        if (
-            not codex_author(comment.get("author"))
-            or "<!-- codex-pull-request-review-summary -->" not in body
-        ):
-            continue
-        rows = [
-            line.split("|")
-            for line in body.splitlines()
-            if line.startswith("|") and "**Code Review**" in line
-        ]
-        if rows and all(
-            len(row) >= 5
-            and "✅ **Completed**" in row[2]
-            and re.fullmatch(r"`[0-9a-f]{7,40}`", row[3].strip())
-            and head.startswith(row[3].strip().strip("`"))
-            for row in rows
-        ):
-            return True
-    return False
-
-
 def digest(value):
     return hashlib.sha256(
         json.dumps(value, sort_keys=True, ensure_ascii=False).encode()
@@ -199,13 +163,8 @@ def events(snapshot):
     if pr["isDraft"]:
         return found
     head = pr["headRefOid"]
-    passed = codex_passed(snapshot)
-    if passed:
-        add("codex_passed", head, {"head": head})
     for reaction in snapshot.get("prReactions", []):
         if reaction.get("content") != "+1":
-            continue
-        if passed and codex_author(reaction.get("user")):
             continue
         add("thumbs_up", thumbs_up_identity(reaction), {"reaction": reaction})
     for check in pr.get("statusCheckRollup") or []:
@@ -294,7 +253,7 @@ def update(state, snapshot):
     pending = {}
     for key, event in current.items():
         # Reopening a resolved thread or reappearing failure creates a new occurrence.
-        if event["kind"] in {"codex_passed", "thumbs_up"}:
+        if event["kind"] == "thumbs_up":
             generation[key] = 1
         elif key not in previous:
             generation[key] = generation.get(key, 0) + 1
@@ -378,15 +337,6 @@ def main():
             if any(key not in state.get("pending", {}) for key in args.event):
                 parser.error("Unknown or stale event ID; run check again")
             for key in args.event:
-                if state["pending"][key]["kind"] == "codex_passed":
-                    for reaction in state["snapshot"].get("prReactions", []):
-                        if reaction.get("content") == "+1" and codex_author(
-                            reaction.get("user")
-                        ):
-                            covered = (
-                                "thumbs_up:" + digest(thumbs_up_identity(reaction)) + ":1"
-                            )
-                            state.setdefault("acknowledged", {})[covered] = args.reason
                 state.setdefault("acknowledged", {})[key] = args.reason
                 del state["pending"][key]
             save(path, state)
