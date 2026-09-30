@@ -175,7 +175,13 @@ def digest(value):
     ).hexdigest()[:24]
 
 
+def thumbs_up_identity(reaction):
+    """Keep a PR reaction stable across HEAD changes and repeated checks."""
+    return reaction.get("id") or [reaction.get("user"), reaction.get("created_at")]
+
+
 def events(snapshot):
+    """Extract actionable events from one complete PR snapshot."""
     pr = snapshot["pr"]
     found = {}
 
@@ -201,11 +207,7 @@ def events(snapshot):
             continue
         if passed and codex_author(reaction.get("user")):
             continue
-        add(
-            "thumbs_up",
-            reaction.get("id") or [reaction.get("user"), reaction.get("created_at")],
-            {"reaction": reaction},
-        )
+        add("thumbs_up", thumbs_up_identity(reaction), {"reaction": reaction})
     for check in pr.get("statusCheckRollup") or []:
         outcome = check.get("conclusion") or check.get("state")
         if outcome in {
@@ -284,6 +286,7 @@ def eyes(snapshot):
 
 
 def update(state, snapshot):
+    """Retain unacknowledged events and one-time notification identities."""
     current = events(snapshot)
     previous = state.get("active", {})
     generation = dict(state.get("generation", {}))
@@ -328,6 +331,7 @@ def save(path, state):
 
 
 def main():
+    """Run one monitor command while holding the PR's state lock."""
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("command", choices=["check", "ack", "status"])
     parser.add_argument("--repo", required=True, help="owner/repo")
@@ -374,6 +378,15 @@ def main():
             if any(key not in state.get("pending", {}) for key in args.event):
                 parser.error("Unknown or stale event ID; run check again")
             for key in args.event:
+                if state["pending"][key]["kind"] == "codex_passed":
+                    for reaction in state["snapshot"].get("prReactions", []):
+                        if reaction.get("content") == "+1" and codex_author(
+                            reaction.get("user")
+                        ):
+                            covered = (
+                                "thumbs_up:" + digest(thumbs_up_identity(reaction)) + ":1"
+                            )
+                            state.setdefault("acknowledged", {})[covered] = args.reason
                 state.setdefault("acknowledged", {})[key] = args.reason
                 del state["pending"][key]
             save(path, state)
