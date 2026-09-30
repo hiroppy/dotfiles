@@ -5,6 +5,7 @@ check.pyのeventsだけを入口にする。取得済みの全コメント/CIを
 ## Codex review通過
 
 `codex_passed`は[lifecycle.md](lifecycle.md)に従って通知後にackする。技術的な修正不要として通知前にackしない。
+`thumbs_up`も同様に、+1を通知してからackする。
 
 ## CI失敗
 

@@ -14,7 +14,9 @@ CI greenやreview通過だけで終了せずmerged/closedまで続ける。未�
 
 ## Codex reviewの通過通知
 
-check.pyの`codex_passed`イベントを受けたら、対象PRとHEADを添えて `Codex reviewの 👍` をユーザーへ通知し、通知後にackする。check.pyがCodex作者のcompleted summaryと現在HEAD、PRへのbotの+1を照合する。通知済みHEADはリアクションの削除・再追加後も再通知しない。+1単独、別作者、古いHEAD、未対応のsummary形式では通知しない。通知からマージ許可を推測しない。
+check.pyの`codex_passed`イベントを受けたら、対象PRとHEADを添えて `Codex reviewの 👍` をユーザーへ通知し、通知後にackする。check.pyがCodex作者のcompleted summaryと現在HEAD、PRへのbotの+1を照合する。通知済みHEADはリアクションの削除・再追加後も再通知しない。+1単独、別作者、古いHEAD、未対応のsummary形式ではreview通過と判断しない。通知からマージ許可を推測しない。
+
+`thumbs_up`イベントは、PRに付いた+1を投稿者とPR URLとともに通知してからackする。Codexの+1単独もここで通知する。`codex_passed`と同時に成立したCodexの+1は重複通知しない。+1だけをreview通過やマージ許可として扱わない。
 
 ## 終了・cleanup
 
@@ -23,4 +25,3 @@ mergedなら、実行中プロセス、未commit/未push変更、共有/pin状�
 Codex管理worktreeはarchive_worktreeを使う。通常のGit worktreeは安全な別ディレクトリからgit worktree removeとgit branch -dを使う。未保存・未push・使用中の作業を削除しない。cleanup失敗ならworktreeと状態を保持して通知し、未完了作業を再開できるようにする。
 
 未マージcloseはコード・worktree・ブランチを残す。必要なcleanup・報告完了後、対象の監視automationを削除する。停止指示では監視だけ解除、一時停止だけPAUSEDを使う。他のPRやタスク履歴は変更しない。
-

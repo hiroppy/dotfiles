@@ -193,8 +193,19 @@ def events(snapshot):
     if pr["isDraft"]:
         return found
     head = pr["headRefOid"]
-    if codex_passed(snapshot):
+    passed = codex_passed(snapshot)
+    if passed:
         add("codex_passed", head, {"head": head})
+    for reaction in snapshot.get("prReactions", []):
+        if reaction.get("content") != "+1":
+            continue
+        if passed and codex_author(reaction.get("user")):
+            continue
+        add(
+            "thumbs_up",
+            reaction.get("id") or [reaction.get("user"), reaction.get("created_at")],
+            {"reaction": reaction},
+        )
     for check in pr.get("statusCheckRollup") or []:
         outcome = check.get("conclusion") or check.get("state")
         if outcome in {
@@ -280,7 +291,7 @@ def update(state, snapshot):
     pending = {}
     for key, event in current.items():
         # Reopening a resolved thread or reappearing failure creates a new occurrence.
-        if event["kind"] == "codex_passed":
+        if event["kind"] in {"codex_passed", "thumbs_up"}:
             generation[key] = 1
         elif key not in previous:
             generation[key] = generation.get(key, 0) + 1
