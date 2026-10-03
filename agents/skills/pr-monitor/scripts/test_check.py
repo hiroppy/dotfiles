@@ -115,7 +115,7 @@ class MonitorTests(unittest.TestCase):
             {"content": "EYES", "users": {"totalCount": 1}}
         ]
         self.assertFalse(check.update(state, data)["pending"])
-        self.assertTrue(check.eyes(data))
+        self.assertFalse(check.eyes(data))
         data["reviewThreads"][0]["comments"][0]["body"] = "follow up"
         self.assertTrue(check.update(state, data)["pending"])
         data["reviewThreads"][0]["isResolved"] = True
@@ -123,6 +123,26 @@ class MonitorTests(unittest.TestCase):
         self.assertFalse(state["pending"])
         data["reviewThreads"][0]["isResolved"] = False
         self.assertTrue(check.update(state, data)["pending"])
+
+    def test_eyes_only_checks_pr_reactions(self):
+        data = snapshot()
+        reaction = {"content": "EYES", "users": {"totalCount": 1}}
+        data["pr"].update(title="👀", body="👀")
+        data["comments"] = [{"body": "👀", "reactionGroups": [reaction]}]
+        data["reviews"] = [{"body": "👀", "reactionGroups": [reaction]}]
+        data["reviewThreads"] = [thread()]
+        data["reviewThreads"][0]["comments"][0].update(
+            body="👀", reactionGroups=[reaction]
+        )
+        self.assertFalse(check.eyes(data))
+        for content, count, blocked in [
+            ("EYES", 1, True), ("EYES", 0, False), ("THUMBS_UP", 1, False)
+        ]:
+            with self.subTest(content=content, count=count):
+                data["reactions"] = [
+                    {"content": content, "users": {"totalCount": count}}
+                ]
+                self.assertEqual(check.eyes(data), blocked)
 
     def test_terminal_suppresses_work(self):
         data = snapshot()

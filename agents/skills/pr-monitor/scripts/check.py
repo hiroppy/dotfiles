@@ -235,18 +235,10 @@ def events(snapshot):
 
 
 def eyes(snapshot):
-    groups = list(snapshot.get("reactions", []))
-    texts = [snapshot["pr"].get("body", ""), snapshot["pr"].get("title", "")]
-    for item in snapshot["comments"] + snapshot["reviews"]:
-        groups.extend(item.get("reactionGroups", []))
-        texts.append(item.get("body", ""))
-    for thread in snapshot["reviewThreads"]:
-        for item in thread["comments"]:
-            groups.extend(item.get("reactionGroups", []))
-            texts.append(item["body"])
     return any(
-        g["content"] == "EYES" and g["users"]["totalCount"] > 0 for g in groups
-    ) or any("👀" in t for t in texts)
+        group["content"] == "EYES" and group["users"]["totalCount"] > 0
+        for group in snapshot.get("reactions", [])
+    )
 
 
 def update(state, snapshot):
