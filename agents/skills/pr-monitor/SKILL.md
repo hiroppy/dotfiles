@@ -40,7 +40,7 @@ python3 <skill-dir>/scripts/check.py ack --repo OWNER/REPO --pr NUMBER \
 
 ## 制約と参照
 
-- 👀がPR上のどこかにあればマージ禁止。UNKNOWNは競合なしの証拠にしない。
+- PR自体に👀リアクションが付いている間はマージ禁止。本文・コメント・レビュー内の👀や、それらに付いたリアクションは対象外。UNKNOWNは競合なしの証拠にしない。
 - 監視依頼から自動マージの許可を推測しない。force push/rebaseはしない。
 - 同じ問題3回失敗、レビュー2往復以上の平行線、重要な不確実性は保留して報告する。
 - 継続監視・停止・cleanup・Codexの+1通知: [lifecycle.md](references/lifecycle.md)。heartbeatを使い、launchdや別Codexプロセスは登録しない。「1回だけ」は監視登録しない。
