@@ -4,6 +4,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from unittest.mock import patch
 
@@ -72,7 +73,7 @@ class MonitorTests(unittest.TestCase):
         }]
         self.assertTrue(check.codex_reaction_ids(data))
         state = check.update({}, data)
-        self.assertEqual(20, state["recommendedIntervalMinutes"])
+        self.assertEqual(1, state["recommendedIntervalMinutes"])
         key = next(
             k for k, e in state["pending"].items() if e["kind"] == "codex_passed"
         )
@@ -95,14 +96,15 @@ class MonitorTests(unittest.TestCase):
         ))
         data["prReactions"] = [dict(reaction, id=2)]
         state = check.update(state, data)
-        self.assertEqual(20, state["recommendedIntervalMinutes"])
+        self.assertEqual(1, state["recommendedIntervalMinutes"])
         self.assertTrue(any(
             e["kind"] == "codex_passed" for e in state["pending"].values()
         ))
 
     def test_reaction_after_head_change_and_pass_persistence(self):
         data = snapshot()
-        state = check.update({}, data)
+        started = datetime(2026, 10, 4, tzinfo=timezone.utc)
+        state = check.update({}, data, now=started)
         self.assertEqual(1, state["recommendedIntervalMinutes"])
         data = copy.deepcopy(data)
         data["pr"]["headRefOid"] = "def"
@@ -110,10 +112,14 @@ class MonitorTests(unittest.TestCase):
             "id": 3, "content": "+1",
             "user": {"login": "chatgpt-codex-connector[bot]"},
         }]
-        state = check.update(state, data)
+        state = check.update(state, data, now=started)
+        self.assertEqual(1, state["recommendedIntervalMinutes"])
+        state = check.update(state, data, now=started + timedelta(minutes=9, seconds=59))
+        self.assertEqual(1, state["recommendedIntervalMinutes"])
+        state = check.update(state, data, now=started + timedelta(minutes=10))
         self.assertEqual(20, state["recommendedIntervalMinutes"])
         data["prReactions"] = []
-        state = check.update(state, data)
+        state = check.update(state, data, now=started + timedelta(minutes=11))
         self.assertEqual(20, state["recommendedIntervalMinutes"])
 
     def test_existing_state_does_not_reuse_old_reaction(self):
@@ -126,7 +132,7 @@ class MonitorTests(unittest.TestCase):
         state = check.update(legacy, data)
         self.assertEqual(1, state["recommendedIntervalMinutes"])
         data["prReactions"] = [dict(data["prReactions"][0], id=8)]
-        self.assertEqual(20, check.update(state, data)["recommendedIntervalMinutes"])
+        self.assertEqual(1, check.update(state, data)["recommendedIntervalMinutes"])
 
     def test_ci_ack_retry_and_head(self):
         data = snapshot()
@@ -389,19 +395,25 @@ class MonitorTests(unittest.TestCase):
                     "--fixture", str(fixture),
                 ], text=True))
 
-            self.assertEqual(1, run()["recommendedIntervalMinutes"])
+            first = run()
+            self.assertEqual(1, first["recommendedIntervalMinutes"])
+            self.assertFalse(first["codexReactionPresent"])
             reaction = {
                 "id": 1, "content": "+1",
                 "user": {"login": "chatgpt-codex-connector[bot]"},
             }
             data["prReactions"] = [reaction]
-            self.assertEqual(20, run()["recommendedIntervalMinutes"])
+            approved = run()
+            self.assertEqual(1, approved["recommendedIntervalMinutes"])
+            self.assertTrue(approved["codexReactionPresent"])
             data["pr"]["headRefOid"] = "def"
             result = run()
             self.assertTrue(result["headChanged"])
             self.assertEqual(1, result["recommendedIntervalMinutes"])
+            data["prReactions"] = []
+            self.assertFalse(run()["codexReactionPresent"])
             data["prReactions"] = [dict(reaction, id=2)]
-            self.assertEqual(20, run()["recommendedIntervalMinutes"])
+            self.assertTrue(run()["codexReactionPresent"])
 
 
 if __name__ == "__main__":

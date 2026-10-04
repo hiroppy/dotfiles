@@ -14,6 +14,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 PAGE = "pageInfo { hasNextPage endCursor }"
+APPROVAL_GRACE_SECONDS = 10 * 60
 REACTIONS = "reactionGroups { content users { totalCount } }"
 COMMENT = "id body url updatedAt author { login } " + REACTIONS
 FIELDS = {
@@ -242,7 +243,8 @@ def eyes(snapshot):
     )
 
 
-def update(state, snapshot):
+def update(state, snapshot, now=None):
+    now = now or datetime.now(timezone.utc)
     head = snapshot["pr"]["headRefOid"]
     old_snapshot = state.get("snapshot")
     old_head = old_snapshot["pr"]["headRefOid"] if old_snapshot else None
@@ -253,6 +255,16 @@ def update(state, snapshot):
     passed_for_head = state.get("codexPassedHead") == head or bool(
         codex_reaction_ids(snapshot) - baseline
     )
+    passed_at = (
+        state.get("codexPassedAt") if state.get("codexPassedHead") == head else None
+    )
+    if passed_for_head and not passed_at:
+        passed_at = now.isoformat()
+    interval = 1
+    if passed_at:
+        approval_age = (now - datetime.fromisoformat(passed_at)).total_seconds()
+        if approval_age >= APPROVAL_GRACE_SECONDS:
+            interval = 20
     current = events(snapshot, passed_for_head)
     previous = state.get("active", {})
     generation = dict(state.get("generation", {}))
@@ -268,20 +280,21 @@ def update(state, snapshot):
         event = dict(event, id=occurrence)
         if occurrence not in acknowledged:
             pending[occurrence] = event
-    now = datetime.now(timezone.utc).isoformat()
+    checked_at = now.isoformat()
     return {
         **state,
         "version": 1,
         "snapshot": snapshot,
         "codexReactionBaseline": sorted(baseline),
         "codexPassedHead": head if passed_for_head else None,
-        "recommendedIntervalMinutes": 20 if passed_for_head else 1,
+        "codexPassedAt": passed_at if passed_for_head else None,
+        "recommendedIntervalMinutes": interval,
         "active": current,
         "generation": generation,
         "acknowledged": acknowledged,
         "pending": pending,
-        "lastSuccessAt": now,
-        "lastAttemptAt": now,
+        "lastSuccessAt": checked_at,
+        "lastAttemptAt": checked_at,
         "lastError": None,
     }
 
@@ -338,6 +351,9 @@ def main():
                         "pendingCount": len(state.get("pending", {})),
                         "recommendedIntervalMinutes": state.get(
                             "recommendedIntervalMinutes", 1
+                        ),
+                        "codexReactionPresent": bool(
+                            codex_reaction_ids(state.get("snapshot", {}))
                         ),
                     }
                 )
@@ -397,6 +413,7 @@ def main():
                     "head": pr["headRefOid"],
                     "headChanged": bool(old_head and old_head != pr["headRefOid"]),
                     "recommendedIntervalMinutes": state["recommendedIntervalMinutes"],
+                    "codexReactionPresent": bool(codex_reaction_ids(snapshot)),
                     "url": pr["url"],
                     "mergeable": pr["mergeable"],
                     "mergeBlockedByEyes": eyes(snapshot),
