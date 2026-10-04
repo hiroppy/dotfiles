@@ -6,7 +6,7 @@
 
 「1回だけ」「ループ不要」は設定しない。継続監視にはCodexのheartbeat automationを使い、既存の同じPRの監視があれば更新・再利用する。明示的に停止/一時停止された監視は勝手に再開しない。
 
-promptにはPR URL、repo/number、作業worktree、承認範囲・保留事項を入れ、毎回の最初に上のcheckコマンドを1回実行して結果だけを見ることを指定する。全GitHub履歴の再取得をpromptへ書かない。通常1分、Draft5分を目安に、ユーザー指定を優先する。登録後は対象、間隔、有効状態を確認する。
+promptにはPR URL、repo/number、作業worktree、承認範囲・保留事項を入れ、毎回の最初に上のcheckコマンドを1回実行して結果だけを見ることを指定する。全GitHub履歴の再取得をpromptへ書かない。監視はPRごとにheartbeatを1本使う。通常は1分間隔とし、checkの`recommendedIntervalMinutes`が変わったらそのheartbeatを更新する。現在のHEADにCodex botの新しい+1が付いてから10分間は1分間隔、その後は20分間隔にする。新しいHEADを検知したら1分間隔へ戻す。時間帯では切り替えない。Draftは5分を目安にし、ユーザーの個別指定を優先する。登録・変更後は対象、間隔、有効状態を確認する。明示的に一時停止された監視は設定変更しても再開しない。
 
 CI greenやreview通過だけで終了せずmerged/closedまで続ける。未対応イベントがなく、通知すべき変化もない場合だけ通知しない。未対応イベントが残る場合は前回と同じ状態でも対応を続け、進められない場合は理由と必要な判断を通知する。この条件をautomationのpromptにも明記する。状態確認は `check.py status --repo OWNER/REPO --pr NUMBER` で最終取得成功時刻、エラー、未対応件数を見られる。
 
@@ -14,7 +14,9 @@ CI greenやreview通過だけで終了せずmerged/closedまで続ける。未�
 
 ## Codexの+1通知
 
-check.pyの`codex_passed`イベントを受けたら、対象PRとHEADを添えて `Codexの 👍` をユーザーへ通知し、通知後にackする。判定にはPRへのCodex botの+1だけを使い、サマリーコメントには依存しない。通知済みHEADはリアクションの削除・再追加後も再通知せず、新しいHEADでは再通知する。+1をレビュー完了やマージ許可と断定しない。
+check.pyの`codex_passed`イベントを受けたら、対象PRとHEADを添えて `Codexの 👍` をユーザーへ通知し、通知後にackする。判定にはPRへのCodex botの+1だけを使い、サマリーコメントには依存しない。各HEADを初めて確認した時点のリアクションIDを基準として記録し、その後の新しい+1だけを現在のHEADの通過として扱う。通知済みHEADはリアクションの削除・再追加後も再通知しない。+1をレビュー完了やマージ許可と断定しない。
+
+監視を実行するたびにcheck結果の`codexReactionPresent`に合わせ、trueなら監視対象チャットのタイトルの先頭に `👍 ` を1つ付け、falseなら監視が付けた先頭の `👍 ` を外す。タイトルの残りは変えない。
 
 ## 終了・cleanup
 
