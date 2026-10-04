@@ -74,6 +74,11 @@ class MonitorTests(unittest.TestCase):
         self.assertTrue(check.codex_reaction_ids(data))
         state = check.update({}, data)
         self.assertEqual(1, state["recommendedIntervalMinutes"])
+        self.assertFalse(any(
+            e["kind"] == "codex_passed" for e in state["pending"].values()
+        ))
+        data["prReactions"] = [dict(reaction, id=2)]
+        state = check.update(state, data)
         key = next(
             k for k, e in state["pending"].items() if e["kind"] == "codex_passed"
         )
@@ -81,7 +86,7 @@ class MonitorTests(unittest.TestCase):
         state["acknowledged"][key] = "notified"
         data["prReactions"] = []
         state = check.update(state, data)
-        data["prReactions"] = [reaction]
+        data["prReactions"] = [dict(reaction, id=2)]
         state = check.update(state, data)
         self.assertFalse(
             any(e["kind"] == "codex_passed" for e in state["pending"].values())
@@ -94,7 +99,7 @@ class MonitorTests(unittest.TestCase):
         self.assertFalse(any(
             e["kind"] == "codex_passed" for e in state["pending"].values()
         ))
-        data["prReactions"] = [dict(reaction, id=2)]
+        data["prReactions"] = [dict(reaction, id=3)]
         state = check.update(state, data)
         self.assertEqual(1, state["recommendedIntervalMinutes"])
         self.assertTrue(any(
@@ -114,12 +119,17 @@ class MonitorTests(unittest.TestCase):
         }]
         state = check.update(state, data, now=started)
         self.assertEqual(1, state["recommendedIntervalMinutes"])
-        state = check.update(state, data, now=started + timedelta(minutes=9, seconds=59))
+        self.assertIsNone(state["codexPassedHead"])
+        data["prReactions"] = [dict(data["prReactions"][0], id=4)]
+        approved_at = started + timedelta(seconds=30)
+        state = check.update(state, data, now=approved_at)
+        self.assertEqual("def", state["codexPassedHead"])
+        state = check.update(state, data, now=approved_at + timedelta(minutes=9, seconds=59))
         self.assertEqual(1, state["recommendedIntervalMinutes"])
-        state = check.update(state, data, now=started + timedelta(minutes=10))
+        state = check.update(state, data, now=approved_at + timedelta(minutes=10))
         self.assertEqual(20, state["recommendedIntervalMinutes"])
         data["prReactions"] = []
-        state = check.update(state, data, now=started + timedelta(minutes=11))
+        state = check.update(state, data, now=approved_at + timedelta(minutes=11))
         self.assertEqual(20, state["recommendedIntervalMinutes"])
 
     def test_existing_state_does_not_reuse_old_reaction(self):

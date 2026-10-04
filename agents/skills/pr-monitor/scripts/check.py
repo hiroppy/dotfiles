@@ -248,8 +248,8 @@ def update(state, snapshot, now=None):
     head = snapshot["pr"]["headRefOid"]
     old_snapshot = state.get("snapshot")
     old_head = old_snapshot["pr"]["headRefOid"] if old_snapshot else None
-    if old_snapshot and (old_head != head or "codexReactionBaseline" not in state):
-        baseline = codex_reaction_ids(old_snapshot)
+    if old_head != head or "codexReactionBaseline" not in state:
+        baseline = codex_reaction_ids(snapshot)
     else:
         baseline = set(state.get("codexReactionBaseline", []))
     passed_for_head = state.get("codexPassedHead") == head or bool(
