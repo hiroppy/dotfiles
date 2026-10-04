@@ -1,3 +1,4 @@
+import copy
 import json
 import subprocess
 import sys
@@ -51,23 +52,27 @@ class MonitorTests(unittest.TestCase):
     def test_codex_pass_decision_table_and_once_per_head(self):
         data = snapshot()
         data["pr"]["headRefOid"] = "abcdef0123456789"
-        reaction = {"content": "+1", "user": {"login": "chatgpt-codex-connector[bot]"}}
-        self.assertFalse(check.codex_passed(data))
+        reaction = {
+            "id": 1, "content": "+1",
+            "user": {"login": "chatgpt-codex-connector[bot]"},
+        }
+        self.assertFalse(check.codex_reaction_ids(data))
         data["prReactions"] = [reaction]
-        self.assertTrue(check.codex_passed(data))
+        self.assertTrue(check.codex_reaction_ids(data))
         for login in ("someone", "chatgpt-codex-connector-fake", ""):
             with self.subTest(login=login):
                 reaction["user"]["login"] = login
-                self.assertFalse(check.codex_passed(data))
+                self.assertFalse(check.codex_reaction_ids(data))
         reaction["user"]["login"] = "chatgpt-codex-connector"
-        self.assertTrue(check.codex_passed(data))
+        self.assertTrue(check.codex_reaction_ids(data))
         data["comments"] = [{
             "id": "summary", "updatedAt": "now",
             "author": {"login": "chatgpt-codex-connector[bot]"},
             "body": "Review in progress for an old commit",
         }]
-        self.assertTrue(check.codex_passed(data))
+        self.assertTrue(check.codex_reaction_ids(data))
         state = check.update({}, data)
+        self.assertEqual(20, state["recommendedIntervalMinutes"])
         key = next(
             k for k, e in state["pending"].items() if e["kind"] == "codex_passed"
         )
@@ -80,14 +85,48 @@ class MonitorTests(unittest.TestCase):
         self.assertFalse(
             any(e["kind"] == "codex_passed" for e in state["pending"].values())
         )
+        data = copy.deepcopy(data)
         data["pr"]["headRefOid"] = "123456789abcdef0"
-        self.assertTrue(check.codex_passed(data))
-        self.assertTrue(
-            any(
-                e["kind"] == "codex_passed"
-                for e in check.update(state, data)["pending"].values()
-            )
-        )
+        self.assertTrue(check.codex_reaction_ids(data))
+        state = check.update(state, data)
+        self.assertEqual(1, state["recommendedIntervalMinutes"])
+        self.assertFalse(any(
+            e["kind"] == "codex_passed" for e in state["pending"].values()
+        ))
+        data["prReactions"] = [dict(reaction, id=2)]
+        state = check.update(state, data)
+        self.assertEqual(20, state["recommendedIntervalMinutes"])
+        self.assertTrue(any(
+            e["kind"] == "codex_passed" for e in state["pending"].values()
+        ))
+
+    def test_reaction_after_head_change_and_pass_persistence(self):
+        data = snapshot()
+        state = check.update({}, data)
+        self.assertEqual(1, state["recommendedIntervalMinutes"])
+        data = copy.deepcopy(data)
+        data["pr"]["headRefOid"] = "def"
+        data["prReactions"] = [{
+            "id": 3, "content": "+1",
+            "user": {"login": "chatgpt-codex-connector[bot]"},
+        }]
+        state = check.update(state, data)
+        self.assertEqual(20, state["recommendedIntervalMinutes"])
+        data["prReactions"] = []
+        state = check.update(state, data)
+        self.assertEqual(20, state["recommendedIntervalMinutes"])
+
+    def test_existing_state_does_not_reuse_old_reaction(self):
+        data = snapshot()
+        data["prReactions"] = [{
+            "id": 7, "content": "+1",
+            "user": {"login": "chatgpt-codex-connector[bot]"},
+        }]
+        legacy = {"snapshot": copy.deepcopy(data)}
+        state = check.update(legacy, data)
+        self.assertEqual(1, state["recommendedIntervalMinutes"])
+        data["prReactions"] = [dict(data["prReactions"][0], id=8)]
+        self.assertEqual(20, check.update(state, data)["recommendedIntervalMinutes"])
 
     def test_ci_ack_retry_and_head(self):
         data = snapshot()
@@ -336,6 +375,33 @@ class MonitorTests(unittest.TestCase):
             self.assertEqual("ok", after["status"])
             self.assertFalse(after["events"])
             self.assertEqual(0, run("status")["pendingCount"])
+
+    def test_cli_cadence_transitions(self):
+        with tempfile.TemporaryDirectory() as directory:
+            fixture = Path(directory) / "fixture.json"
+            data = snapshot()
+
+            def run():
+                fixture.write_text(json.dumps(data))
+                return json.loads(subprocess.check_output([
+                    sys.executable, str(Path(check.__file__)), "check",
+                    "--repo", "o/r", "--pr", "1", "--state-dir", directory,
+                    "--fixture", str(fixture),
+                ], text=True))
+
+            self.assertEqual(1, run()["recommendedIntervalMinutes"])
+            reaction = {
+                "id": 1, "content": "+1",
+                "user": {"login": "chatgpt-codex-connector[bot]"},
+            }
+            data["prReactions"] = [reaction]
+            self.assertEqual(20, run()["recommendedIntervalMinutes"])
+            data["pr"]["headRefOid"] = "def"
+            result = run()
+            self.assertTrue(result["headChanged"])
+            self.assertEqual(1, result["recommendedIntervalMinutes"])
+            data["prReactions"] = [dict(reaction, id=2)]
+            self.assertEqual(20, run()["recommendedIntervalMinutes"])
 
 
 if __name__ == "__main__":

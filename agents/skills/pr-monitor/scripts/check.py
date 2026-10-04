@@ -139,11 +139,12 @@ def codex_author(author):
     ) == "chatgpt-codex-connector"
 
 
-def codex_passed(snapshot):
-    return any(
-        reaction.get("content") == "+1" and codex_author(reaction.get("user"))
+def codex_reaction_ids(snapshot):
+    return {
+        str(reaction.get("id") or digest(reaction))
         for reaction in snapshot.get("prReactions", [])
-    )
+        if reaction.get("content") == "+1" and codex_author(reaction.get("user"))
+    }
 
 
 def digest(value):
@@ -152,7 +153,7 @@ def digest(value):
     ).hexdigest()[:24]
 
 
-def events(snapshot):
+def events(snapshot, passed_for_head=False):
     pr = snapshot["pr"]
     found = {}
 
@@ -170,7 +171,7 @@ def events(snapshot):
     if pr["isDraft"]:
         return found
     head = pr["headRefOid"]
-    if codex_passed(snapshot):
+    if passed_for_head:
         add("codex_passed", head, {"head": head})
     for check in pr.get("statusCheckRollup") or []:
         outcome = check.get("conclusion") or check.get("state")
@@ -242,7 +243,17 @@ def eyes(snapshot):
 
 
 def update(state, snapshot):
-    current = events(snapshot)
+    head = snapshot["pr"]["headRefOid"]
+    old_snapshot = state.get("snapshot")
+    old_head = old_snapshot["pr"]["headRefOid"] if old_snapshot else None
+    if old_snapshot and (old_head != head or "codexReactionBaseline" not in state):
+        baseline = codex_reaction_ids(old_snapshot)
+    else:
+        baseline = set(state.get("codexReactionBaseline", []))
+    passed_for_head = state.get("codexPassedHead") == head or bool(
+        codex_reaction_ids(snapshot) - baseline
+    )
+    current = events(snapshot, passed_for_head)
     previous = state.get("active", {})
     generation = dict(state.get("generation", {}))
     acknowledged = dict(state.get("acknowledged", {}))
@@ -262,6 +273,9 @@ def update(state, snapshot):
         **state,
         "version": 1,
         "snapshot": snapshot,
+        "codexReactionBaseline": sorted(baseline),
+        "codexPassedHead": head if passed_for_head else None,
+        "recommendedIntervalMinutes": 20 if passed_for_head else 1,
         "active": current,
         "generation": generation,
         "acknowledged": acknowledged,
@@ -322,6 +336,9 @@ def main():
                         "lastSuccessAt": state.get("lastSuccessAt"),
                         "lastError": state.get("lastError"),
                         "pendingCount": len(state.get("pending", {})),
+                        "recommendedIntervalMinutes": state.get(
+                            "recommendedIntervalMinutes", 1
+                        ),
                     }
                 )
             )
@@ -343,6 +360,7 @@ def main():
                 if args.fixture
                 else collect(args.repo, args.pr)
             )
+            old_head = state.get("snapshot", {}).get("pr", {}).get("headRefOid")
             state = update(state, snapshot)
         except (
             RuntimeError,
@@ -377,6 +395,8 @@ def main():
                 {
                     "status": status,
                     "head": pr["headRefOid"],
+                    "headChanged": bool(old_head and old_head != pr["headRefOid"]),
+                    "recommendedIntervalMinutes": state["recommendedIntervalMinutes"],
                     "url": pr["url"],
                     "mergeable": pr["mergeable"],
                     "mergeBlockedByEyes": eyes(snapshot),
