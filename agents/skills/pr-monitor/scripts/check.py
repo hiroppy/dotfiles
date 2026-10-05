@@ -325,6 +325,55 @@ def update(state, snapshot, now=None, interval_minutes=None):
     }
 
 
+def plan_actions(state, title=None, current_interval=None, monitor_status="ACTIVE"):
+    """Return external operations without performing or acknowledging them."""
+    snapshot = state["snapshot"]
+    pr = snapshot["pr"]
+    actions = []
+    if title is not None:
+        plain_title = title
+        while plain_title.startswith("👍 "):
+            plain_title = plain_title.removeprefix("👍 ")
+        desired_title = ("👍 " if codex_reaction_ids(snapshot) else "") + plain_title
+        if desired_title != title:
+            actions.append({"type": "set_title", "title": desired_title})
+    if pr["state"] != "OPEN":
+        actions.append({"type": "finish_monitor", "merged": pr["state"] == "MERGED"})
+        return actions
+    if monitor_status == "ACTIVE":
+        if state["stopRequested"]:
+            actions.extend(
+                [
+                    {"type": "pause_monitor"},
+                    {
+                        "type": "notify",
+                        "message": f"{pr['url']}: 20分間変化なしで監視停止",
+                    },
+                ]
+            )
+        elif current_interval != state["recommendedIntervalMinutes"]:
+            interval = state["recommendedIntervalMinutes"]
+            actions.append(
+                {
+                    "type": "set_interval",
+                    "minutes": interval,
+                    "rrule": f"FREQ=MINUTELY;INTERVAL={interval}",
+                }
+            )
+    for event in state["pending"].values():
+        if event["kind"] == "codex_passed":
+            actions.append(
+                {
+                    "type": "notify",
+                    "message": f"Codexの 👍: {pr['url']} HEAD {event['head']}",
+                    "eventId": event["id"],
+                }
+            )
+        else:
+            actions.append({"type": "handle_event", "eventId": event["id"]})
+    return actions
+
+
 def save(path, state):
     fd, temporary = tempfile.mkstemp(dir=path.parent, prefix=".monitor-")
     try:
@@ -358,6 +407,13 @@ def main():
     )
     parser.add_argument(
         "--reset-idle", action="store_true", help="Reset idle timer on resume"
+    )
+    parser.add_argument("--title", help="Current chat title")
+    parser.add_argument(
+        "--current-interval", type=int, help="Current heartbeat interval"
+    )
+    parser.add_argument(
+        "--monitor-status", choices=["ACTIVE", "PAUSED"], default="ACTIVE"
     )
     args = parser.parse_args()
     if args.interval_minutes is not None and args.interval_minutes < 1:
@@ -449,6 +505,9 @@ def main():
             json.dumps(
                 {
                     "status": status,
+                    "actions": plan_actions(
+                        state, args.title, args.current_interval, args.monitor_status
+                    ),
                     "stopRequested": state["stopRequested"],
                     "head": pr["headRefOid"],
                     "headChanged": bool(old_head and old_head != pr["headRefOid"]),

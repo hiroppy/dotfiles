@@ -10,6 +10,7 @@ Python 3標準ライブラリと認証済みgh CLIを使う（macOS/Linux）。G
 | --state-dir | 既定は`~/.codex/pr-monitor`。worktree外に保存 |
 | --interval-minutes | ユーザー指定の監視間隔 |
 | --reset-idle | 再開時に無変化タイマーをリセット |
+| --title / --current-interval / --monitor-status | 現在のアプリ状態を渡し、必要なactionsだけ返す |
 | --fixture | 保存snapshotでAPIなしの検証 |
 
 - PRごとのflockで取得・状態更新を排他する。修正作業はロックしないため監視を重複登録しない。取得失敗時はlastErrorを更新し、snapshot/pendingを保持して無変化タイマーをリセットする。解決済みCI/threadはpendingから除外する。
@@ -17,6 +18,8 @@ Python 3標準ライブラリと認証済みgh CLIを使う（macOS/Linux）。G
 - 初回の既存コメントや自身の返信もID単位で評価する。技術的要否を文字列検索で決めず、GitHub本文をshellへ展開しない。
 
 - `stopRequested`: 1分監視で20分無変化かつ未対応なし。snapshot変更・取得失敗・未対応・間隔変更・再開時にタイマーをリセットする。
+
+- `actions`: 間隔・停止・タイトル・通知・イベント対応・終了の実行計画。外部操作やackは実行しない。
 
 ## 検証
 

@@ -50,6 +50,44 @@ def thread():
 
 
 class MonitorTests(unittest.TestCase):
+    def test_action_plan_interval_stop_and_paused(self):
+        state = check.update({}, snapshot())
+        self.assertEqual([], check.plan_actions(state, current_interval=1))
+        action = check.plan_actions(state, current_interval=20)[0]
+        self.assertEqual("FREQ=MINUTELY;INTERVAL=1", action["rrule"])
+        state["stopRequested"] = True
+        actions = check.plan_actions(state, current_interval=1)
+        self.assertEqual(["pause_monitor", "notify"], [a["type"] for a in actions])
+        self.assertEqual([], check.plan_actions(state, monitor_status="PAUSED"))
+
+    def test_action_plan_title_notification_and_terminal(self):
+        data = snapshot()
+        state = check.update({}, data)
+        self.assertEqual(
+            [{"type": "set_title", "title": "Chat"}],
+            check.plan_actions(state, title="👍 👍 Chat", current_interval=1),
+        )
+        data["prReactions"] = [
+            {"id": 1, "content": "+1", "user": {"login": "chatgpt-codex-connector"}}
+        ]
+        state = check.update(state, data)
+        actions = check.plan_actions(state, title="Chat", current_interval=1)
+        self.assertEqual("👍 Chat", actions[0]["title"])
+        self.assertEqual("notify", actions[1]["type"])
+        key = actions[1]["eventId"]
+        state["acknowledged"][key] = "notified"
+        state = check.update(state, data)
+        self.assertEqual(
+            [], check.plan_actions(state, title="👍 Chat", current_interval=1)
+        )
+        for status, merged in [("MERGED", True), ("CLOSED", False)]:
+            data["pr"]["state"] = status
+            state = check.update(state, data)
+            self.assertEqual(
+                [{"type": "finish_monitor", "merged": merged}],
+                check.plan_actions(state),
+            )
+
     def test_idle_stop_boundary_and_changes(self):
         data = snapshot()
         start = datetime(2026, 10, 6, tzinfo=timezone.utc)

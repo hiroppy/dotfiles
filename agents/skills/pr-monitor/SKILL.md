@@ -23,6 +23,7 @@ python3 <skill-dir>/scripts/check.py check --repo OWNER/REPO --pr NUMBER
 | error | 取得失敗として扱う |
 | terminal | [lifecycle.md](references/lifecycle.md) で終了処理 |
 
+- checkの`actions`を[lifecycle.md](references/lifecycle.md)に従って順番に実行する。
 - 終了コード0は取得成功。
 - 未対応イベントは前回と同じでも処理する。進められなければ理由と必要な判断を通知する。
 - 追加取得は必要なファイル・ログだけにする。
