@@ -12,7 +12,7 @@ Python 3標準ライブラリと認証済みgh CLIを使う（macOS/Linux）。G
 | --reset-idle | 再開時に無変化タイマーをリセット |
 | --fixture | 保存snapshotでAPIなしの検証 |
 
-- PRごとのflockで取得・状態更新を排他する。修正作業はロックしないため監視を重複登録しない。取得失敗はlastErrorだけ更新し、snapshot/pendingを保持する。解決済みCI/threadはpendingから除外する。
+- PRごとのflockで取得・状態更新を排他する。修正作業はロックしないため監視を重複登録しない。取得失敗時はlastErrorを更新し、snapshot/pendingを保持して無変化タイマーをリセットする。解決済みCI/threadはpendingから除外する。
 
 - 初回の既存コメントや自身の返信もID単位で評価する。技術的要否を文字列検索で決めず、GitHub本文をshellへ展開しない。
 
