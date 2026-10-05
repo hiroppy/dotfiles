@@ -29,3 +29,5 @@
 - Codex管理worktreeは`archive_worktree`、通常のworktreeは別ディレクトリから`git worktree remove`と`git branch -d`を使う。未保存・未push・使用中の作業は保持し、cleanup失敗を通知する。
 
 - 未マージcloseでは作業を保持する。cleanup・報告後に対象automationを削除する。停止指示では監視だけ解除、一時停止ではPAUSEDにする。
+
+- 終了処理とautomation削除後、`check.py cleanup --repo OWNER/REPO --pr NUMBER --apply`で状態JSONを削除する。停止・一時停止では保持する。排他制御用の.lockは残す。

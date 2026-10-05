@@ -50,6 +50,63 @@ def thread():
 
 
 class MonitorTests(unittest.TestCase):
+    def test_cleanup_retention_preview_and_delete(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "o--r-1.json"
+            args = [
+                "check.py",
+                "cleanup",
+                "--repo",
+                "o/r",
+                "--pr",
+                "1",
+                "--state-dir",
+                directory,
+            ]
+            for pr_state in ("OPEN", "UNKNOWN", "CLOSED", "MERGED"):
+                check.save(path, check.update({}, snapshot()))
+                with (
+                    patch.object(sys, "argv", args),
+                    patch.object(check, "gh", return_value={"state": pr_state}),
+                    patch("builtins.print"),
+                ):
+                    self.assertEqual(0, check.main())
+                    self.assertTrue(path.exists())
+                with (
+                    patch.object(sys, "argv", args + ["--apply"]),
+                    patch.object(check, "gh", return_value={"state": pr_state}),
+                    patch("builtins.print"),
+                ):
+                    self.assertEqual(0, check.main())
+                    self.assertEqual(pr_state in {"OPEN", "UNKNOWN"}, path.exists())
+            data = snapshot()
+            data["reviewThreads"] = [thread()]
+            check.save(path, check.update({}, data))
+            with (
+                patch.object(sys, "argv", args + ["--apply"]),
+                patch.object(check, "gh") as api,
+                patch("builtins.print"),
+            ):
+                self.assertEqual(0, check.main())
+                api.assert_not_called()
+                self.assertTrue(path.exists())
+            check.save(path, check.update({}, snapshot()))
+            with (
+                patch.object(sys, "argv", args + ["--apply"]),
+                patch.object(check, "gh", side_effect=RuntimeError("API down")),
+                patch("builtins.print"),
+            ):
+                self.assertEqual(1, check.main())
+                self.assertTrue(path.exists())
+            path.unlink()
+            with (
+                patch.object(sys, "argv", args + ["--apply"]),
+                patch.object(check, "gh") as api,
+                patch("builtins.print"),
+            ):
+                self.assertEqual(0, check.main())
+                api.assert_not_called()
+
     def test_action_plan_interval_stop_and_paused(self):
         state = check.update({}, snapshot())
         self.assertEqual([], check.plan_actions(state, current_interval=1))

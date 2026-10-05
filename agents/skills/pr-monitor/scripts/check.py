@@ -389,7 +389,7 @@ def save(path, state):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("command", choices=["check", "ack", "status"])
+    parser.add_argument("command", choices=["check", "ack", "status", "cleanup"])
     parser.add_argument("--repo", required=True, help="owner/repo")
     parser.add_argument("--pr", type=int, required=True)
     parser.add_argument(
@@ -415,6 +415,9 @@ def main():
     parser.add_argument(
         "--monitor-status", choices=["ACTIVE", "PAUSED"], default="ACTIVE"
     )
+    parser.add_argument(
+        "--apply", action="store_true", help="Delete eligible state with cleanup"
+    )
     args = parser.parse_args()
     if args.interval_minutes is not None and args.interval_minutes < 1:
         parser.error("Interval must be positive")
@@ -431,6 +434,42 @@ def main():
             print(json.dumps({"status": "busy"}))
             return 0
         state = json.loads(path.read_text()) if path.exists() else {}
+        if args.command == "cleanup":
+            if not path.exists():
+                print(json.dumps({"status": "absent", "stateFile": str(path)}))
+                return 0
+            pending = state.get("pending", {}).values()
+            if any(event["kind"] != "terminal" for event in pending):
+                print(json.dumps({"status": "retained", "reason": "pending_events"}))
+                return 0
+            try:
+                pr = gh(
+                    "pr", "view", str(args.pr), "--repo", args.repo, "--json", "state"
+                )
+            except (
+                RuntimeError,
+                subprocess.TimeoutExpired,
+                ValueError,
+                OSError,
+            ) as error:
+                print(json.dumps({"status": "error", "error": str(error)}))
+                return 1
+            if pr.get("state") not in {"MERGED", "CLOSED"}:
+                print(
+                    json.dumps({"status": "retained", "reason": "pr_open_or_unknown"})
+                )
+                return 0
+            if args.apply:
+                path.unlink()
+            print(
+                json.dumps(
+                    {
+                        "status": "deleted" if args.apply else "eligible",
+                        "stateFile": str(path),
+                    }
+                )
+            )
+            return 0
         if args.command == "status":
             print(
                 json.dumps(

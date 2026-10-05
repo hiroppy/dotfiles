@@ -6,6 +6,7 @@ Python 3標準ライブラリと認証済みgh CLIを使う（macOS/Linux）。G
 | --- | --- |
 | check | 全ページ取得後にsnapshot/pendingを保存し、状態と未対応eventsをJSON出力 |
 | ack | reason必須。編集・追加発言は別ID、thread再openは別occurrence |
+| cleanup | GitHubでmerged/closedを再確認し削除候補を返す。`--apply`で対象JSONを削除。未対応事項・取得失敗・openは保持 |
 | status | GitHub取得なしで最終成功時刻・エラー・未対応件数を確認 |
 | --state-dir | 既定は`~/.codex/pr-monitor`。worktree外に保存 |
 | --interval-minutes | ユーザー指定の監視間隔 |
