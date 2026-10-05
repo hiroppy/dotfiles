@@ -15,6 +15,7 @@ from pathlib import Path
 
 PAGE = "pageInfo { hasNextPage endCursor }"
 APPROVAL_GRACE_SECONDS = 10 * 60
+IDLE_STOP_SECONDS = 20 * 60
 REACTIONS = "reactionGroups { content users { totalCount } }"
 COMMENT = "id body url updatedAt author { login } " + REACTIONS
 FIELDS = {
@@ -243,7 +244,7 @@ def eyes(snapshot):
     )
 
 
-def update(state, snapshot, now=None):
+def update(state, snapshot, now=None, interval_minutes=None):
     now = now or datetime.now(timezone.utc)
     head = snapshot["pr"]["headRefOid"]
     old_snapshot = state.get("snapshot")
@@ -265,6 +266,10 @@ def update(state, snapshot, now=None):
         approval_age = (now - datetime.fromisoformat(passed_at)).total_seconds()
         if approval_age >= APPROVAL_GRACE_SECONDS:
             interval = 20
+    if snapshot["pr"]["isDraft"]:
+        interval = 5
+    if interval_minutes is not None:
+        interval = interval_minutes
     current = events(snapshot, passed_for_head)
     previous = state.get("active", {})
     generation = dict(state.get("generation", {}))
@@ -281,10 +286,31 @@ def update(state, snapshot, now=None):
         if occurrence not in acknowledged:
             pending[occurrence] = event
     checked_at = now.isoformat()
+    fingerprint = digest(snapshot)
+    idle_since = state.get("idleSince") or checked_at
+    if (
+        fingerprint != state.get("snapshotFingerprint")
+        or state.get("lastError")
+        or state.get("pending")
+        or state.get("recommendedIntervalMinutes") != interval
+    ):
+        idle_since = checked_at
+    eligible = interval == 1 and snapshot["pr"]["state"] == "OPEN" and not pending
+    if not eligible:
+        idle_since = None
+    stop_requested = bool(
+        eligible
+        and idle_since
+        and (now - datetime.fromisoformat(idle_since)).total_seconds()
+        >= IDLE_STOP_SECONDS
+    )
     return {
         **state,
         "version": 1,
         "snapshot": snapshot,
+        "snapshotFingerprint": fingerprint,
+        "idleSince": idle_since,
+        "stopRequested": stop_requested,
         "codexReactionBaseline": sorted(baseline),
         "codexPassedHead": head if passed_for_head else None,
         "codexPassedAt": passed_at if passed_for_head else None,
@@ -327,7 +353,15 @@ def main():
     parser.add_argument(
         "--fixture", type=Path, help="Use a saved snapshot instead of GitHub"
     )
+    parser.add_argument(
+        "--interval-minutes", type=int, help="Actual heartbeat interval"
+    )
+    parser.add_argument(
+        "--reset-idle", action="store_true", help="Reset idle timer on resume"
+    )
     args = parser.parse_args()
+    if args.interval_minutes is not None and args.interval_minutes < 1:
+        parser.error("Interval must be positive")
     if not re.fullmatch(r"[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+", args.repo) or args.pr < 1:
         parser.error("Invalid repository or PR number")
     args.state_dir.mkdir(parents=True, exist_ok=True, mode=0o700)
@@ -377,7 +411,10 @@ def main():
                 else collect(args.repo, args.pr)
             )
             old_head = state.get("snapshot", {}).get("pr", {}).get("headRefOid")
-            state = update(state, snapshot)
+            if args.reset_idle:
+                state["idleSince"] = None
+                state["snapshotFingerprint"] = None
+            state = update(state, snapshot, interval_minutes=args.interval_minutes)
         except (
             RuntimeError,
             subprocess.TimeoutExpired,
@@ -388,6 +425,8 @@ def main():
             state.update(
                 lastAttemptAt=datetime.now(timezone.utc).isoformat(),
                 lastError=str(error),
+                idleSince=None,
+                stopRequested=False,
             )
             save(path, state)
             print(
@@ -410,6 +449,7 @@ def main():
             json.dumps(
                 {
                     "status": status,
+                    "stopRequested": state["stopRequested"],
                     "head": pr["headRefOid"],
                     "headChanged": bool(old_head and old_head != pr["headRefOid"]),
                     "recommendedIntervalMinutes": state["recommendedIntervalMinutes"],

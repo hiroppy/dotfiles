@@ -50,11 +50,62 @@ def thread():
 
 
 class MonitorTests(unittest.TestCase):
+    def test_idle_stop_boundary_and_changes(self):
+        data = snapshot()
+        start = datetime(2026, 10, 6, tzinfo=timezone.utc)
+        state = check.update({}, data, now=start)
+        self.assertFalse(state["stopRequested"])
+        state = check.update(state, data, now=start + timedelta(minutes=19, seconds=59))
+        self.assertFalse(state["stopRequested"])
+        state = check.update(state, data, now=start + timedelta(minutes=20))
+        self.assertTrue(state["stopRequested"])
+        for field, value in [("headRefOid", "new"), ("mergeStateStatus", "BLOCKED")]:
+            changed = copy.deepcopy(data)
+            changed["pr"][field] = value
+            self.assertFalse(
+                check.update(state, changed, now=start + timedelta(minutes=21))[
+                    "stopRequested"
+                ]
+            )
+
+    def test_idle_stop_exclusions_and_reset(self):
+        start = datetime(2026, 10, 6, tzinfo=timezone.utc)
+        later = start + timedelta(minutes=30)
+        data = snapshot()
+        state = check.update({}, data, now=start)
+        for interval in (5, 20):
+            self.assertFalse(
+                check.update(state, data, now=later, interval_minutes=interval)[
+                    "stopRequested"
+                ]
+            )
+        for changes in ({"isDraft": True}, {"state": "CLOSED"}):
+            changed = copy.deepcopy(data)
+            changed["pr"].update(changes)
+            self.assertFalse(check.update(state, changed, now=later)["stopRequested"])
+        for changes in (
+            {"lastError": "API down"},
+            {"pending": {"event": {}}},
+            {"snapshotFingerprint": None},
+        ):
+            self.assertFalse(
+                check.update({**state, **changes}, data, now=later)["stopRequested"]
+            )
+        data["comments"] = [thread()["comments"][0]]
+        pending = check.update(state, data, now=later)
+        self.assertIsNone(pending["idleSince"])
+        self.assertFalse(
+            check.update(pending, data, now=later + timedelta(minutes=30))[
+                "stopRequested"
+            ]
+        )
+
     def test_codex_pass_decision_table_and_once_per_head(self):
         data = snapshot()
         data["pr"]["headRefOid"] = "abcdef0123456789"
         reaction = {
-            "id": 1, "content": "+1",
+            "id": 1,
+            "content": "+1",
             "user": {"login": "chatgpt-codex-connector[bot]"},
         }
         self.assertFalse(check.codex_reaction_ids(data))
@@ -66,17 +117,20 @@ class MonitorTests(unittest.TestCase):
                 self.assertFalse(check.codex_reaction_ids(data))
         reaction["user"]["login"] = "chatgpt-codex-connector"
         self.assertTrue(check.codex_reaction_ids(data))
-        data["comments"] = [{
-            "id": "summary", "updatedAt": "now",
-            "author": {"login": "chatgpt-codex-connector[bot]"},
-            "body": "Review in progress for an old commit",
-        }]
+        data["comments"] = [
+            {
+                "id": "summary",
+                "updatedAt": "now",
+                "author": {"login": "chatgpt-codex-connector[bot]"},
+                "body": "Review in progress for an old commit",
+            }
+        ]
         self.assertTrue(check.codex_reaction_ids(data))
         state = check.update({}, data)
         self.assertEqual(1, state["recommendedIntervalMinutes"])
-        self.assertFalse(any(
-            e["kind"] == "codex_passed" for e in state["pending"].values()
-        ))
+        self.assertFalse(
+            any(e["kind"] == "codex_passed" for e in state["pending"].values())
+        )
         data["prReactions"] = [dict(reaction, id=2)]
         state = check.update(state, data)
         key = next(
@@ -96,15 +150,15 @@ class MonitorTests(unittest.TestCase):
         self.assertTrue(check.codex_reaction_ids(data))
         state = check.update(state, data)
         self.assertEqual(1, state["recommendedIntervalMinutes"])
-        self.assertFalse(any(
-            e["kind"] == "codex_passed" for e in state["pending"].values()
-        ))
+        self.assertFalse(
+            any(e["kind"] == "codex_passed" for e in state["pending"].values())
+        )
         data["prReactions"] = [dict(reaction, id=3)]
         state = check.update(state, data)
         self.assertEqual(1, state["recommendedIntervalMinutes"])
-        self.assertTrue(any(
-            e["kind"] == "codex_passed" for e in state["pending"].values()
-        ))
+        self.assertTrue(
+            any(e["kind"] == "codex_passed" for e in state["pending"].values())
+        )
 
     def test_reaction_after_head_change_and_pass_persistence(self):
         data = snapshot()
@@ -113,10 +167,13 @@ class MonitorTests(unittest.TestCase):
         self.assertEqual(1, state["recommendedIntervalMinutes"])
         data = copy.deepcopy(data)
         data["pr"]["headRefOid"] = "def"
-        data["prReactions"] = [{
-            "id": 3, "content": "+1",
-            "user": {"login": "chatgpt-codex-connector[bot]"},
-        }]
+        data["prReactions"] = [
+            {
+                "id": 3,
+                "content": "+1",
+                "user": {"login": "chatgpt-codex-connector[bot]"},
+            }
+        ]
         state = check.update(state, data, now=started)
         self.assertEqual(1, state["recommendedIntervalMinutes"])
         self.assertIsNone(state["codexPassedHead"])
@@ -124,7 +181,9 @@ class MonitorTests(unittest.TestCase):
         approved_at = started + timedelta(seconds=30)
         state = check.update(state, data, now=approved_at)
         self.assertEqual("def", state["codexPassedHead"])
-        state = check.update(state, data, now=approved_at + timedelta(minutes=9, seconds=59))
+        state = check.update(
+            state, data, now=approved_at + timedelta(minutes=9, seconds=59)
+        )
         self.assertEqual(1, state["recommendedIntervalMinutes"])
         state = check.update(state, data, now=approved_at + timedelta(minutes=10))
         self.assertEqual(20, state["recommendedIntervalMinutes"])
@@ -134,10 +193,13 @@ class MonitorTests(unittest.TestCase):
 
     def test_existing_state_does_not_reuse_old_reaction(self):
         data = snapshot()
-        data["prReactions"] = [{
-            "id": 7, "content": "+1",
-            "user": {"login": "chatgpt-codex-connector[bot]"},
-        }]
+        data["prReactions"] = [
+            {
+                "id": 7,
+                "content": "+1",
+                "user": {"login": "chatgpt-codex-connector[bot]"},
+            }
+        ]
         legacy = {"snapshot": copy.deepcopy(data)}
         state = check.update(legacy, data)
         self.assertEqual(1, state["recommendedIntervalMinutes"])
@@ -191,7 +253,9 @@ class MonitorTests(unittest.TestCase):
         )
         self.assertFalse(check.eyes(data))
         for content, count, blocked in [
-            ("EYES", 1, True), ("EYES", 0, False), ("THUMBS_UP", 1, False)
+            ("EYES", 1, True),
+            ("EYES", 0, False),
+            ("THUMBS_UP", 1, False),
         ]:
             with self.subTest(content=content, count=count):
                 data["reactions"] = [
@@ -311,6 +375,8 @@ class MonitorTests(unittest.TestCase):
             self.assertEqual(initial["pending"], after["pending"])
             self.assertEqual(initial["lastSuccessAt"], after["lastSuccessAt"])
             self.assertEqual("API down", after["lastError"])
+            self.assertIsNone(after["idleSince"])
+            self.assertFalse(after["stopRequested"])
 
     def test_cli_status_for_pending_events_and_lifecycle(self):
         cases = [
@@ -318,7 +384,11 @@ class MonitorTests(unittest.TestCase):
             ("comment", {"comments": [thread()["comments"][0]]}),
             (
                 "review",
-                {"reviews": [{"id": "r1", "state": "CHANGES_REQUESTED", "body": "fix it"}]},
+                {
+                    "reviews": [
+                        {"id": "r1", "state": "CHANGES_REQUESTED", "body": "fix it"}
+                    ]
+                },
             ),
             ("thread", {"reviewThreads": [thread()]}),
         ]
@@ -344,9 +414,11 @@ class MonitorTests(unittest.TestCase):
                     str(fixture),
                 ]
 
-                def run():
+                def run(fixture=fixture, data=data, base=base):
                     fixture.write_text(json.dumps(data))
-                    result = subprocess.run(base, capture_output=True, text=True)
+                    result = subprocess.run(
+                        base, capture_output=True, text=True, check=False
+                    )
                     self.assertEqual(0, result.returncode, result.stderr)
                     return json.loads(result.stdout)
 
@@ -399,17 +471,31 @@ class MonitorTests(unittest.TestCase):
 
             def run():
                 fixture.write_text(json.dumps(data))
-                return json.loads(subprocess.check_output([
-                    sys.executable, str(Path(check.__file__)), "check",
-                    "--repo", "o/r", "--pr", "1", "--state-dir", directory,
-                    "--fixture", str(fixture),
-                ], text=True))
+                return json.loads(
+                    subprocess.check_output(
+                        [
+                            sys.executable,
+                            str(Path(check.__file__)),
+                            "check",
+                            "--repo",
+                            "o/r",
+                            "--pr",
+                            "1",
+                            "--state-dir",
+                            directory,
+                            "--fixture",
+                            str(fixture),
+                        ],
+                        text=True,
+                    )
+                )
 
             first = run()
             self.assertEqual(1, first["recommendedIntervalMinutes"])
             self.assertFalse(first["codexReactionPresent"])
             reaction = {
-                "id": 1, "content": "+1",
+                "id": 1,
+                "content": "+1",
                 "user": {"login": "chatgpt-codex-connector[bot]"},
             }
             data["prReactions"] = [reaction]
