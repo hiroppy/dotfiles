@@ -14,7 +14,7 @@
 | --- | --- |
 | set_interval | automation_updateで返されたrruleを適用。他の設定は保持 |
 | pause_monitor | automation_updateでPAUSEDにする |
-| set_title | set_thread_titleで返されたtitleを適用 |
+| set_title | titleがあればset_thread_titleで適用。titlePrefixだけなら現在のチャットタイトルを取得し、先頭の重複した👍を除いてtitlePrefixを付けて適用。既に同じなら完了として記録 |
 | notify | messageを通知。eventIdがあれば通知成功後にack |
 | handle_event | eventIdのイベントをresponse.mdで処理 |
 | cleanup_worktree | 以下の安全確認とworktree・ブランチcleanup |
