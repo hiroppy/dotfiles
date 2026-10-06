@@ -238,9 +238,21 @@ def events(snapshot, passed_for_head=False):
 
 
 def eyes(snapshot):
+    items = [
+        snapshot["pr"],
+        *snapshot.get("comments", []),
+        *snapshot.get("reviews", []),
+    ]
+    for thread in snapshot.get("reviewThreads", []):
+        items.extend(thread["comments"])
+    groups = list(snapshot.get("reactions", []))
+    for item in items:
+        groups.extend(item.get("reactionGroups", []))
     return any(
+        "👀" in item.get(field, "") for item in items for field in ("body", "title")
+    ) or any(
         group["content"] == "EYES" and group["users"]["totalCount"] > 0
-        for group in snapshot.get("reactions", [])
+        for group in groups
     )
 
 
@@ -285,6 +297,11 @@ def update(state, snapshot, now=None, interval_minutes=None):
         event = dict(event, id=occurrence)
         if occurrence not in acknowledged:
             pending[occurrence] = event
+    completed = state.get("completedActions", {})
+    if old_snapshot and (
+        old_head != head or old_snapshot["pr"]["state"] != snapshot["pr"]["state"]
+    ):
+        completed = {}
     checked_at = now.isoformat()
     fingerprint = digest(snapshot)
     idle_since = state.get("idleSince") or checked_at
@@ -308,6 +325,7 @@ def update(state, snapshot, now=None, interval_minutes=None):
         **state,
         "version": 1,
         "snapshot": snapshot,
+        "completedActions": completed,
         "snapshotFingerprint": fingerprint,
         "idleSince": idle_since,
         "stopRequested": stop_requested,
@@ -338,8 +356,16 @@ def plan_actions(state, title=None, current_interval=None, monitor_status="ACTIV
         if desired_title != title:
             actions.append({"type": "set_title", "title": desired_title})
     if pr["state"] != "OPEN":
-        actions.append({"type": "finish_monitor", "merged": pr["state"] == "MERGED"})
-        return actions
+        if pr["state"] == "MERGED":
+            actions.append({"type": "cleanup_worktree"})
+        actions.extend(
+            [
+                {"type": "notify", "message": f"{pr['url']}: {pr['state']}"},
+                {"type": "delete_monitor"},
+                {"type": "cleanup_state"},
+            ]
+        )
+        return action_receipts(state, actions)
     if monitor_status == "ACTIVE":
         if state["stopRequested"]:
             actions.extend(
@@ -360,6 +386,10 @@ def plan_actions(state, title=None, current_interval=None, monitor_status="ACTIV
                     "rrule": f"FREQ=MINUTELY;INTERVAL={interval}",
                 }
             )
+    if monitor_status == "PAUSED" and state["stopRequested"]:
+        actions.append(
+            {"type": "notify", "message": f"{pr['url']}: 20分間変化なしで監視停止"}
+        )
     for event in state["pending"].values():
         if event["kind"] == "codex_passed":
             actions.append(
@@ -370,8 +400,39 @@ def plan_actions(state, title=None, current_interval=None, monitor_status="ACTIV
                 }
             )
         else:
-            actions.append({"type": "handle_event", "eventId": event["id"]})
-    return actions
+            action = {"type": "handle_event", "eventId": event["id"]}
+            if event["kind"] == "ci":
+                url = (
+                    event["check"].get("detailsUrl")
+                    or event["check"].get("targetUrl")
+                    or ""
+                )
+                match = re.search(r"/actions/runs/(\d+)", url)
+                if match:
+                    action["runId"] = int(match[1])
+                    action["logArgs"] = ["gh", "run", "view", match[1], "--log-failed"]
+            actions.append(action)
+    return action_receipts(state, actions)
+
+
+def action_receipts(state, actions):
+    completed = state.get("completedActions", {})
+    context = [
+        state["snapshot"]["pr"]["headRefOid"],
+        state["idleSince"],
+        state["snapshot"]["pr"]["state"],
+    ]
+    result = []
+    for action in actions:
+        action = dict(action, id=digest([context, action]))
+        if (
+            action["type"]
+            not in {"set_title", "set_interval", "pause_monitor", "handle_event"}
+            and action["id"] in completed
+        ):
+            continue
+        result.append(action)
+    return result
 
 
 def save(path, state):
@@ -389,7 +450,19 @@ def save(path, state):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("command", choices=["check", "ack", "status", "cleanup"])
+    parser.add_argument(
+        "command",
+        choices=[
+            "check",
+            "ack",
+            "status",
+            "cleanup",
+            "complete",
+            "attempt",
+            "reply",
+            "resolve",
+        ],
+    )
     parser.add_argument("--repo", required=True, help="owner/repo")
     parser.add_argument("--pr", type=int, required=True)
     parser.add_argument(
@@ -418,6 +491,10 @@ def main():
     parser.add_argument(
         "--apply", action="store_true", help="Delete eligible state with cleanup"
     )
+    parser.add_argument("--action", help="Action ID returned by check")
+    parser.add_argument("--problem", help="Stable problem ID across retries")
+    parser.add_argument("--outcome", choices=["failed", "succeeded", "reset"])
+    parser.add_argument("--body-file", type=Path, help="Review reply text")
     args = parser.parse_args()
     if args.interval_minutes is not None and args.interval_minutes < 1:
         parser.error("Interval must be positive")
@@ -434,6 +511,59 @@ def main():
             print(json.dumps({"status": "busy"}))
             return 0
         state = json.loads(path.read_text()) if path.exists() else {}
+        if args.command == "complete":
+            action = state.get("plannedActions", {}).get(args.action)
+            if not action or not args.reason:
+                parser.error("complete requires a planned --action and --reason")
+            state.setdefault("completedActions", {})[args.action] = args.reason
+            event_id = action.get("eventId")
+            if event_id and action["type"] == "notify":
+                state.setdefault("acknowledged", {})[event_id] = args.reason
+                state.get("pending", {}).pop(event_id, None)
+            save(path, state)
+            print(json.dumps({"status": "completed"}))
+            return 0
+        if args.command == "attempt":
+            if not args.problem or not args.outcome or not args.reason:
+                parser.error("attempt requires --problem, --outcome and --reason")
+            attempts = state.setdefault("attempts", {})
+            count = attempts.get(args.problem, {}).get("failures", 0)
+            count = count + 1 if args.outcome == "failed" else 0
+            attempts[args.problem] = {"failures": count, "reason": args.reason}
+            save(path, state)
+            print(
+                json.dumps(
+                    {"status": "hold" if count >= 3 else "continue", "failures": count}
+                )
+            )
+            return 0
+        if args.command in {"reply", "resolve"}:
+            event = (
+                state.get("pending", {}).get(args.event[0])
+                if len(args.event) == 1
+                else None
+            )
+            if not event or event["kind"] != "thread":
+                parser.error("reply/resolve requires one pending thread --event")
+            thread_id = event["thread"]["id"]
+            if args.command == "reply":
+                if not args.body_file:
+                    parser.error("reply requires --body-file")
+                body = args.body_file.read_text()
+                result = graphql(
+                    "mutation($id:ID!,$body:String!) { addPullRequestReviewThreadReply(input:{pullRequestReviewThreadId:$id,body:$body}) { comment { id url } } }",
+                    id=thread_id,
+                    body=body,
+                )
+            else:
+                result = graphql(
+                    "mutation($id:ID!) { resolveReviewThread(input:{threadId:$id}) { thread { id isResolved } } }",
+                    id=thread_id,
+                )
+                if not result["resolveReviewThread"]["thread"]["isResolved"]:
+                    raise RuntimeError("Thread resolution not confirmed")
+            print(json.dumps(result))
+            return 0
         if args.command == "cleanup":
             if not path.exists():
                 print(json.dumps({"status": "absent", "stateFile": str(path)}))
@@ -530,6 +660,10 @@ def main():
                 )
             )
             return 1
+        actions = plan_actions(
+            state, args.title, args.current_interval, args.monitor_status
+        )
+        state["plannedActions"] = {action["id"]: action for action in actions}
         save(path, state)
         pr = snapshot["pr"]
         if pr["state"] != "OPEN":
@@ -544,9 +678,7 @@ def main():
             json.dumps(
                 {
                     "status": status,
-                    "actions": plan_actions(
-                        state, args.title, args.current_interval, args.monitor_status
-                    ),
+                    "actions": actions,
                     "stopRequested": state["stopRequested"],
                     "head": pr["headRefOid"],
                     "headChanged": bool(old_head and old_head != pr["headRefOid"]),

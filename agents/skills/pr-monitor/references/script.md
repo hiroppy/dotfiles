@@ -5,6 +5,9 @@ Python 3標準ライブラリと認証済みgh CLIを使う（macOS/Linux）。G
 | コマンド/設定 | 契約 |
 | --- | --- |
 | check | 全ページ取得後にsnapshot/pendingを保存し、状態と未対応eventsをJSON出力 |
+| complete | 成功したaction IDとreasonを保存。通知eventをack |
+| attempt | 問題IDごとの連続失敗数を保存。3回でhold、成功/resetで0 |
+| reply / resolve | pending threadへの返信投稿・解決と結果確認 |
 | ack | reason必須。編集・追加発言は別ID、thread再openは別occurrence |
 | cleanup | GitHubでmerged/closedを再確認し削除候補を返す。`--apply`で対象JSONを削除。未対応事項・取得失敗・openは保持 |
 | status | GitHub取得なしで最終成功時刻・エラー・未対応件数を確認 |
@@ -24,14 +27,8 @@ Python 3標準ライブラリと認証済みgh CLIを使う（macOS/Linux）。G
 
 ## 検証
 
-機能適合性・信頼性・セキュリティを対象に、判断表・状態遷移・エラー推測で以下を確認する。
-
-- CI・コメント・レビュー・threadの検出、未対応の再取得、ack、追加発言、再open。
-- terminal/draft優先、pagination、API失敗時の状態保持。
-- 無変化停止の20分境界、状態変更、未対応、取得失敗、監視間隔、再開。
-- Codex +1の作者判定、遅延到着、ack前の再取得、削除再追加、新HEAD、サマリーコメントへの非依存。
-
-実PRへの書き込み・cleanup・通知配信基盤は対象外。
+- 機能適合性・信頼性・セキュリティを対象に、境界値・判断表・状態遷移・エラー推測で判定と状態保持を検証する。
+- GitHub書き込みとアプリ操作はモックで確認。実サービスとの結合検証は対象外。
 
 ```bash
 python3 -m unittest discover -s <skill-dir>/scripts -p 'test_*.py'

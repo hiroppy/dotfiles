@@ -15,16 +15,8 @@ PR未指定なら `gh pr view --json number,url` と `gh repo view --json nameWi
 python3 <skill-dir>/scripts/check.py check --repo OWNER/REPO --pr NUMBER
 ```
 
-| 結果 | 動作 |
-| --- | --- |
-| ok | 通知すべき変化がなければ静かに終了 |
-| action_required | [response.md](references/response.md) で対応 |
-| draft / busy | 次回確認 |
-| error | 取得失敗として扱う |
-| terminal | [lifecycle.md](references/lifecycle.md) で終了処理 |
-
 - checkの`actions`を[lifecycle.md](references/lifecycle.md)に従って順番に実行する。
-- 終了コード0は取得成功。
+- errorは取得失敗、busyは次回確認。
 - 未対応イベントは前回と同じでも処理する。進められなければ理由と必要な判断を通知する。
 - 追加取得は必要なファイル・ログだけにする。
 

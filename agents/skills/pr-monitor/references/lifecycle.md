@@ -17,9 +17,13 @@
 | set_title | set_thread_titleで返されたtitleを適用 |
 | notify | messageを通知。eventIdがあれば通知成功後にack |
 | handle_event | eventIdのイベントをresponse.mdで処理 |
-| finish_monitor | mergedに従い以下のcleanup・報告後、automationを削除 |
+| cleanup_worktree | 以下の安全確認とworktree・ブランチcleanup |
+| delete_monitor | 対象automationを削除 |
+| cleanup_state | `check.py cleanup --repo OWNER/REPO --pr NUMBER --apply` |
 
-- 実行失敗は未完了として報告し、成功前にackしない。
+- 各操作の成功後に`check.py complete --repo OWNER/REPO --pr NUMBER --action ID --reason 結果`で記録する。notifyのeventも同時にackされる。
+- handle_eventは対応後にeventをackする。cleanup_stateはJSONを削除するためcomplete不要。
+- 順番に実行し、失敗したら後続を止めて報告する。
 - actionsが空なら静かに終了する。PAUSEDの監視を自動再開しない。
 
 ## 終了・cleanup

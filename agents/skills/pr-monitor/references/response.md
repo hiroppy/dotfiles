@@ -6,7 +6,7 @@
 
 ## CI・競合
 
-- CIはeventのcheckからrunを特定し、`gh run view --log-failed`等で失敗箇所を読む。同じ原因で3回失敗したら保留する。
+- CIはeventのcheckからrunを特定し、返された`logArgs`（runIdが取れない場合はcheckのURL）で失敗箇所を読む。各試行後に`check.py attempt --repo OWNER/REPO --pr NUMBER --problem 問題ID --outcome failed|succeeded --reason 結果`を実行し、holdなら保留する。同じ原因には同じ問題IDを使う。
 
 - 競合は最新baseをfetchし、PRのheadへ通常mergeする。両側の意図を保ち、未解消ファイル・競合マーカーを確認して検証・pushする。安全に解消できなければabortして判断材料を報告する。
 
@@ -17,6 +17,8 @@
 - 正当で方針が明確: 修正・検証・push後、commitと検証結果を返信する。修正済みthreadだけresolveし、反映を確認する。issue commentは返信のみ。
 - 重要な不確実性あり: 調査・実装案・可能な検証を進めて判断を求め、保留理由を記録する。未修正threadはresolveしない。
 - 不正確: コード/仕様を根拠に返信する。反論だけでresolveしない。2往復以上平行線ならユーザー判断にする。
+
+- thread返信は`check.py reply --repo OWNER/REPO --pr NUMBER --event ID --body-file FILE`、修正済みthreadの解決は同じ引数の`resolve`で実行する。issue commentはghを使う。
 
 - 返信権限とリポジトリの制約に従い、範囲外の変更は行わない。
 

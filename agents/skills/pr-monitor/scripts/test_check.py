@@ -50,6 +50,131 @@ def thread():
 
 
 class MonitorTests(unittest.TestCase):
+    def test_action_receipts_and_attempt_cli(self):
+        data = snapshot()
+        data["pr"]["state"] = "MERGED"
+        state = check.update({}, data)
+        actions = check.plan_actions(state)
+        state["completedActions"] = {actions[0]["id"]: "done"}
+        self.assertEqual(
+            ["notify", "delete_monitor", "cleanup_state"],
+            [a["type"] for a in check.plan_actions(state)],
+        )
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "o--r-1.json"
+            state["plannedActions"] = {a["id"]: a for a in actions}
+            check.save(path, state)
+            base = ["check.py", "--repo", "o/r", "--pr", "1", "--state-dir", directory]
+            with (
+                patch.object(
+                    sys,
+                    "argv",
+                    base
+                    + [
+                        "complete",
+                        "--action",
+                        actions[1]["id"],
+                        "--reason",
+                        "notified",
+                    ],
+                ),
+                patch("builtins.print"),
+            ):
+                self.assertEqual(0, check.main())
+            self.assertEqual(
+                ["delete_monitor", "cleanup_state"],
+                [a["type"] for a in check.plan_actions(json.loads(path.read_text()))],
+            )
+            for count in range(1, 4):
+                with (
+                    patch.object(
+                        sys,
+                        "argv",
+                        base
+                        + [
+                            "attempt",
+                            "--problem",
+                            "ci:test",
+                            "--outcome",
+                            "failed",
+                            "--reason",
+                            "failure",
+                        ],
+                    ),
+                    patch("builtins.print") as output,
+                ):
+                    self.assertEqual(0, check.main())
+                    result = json.loads(output.call_args.args[0])
+                    self.assertEqual(count, result["failures"])
+                    self.assertEqual(
+                        "hold" if count == 3 else "continue", result["status"]
+                    )
+
+    def test_review_reply_and_resolve_cli(self):
+        with tempfile.TemporaryDirectory() as directory:
+            data = snapshot()
+            data["reviewThreads"] = [thread()]
+            state = check.update({}, data)
+            key = next(iter(state["pending"]))
+            path = Path(directory) / "o--r-1.json"
+            check.save(path, state)
+            body = Path(directory) / "reply.txt"
+            body.write_text("Fixed.\nTests passed.")
+            base = [
+                "check.py",
+                "--repo",
+                "o/r",
+                "--pr",
+                "1",
+                "--state-dir",
+                directory,
+                "--event",
+                key,
+            ]
+            with (
+                patch.object(sys, "argv", base + ["reply", "--body-file", str(body)]),
+                patch.object(
+                    check,
+                    "graphql",
+                    return_value={
+                        "addPullRequestReviewThreadReply": {
+                            "comment": {"id": "reply", "url": "url"}
+                        }
+                    },
+                ) as api,
+                patch("builtins.print"),
+            ):
+                self.assertEqual(0, check.main())
+                self.assertEqual("thread1", api.call_args.kwargs["id"])
+                self.assertEqual(body.read_text(), api.call_args.kwargs["body"])
+            with (
+                patch.object(sys, "argv", base + ["resolve"]),
+                patch.object(
+                    check,
+                    "graphql",
+                    return_value={
+                        "resolveReviewThread": {"thread": {"isResolved": True}}
+                    },
+                ),
+                patch("builtins.print"),
+            ):
+                self.assertEqual(0, check.main())
+            self.assertIn(key, json.loads(path.read_text())["pending"])
+
+    def test_ci_run_hint(self):
+        data = snapshot()
+        data["pr"]["statusCheckRollup"] = [
+            {
+                "conclusion": "FAILURE",
+                "detailsUrl": "https://github.com/o/r/actions/runs/123/job/456",
+            }
+        ]
+        action = check.plan_actions(check.update({}, data), current_interval=1)[0]
+        self.assertEqual(123, action["runId"])
+        self.assertEqual(
+            ["gh", "run", "view", "123", "--log-failed"], action["logArgs"]
+        )
+
     def test_cleanup_retention_preview_and_delete(self):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "o--r-1.json"
@@ -115,14 +240,22 @@ class MonitorTests(unittest.TestCase):
         state["stopRequested"] = True
         actions = check.plan_actions(state, current_interval=1)
         self.assertEqual(["pause_monitor", "notify"], [a["type"] for a in actions])
-        self.assertEqual([], check.plan_actions(state, monitor_status="PAUSED"))
+        self.assertEqual(
+            ["notify"],
+            [a["type"] for a in check.plan_actions(state, monitor_status="PAUSED")],
+        )
 
     def test_action_plan_title_notification_and_terminal(self):
         data = snapshot()
         state = check.update({}, data)
         self.assertEqual(
             [{"type": "set_title", "title": "Chat"}],
-            check.plan_actions(state, title="👍 👍 Chat", current_interval=1),
+            [
+                {k: v for k, v in a.items() if k != "id"}
+                for a in check.plan_actions(
+                    state, title="👍 👍 Chat", current_interval=1
+                )
+            ],
         )
         data["prReactions"] = [
             {"id": 1, "content": "+1", "user": {"login": "chatgpt-codex-connector"}}
@@ -140,10 +273,12 @@ class MonitorTests(unittest.TestCase):
         for status, merged in [("MERGED", True), ("CLOSED", False)]:
             data["pr"]["state"] = status
             state = check.update(state, data)
-            self.assertEqual(
-                [{"type": "finish_monitor", "merged": merged}],
-                check.plan_actions(state),
-            )
+            expected = (["cleanup_worktree"] if merged else []) + [
+                "notify",
+                "delete_monitor",
+                "cleanup_state",
+            ]
+            self.assertEqual(expected, [a["type"] for a in check.plan_actions(state)])
 
     def test_idle_stop_boundary_and_changes(self):
         data = snapshot()
@@ -327,7 +462,7 @@ class MonitorTests(unittest.TestCase):
             {"content": "EYES", "users": {"totalCount": 1}}
         ]
         self.assertFalse(check.update(state, data)["pending"])
-        self.assertFalse(check.eyes(data))
+        self.assertTrue(check.eyes(data))
         data["reviewThreads"][0]["comments"][0]["body"] = "follow up"
         self.assertTrue(check.update(state, data)["pending"])
         data["reviewThreads"][0]["isResolved"] = True
@@ -336,7 +471,7 @@ class MonitorTests(unittest.TestCase):
         data["reviewThreads"][0]["isResolved"] = False
         self.assertTrue(check.update(state, data)["pending"])
 
-    def test_eyes_only_checks_pr_reactions(self):
+    def test_eyes_checks_text_and_all_reactions(self):
         data = snapshot()
         reaction = {"content": "EYES", "users": {"totalCount": 1}}
         data["pr"].update(title="👀", body="👀")
@@ -346,7 +481,8 @@ class MonitorTests(unittest.TestCase):
         data["reviewThreads"][0]["comments"][0].update(
             body="👀", reactionGroups=[reaction]
         )
-        self.assertFalse(check.eyes(data))
+        self.assertTrue(check.eyes(data))
+        data = snapshot()
         for content, count, blocked in [
             ("EYES", 1, True),
             ("EYES", 0, False),
