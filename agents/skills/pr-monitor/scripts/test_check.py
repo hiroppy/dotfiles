@@ -428,6 +428,35 @@ class MonitorTests(unittest.TestCase):
         state = check.update(state, data, now=approved_at + timedelta(minutes=11))
         self.assertEqual(20, state["recommendedIntervalMinutes"])
 
+    def test_title_prefix_removed_when_reaction_changes_to_eyes(self):
+        data = snapshot()
+        state = check.update({}, data)
+        data["prReactions"] = [
+            {
+                "id": 1,
+                "content": "+1",
+                "user": {"login": "chatgpt-codex-connector[bot]"},
+            }
+        ]
+        state = check.update(state, data)
+        self.assertEqual("👍 ", check.plan_actions(state)[0]["titlePrefix"])
+        data = copy.deepcopy(data)
+        data["pr"]["headRefOid"] = "new-head"
+        data["prReactions"] = []
+        data["reactions"] = [{"content": "EYES", "users": {"totalCount": 1}}]
+        state = check.update(state, data)
+        self.assertTrue(check.eyes(data))
+        self.assertEqual("", check.plan_actions(state)[0]["titlePrefix"])
+        self.assertEqual(
+            "Chat", check.plan_actions(state, title="👍 Chat")[0]["title"]
+        )
+        # Keep requesting removal if the caller failed to apply it on the first poll.
+        state = check.update(state, data)
+        self.assertEqual("", check.plan_actions(state)[0]["titlePrefix"])
+        self.assertFalse(
+            any(e["kind"] == "codex_passed" for e in state["pending"].values())
+        )
+
     def test_existing_state_does_not_reuse_old_reaction(self):
         data = snapshot()
         data["prReactions"] = [
