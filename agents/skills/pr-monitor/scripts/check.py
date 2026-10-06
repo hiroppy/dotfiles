@@ -262,7 +262,7 @@ def update(state, snapshot, now=None, interval_minutes=None):
     old_snapshot = state.get("snapshot")
     old_head = old_snapshot["pr"]["headRefOid"] if old_snapshot else None
     if old_head != head or "codexReactionBaseline" not in state:
-        baseline = codex_reaction_ids(snapshot)
+        baseline = codex_reaction_ids(old_snapshot or snapshot)
     else:
         baseline = set(state.get("codexReactionBaseline", []))
     passed_for_head = state.get("codexPassedHead") == head or bool(
@@ -355,6 +355,8 @@ def plan_actions(state, title=None, current_interval=None, monitor_status="ACTIV
         desired_title = ("👍 " if codex_reaction_ids(snapshot) else "") + plain_title
         if desired_title != title:
             actions.append({"type": "set_title", "title": desired_title})
+    elif pr["state"] == "OPEN" and codex_reaction_ids(snapshot):
+        actions.append({"type": "set_title", "titlePrefix": "👍 "})
     if pr["state"] != "OPEN":
         if pr["state"] == "MERGED":
             actions.append({"type": "cleanup_worktree"})

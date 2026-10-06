@@ -406,9 +406,16 @@ class MonitorTests(unittest.TestCase):
         ]
         state = check.update(state, data, now=started)
         self.assertEqual(1, state["recommendedIntervalMinutes"])
-        self.assertIsNone(state["codexPassedHead"])
+        self.assertEqual("def", state["codexPassedHead"])
+        actions = check.plan_actions(state, title="Chat", current_interval=1)
+        self.assertEqual("👍 Chat", actions[0]["title"])
+        self.assertTrue(any(a["type"] == "notify" for a in actions))
+        self.assertEqual(
+            {"type": "set_title", "titlePrefix": "👍 "},
+            {k: v for k, v in check.plan_actions(state)[0].items() if k != "id"},
+        )
         data["prReactions"] = [dict(data["prReactions"][0], id=4)]
-        approved_at = started + timedelta(seconds=30)
+        approved_at = started
         state = check.update(state, data, now=approved_at)
         self.assertEqual("def", state["codexPassedHead"])
         state = check.update(
