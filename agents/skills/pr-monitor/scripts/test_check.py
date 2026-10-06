@@ -50,11 +50,292 @@ def thread():
 
 
 class MonitorTests(unittest.TestCase):
+    def test_action_receipts_and_attempt_cli(self):
+        data = snapshot()
+        data["pr"]["state"] = "MERGED"
+        state = check.update({}, data)
+        actions = check.plan_actions(state)
+        state["completedActions"] = {actions[0]["id"]: "done"}
+        self.assertEqual(
+            ["notify", "delete_monitor", "cleanup_state"],
+            [a["type"] for a in check.plan_actions(state)],
+        )
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "o--r-1.json"
+            state["plannedActions"] = {a["id"]: a for a in actions}
+            check.save(path, state)
+            base = ["check.py", "--repo", "o/r", "--pr", "1", "--state-dir", directory]
+            with (
+                patch.object(
+                    sys,
+                    "argv",
+                    base
+                    + [
+                        "complete",
+                        "--action",
+                        actions[1]["id"],
+                        "--reason",
+                        "notified",
+                    ],
+                ),
+                patch("builtins.print"),
+            ):
+                self.assertEqual(0, check.main())
+            self.assertEqual(
+                ["delete_monitor", "cleanup_state"],
+                [a["type"] for a in check.plan_actions(json.loads(path.read_text()))],
+            )
+            for count in range(1, 4):
+                with (
+                    patch.object(
+                        sys,
+                        "argv",
+                        base
+                        + [
+                            "attempt",
+                            "--problem",
+                            "ci:test",
+                            "--outcome",
+                            "failed",
+                            "--reason",
+                            "failure",
+                        ],
+                    ),
+                    patch("builtins.print") as output,
+                ):
+                    self.assertEqual(0, check.main())
+                    result = json.loads(output.call_args.args[0])
+                    self.assertEqual(count, result["failures"])
+                    self.assertEqual(
+                        "hold" if count == 3 else "continue", result["status"]
+                    )
+
+    def test_review_reply_and_resolve_cli(self):
+        with tempfile.TemporaryDirectory() as directory:
+            data = snapshot()
+            data["reviewThreads"] = [thread()]
+            state = check.update({}, data)
+            key = next(iter(state["pending"]))
+            path = Path(directory) / "o--r-1.json"
+            check.save(path, state)
+            body = Path(directory) / "reply.txt"
+            body.write_text("Fixed.\nTests passed.")
+            base = [
+                "check.py",
+                "--repo",
+                "o/r",
+                "--pr",
+                "1",
+                "--state-dir",
+                directory,
+                "--event",
+                key,
+            ]
+            with (
+                patch.object(sys, "argv", base + ["reply", "--body-file", str(body)]),
+                patch.object(
+                    check,
+                    "graphql",
+                    return_value={
+                        "addPullRequestReviewThreadReply": {
+                            "comment": {"id": "reply", "url": "url"}
+                        }
+                    },
+                ) as api,
+                patch("builtins.print"),
+            ):
+                self.assertEqual(0, check.main())
+                self.assertEqual("thread1", api.call_args.kwargs["id"])
+                self.assertEqual(body.read_text(), api.call_args.kwargs["body"])
+            with (
+                patch.object(sys, "argv", base + ["resolve"]),
+                patch.object(
+                    check,
+                    "graphql",
+                    return_value={
+                        "resolveReviewThread": {"thread": {"isResolved": True}}
+                    },
+                ),
+                patch("builtins.print"),
+            ):
+                self.assertEqual(0, check.main())
+            self.assertIn(key, json.loads(path.read_text())["pending"])
+
+    def test_ci_run_hint(self):
+        data = snapshot()
+        data["pr"]["statusCheckRollup"] = [
+            {
+                "conclusion": "FAILURE",
+                "detailsUrl": "https://github.com/o/r/actions/runs/123/job/456",
+            }
+        ]
+        action = check.plan_actions(check.update({}, data), current_interval=1)[0]
+        self.assertEqual(123, action["runId"])
+        self.assertEqual(
+            ["gh", "run", "view", "123", "--log-failed"], action["logArgs"]
+        )
+
+    def test_cleanup_retention_preview_and_delete(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "o--r-1.json"
+            args = [
+                "check.py",
+                "cleanup",
+                "--repo",
+                "o/r",
+                "--pr",
+                "1",
+                "--state-dir",
+                directory,
+            ]
+            for pr_state in ("OPEN", "UNKNOWN", "CLOSED", "MERGED"):
+                check.save(path, check.update({}, snapshot()))
+                with (
+                    patch.object(sys, "argv", args),
+                    patch.object(check, "gh", return_value={"state": pr_state}),
+                    patch("builtins.print"),
+                ):
+                    self.assertEqual(0, check.main())
+                    self.assertTrue(path.exists())
+                with (
+                    patch.object(sys, "argv", args + ["--apply"]),
+                    patch.object(check, "gh", return_value={"state": pr_state}),
+                    patch("builtins.print"),
+                ):
+                    self.assertEqual(0, check.main())
+                    self.assertEqual(pr_state in {"OPEN", "UNKNOWN"}, path.exists())
+            data = snapshot()
+            data["reviewThreads"] = [thread()]
+            check.save(path, check.update({}, data))
+            with (
+                patch.object(sys, "argv", args + ["--apply"]),
+                patch.object(check, "gh") as api,
+                patch("builtins.print"),
+            ):
+                self.assertEqual(0, check.main())
+                api.assert_not_called()
+                self.assertTrue(path.exists())
+            check.save(path, check.update({}, snapshot()))
+            with (
+                patch.object(sys, "argv", args + ["--apply"]),
+                patch.object(check, "gh", side_effect=RuntimeError("API down")),
+                patch("builtins.print"),
+            ):
+                self.assertEqual(1, check.main())
+                self.assertTrue(path.exists())
+            path.unlink()
+            with (
+                patch.object(sys, "argv", args + ["--apply"]),
+                patch.object(check, "gh") as api,
+                patch("builtins.print"),
+            ):
+                self.assertEqual(0, check.main())
+                api.assert_not_called()
+
+    def test_action_plan_interval_stop_and_paused(self):
+        state = check.update({}, snapshot())
+        self.assertEqual([], check.plan_actions(state, current_interval=1))
+        action = check.plan_actions(state, current_interval=20)[0]
+        self.assertEqual("FREQ=MINUTELY;INTERVAL=1", action["rrule"])
+        state["stopRequested"] = True
+        actions = check.plan_actions(state, current_interval=1)
+        self.assertEqual(["pause_monitor", "notify"], [a["type"] for a in actions])
+        self.assertEqual(
+            ["notify"],
+            [a["type"] for a in check.plan_actions(state, monitor_status="PAUSED")],
+        )
+
+    def test_action_plan_title_notification_and_terminal(self):
+        data = snapshot()
+        state = check.update({}, data)
+        self.assertEqual(
+            [{"type": "set_title", "title": "Chat"}],
+            [
+                {k: v for k, v in a.items() if k != "id"}
+                for a in check.plan_actions(
+                    state, title="👍 👍 Chat", current_interval=1
+                )
+            ],
+        )
+        data["prReactions"] = [
+            {"id": 1, "content": "+1", "user": {"login": "chatgpt-codex-connector"}}
+        ]
+        state = check.update(state, data)
+        actions = check.plan_actions(state, title="Chat", current_interval=1)
+        self.assertEqual("👍 Chat", actions[0]["title"])
+        self.assertEqual("notify", actions[1]["type"])
+        key = actions[1]["eventId"]
+        state["acknowledged"][key] = "notified"
+        state = check.update(state, data)
+        self.assertEqual(
+            [], check.plan_actions(state, title="👍 Chat", current_interval=1)
+        )
+        for status, merged in [("MERGED", True), ("CLOSED", False)]:
+            data["pr"]["state"] = status
+            state = check.update(state, data)
+            expected = (["cleanup_worktree"] if merged else []) + [
+                "notify",
+                "delete_monitor",
+                "cleanup_state",
+            ]
+            self.assertEqual(expected, [a["type"] for a in check.plan_actions(state)])
+
+    def test_idle_stop_boundary_and_changes(self):
+        data = snapshot()
+        start = datetime(2026, 10, 6, tzinfo=timezone.utc)
+        state = check.update({}, data, now=start)
+        self.assertFalse(state["stopRequested"])
+        state = check.update(state, data, now=start + timedelta(minutes=19, seconds=59))
+        self.assertFalse(state["stopRequested"])
+        state = check.update(state, data, now=start + timedelta(minutes=20))
+        self.assertTrue(state["stopRequested"])
+        for field, value in [("headRefOid", "new"), ("mergeStateStatus", "BLOCKED")]:
+            changed = copy.deepcopy(data)
+            changed["pr"][field] = value
+            self.assertFalse(
+                check.update(state, changed, now=start + timedelta(minutes=21))[
+                    "stopRequested"
+                ]
+            )
+
+    def test_idle_stop_exclusions_and_reset(self):
+        start = datetime(2026, 10, 6, tzinfo=timezone.utc)
+        later = start + timedelta(minutes=30)
+        data = snapshot()
+        state = check.update({}, data, now=start)
+        for interval in (5, 20):
+            self.assertFalse(
+                check.update(state, data, now=later, interval_minutes=interval)[
+                    "stopRequested"
+                ]
+            )
+        for changes in ({"isDraft": True}, {"state": "CLOSED"}):
+            changed = copy.deepcopy(data)
+            changed["pr"].update(changes)
+            self.assertFalse(check.update(state, changed, now=later)["stopRequested"])
+        for changes in (
+            {"lastError": "API down"},
+            {"pending": {"event": {}}},
+            {"snapshotFingerprint": None},
+        ):
+            self.assertFalse(
+                check.update({**state, **changes}, data, now=later)["stopRequested"]
+            )
+        data["comments"] = [thread()["comments"][0]]
+        pending = check.update(state, data, now=later)
+        self.assertIsNone(pending["idleSince"])
+        self.assertFalse(
+            check.update(pending, data, now=later + timedelta(minutes=30))[
+                "stopRequested"
+            ]
+        )
+
     def test_codex_pass_decision_table_and_once_per_head(self):
         data = snapshot()
         data["pr"]["headRefOid"] = "abcdef0123456789"
         reaction = {
-            "id": 1, "content": "+1",
+            "id": 1,
+            "content": "+1",
             "user": {"login": "chatgpt-codex-connector[bot]"},
         }
         self.assertFalse(check.codex_reaction_ids(data))
@@ -66,17 +347,20 @@ class MonitorTests(unittest.TestCase):
                 self.assertFalse(check.codex_reaction_ids(data))
         reaction["user"]["login"] = "chatgpt-codex-connector"
         self.assertTrue(check.codex_reaction_ids(data))
-        data["comments"] = [{
-            "id": "summary", "updatedAt": "now",
-            "author": {"login": "chatgpt-codex-connector[bot]"},
-            "body": "Review in progress for an old commit",
-        }]
+        data["comments"] = [
+            {
+                "id": "summary",
+                "updatedAt": "now",
+                "author": {"login": "chatgpt-codex-connector[bot]"},
+                "body": "Review in progress for an old commit",
+            }
+        ]
         self.assertTrue(check.codex_reaction_ids(data))
         state = check.update({}, data)
         self.assertEqual(1, state["recommendedIntervalMinutes"])
-        self.assertFalse(any(
-            e["kind"] == "codex_passed" for e in state["pending"].values()
-        ))
+        self.assertFalse(
+            any(e["kind"] == "codex_passed" for e in state["pending"].values())
+        )
         data["prReactions"] = [dict(reaction, id=2)]
         state = check.update(state, data)
         key = next(
@@ -96,15 +380,15 @@ class MonitorTests(unittest.TestCase):
         self.assertTrue(check.codex_reaction_ids(data))
         state = check.update(state, data)
         self.assertEqual(1, state["recommendedIntervalMinutes"])
-        self.assertFalse(any(
-            e["kind"] == "codex_passed" for e in state["pending"].values()
-        ))
+        self.assertFalse(
+            any(e["kind"] == "codex_passed" for e in state["pending"].values())
+        )
         data["prReactions"] = [dict(reaction, id=3)]
         state = check.update(state, data)
         self.assertEqual(1, state["recommendedIntervalMinutes"])
-        self.assertTrue(any(
-            e["kind"] == "codex_passed" for e in state["pending"].values()
-        ))
+        self.assertTrue(
+            any(e["kind"] == "codex_passed" for e in state["pending"].values())
+        )
 
     def test_reaction_after_head_change_and_pass_persistence(self):
         data = snapshot()
@@ -113,10 +397,13 @@ class MonitorTests(unittest.TestCase):
         self.assertEqual(1, state["recommendedIntervalMinutes"])
         data = copy.deepcopy(data)
         data["pr"]["headRefOid"] = "def"
-        data["prReactions"] = [{
-            "id": 3, "content": "+1",
-            "user": {"login": "chatgpt-codex-connector[bot]"},
-        }]
+        data["prReactions"] = [
+            {
+                "id": 3,
+                "content": "+1",
+                "user": {"login": "chatgpt-codex-connector[bot]"},
+            }
+        ]
         state = check.update(state, data, now=started)
         self.assertEqual(1, state["recommendedIntervalMinutes"])
         self.assertIsNone(state["codexPassedHead"])
@@ -124,7 +411,9 @@ class MonitorTests(unittest.TestCase):
         approved_at = started + timedelta(seconds=30)
         state = check.update(state, data, now=approved_at)
         self.assertEqual("def", state["codexPassedHead"])
-        state = check.update(state, data, now=approved_at + timedelta(minutes=9, seconds=59))
+        state = check.update(
+            state, data, now=approved_at + timedelta(minutes=9, seconds=59)
+        )
         self.assertEqual(1, state["recommendedIntervalMinutes"])
         state = check.update(state, data, now=approved_at + timedelta(minutes=10))
         self.assertEqual(20, state["recommendedIntervalMinutes"])
@@ -134,10 +423,13 @@ class MonitorTests(unittest.TestCase):
 
     def test_existing_state_does_not_reuse_old_reaction(self):
         data = snapshot()
-        data["prReactions"] = [{
-            "id": 7, "content": "+1",
-            "user": {"login": "chatgpt-codex-connector[bot]"},
-        }]
+        data["prReactions"] = [
+            {
+                "id": 7,
+                "content": "+1",
+                "user": {"login": "chatgpt-codex-connector[bot]"},
+            }
+        ]
         legacy = {"snapshot": copy.deepcopy(data)}
         state = check.update(legacy, data)
         self.assertEqual(1, state["recommendedIntervalMinutes"])
@@ -170,7 +462,7 @@ class MonitorTests(unittest.TestCase):
             {"content": "EYES", "users": {"totalCount": 1}}
         ]
         self.assertFalse(check.update(state, data)["pending"])
-        self.assertFalse(check.eyes(data))
+        self.assertTrue(check.eyes(data))
         data["reviewThreads"][0]["comments"][0]["body"] = "follow up"
         self.assertTrue(check.update(state, data)["pending"])
         data["reviewThreads"][0]["isResolved"] = True
@@ -179,7 +471,7 @@ class MonitorTests(unittest.TestCase):
         data["reviewThreads"][0]["isResolved"] = False
         self.assertTrue(check.update(state, data)["pending"])
 
-    def test_eyes_only_checks_pr_reactions(self):
+    def test_eyes_checks_text_and_all_reactions(self):
         data = snapshot()
         reaction = {"content": "EYES", "users": {"totalCount": 1}}
         data["pr"].update(title="👀", body="👀")
@@ -189,9 +481,12 @@ class MonitorTests(unittest.TestCase):
         data["reviewThreads"][0]["comments"][0].update(
             body="👀", reactionGroups=[reaction]
         )
-        self.assertFalse(check.eyes(data))
+        self.assertTrue(check.eyes(data))
+        data = snapshot()
         for content, count, blocked in [
-            ("EYES", 1, True), ("EYES", 0, False), ("THUMBS_UP", 1, False)
+            ("EYES", 1, True),
+            ("EYES", 0, False),
+            ("THUMBS_UP", 1, False),
         ]:
             with self.subTest(content=content, count=count):
                 data["reactions"] = [
@@ -311,6 +606,8 @@ class MonitorTests(unittest.TestCase):
             self.assertEqual(initial["pending"], after["pending"])
             self.assertEqual(initial["lastSuccessAt"], after["lastSuccessAt"])
             self.assertEqual("API down", after["lastError"])
+            self.assertIsNone(after["idleSince"])
+            self.assertFalse(after["stopRequested"])
 
     def test_cli_status_for_pending_events_and_lifecycle(self):
         cases = [
@@ -318,7 +615,11 @@ class MonitorTests(unittest.TestCase):
             ("comment", {"comments": [thread()["comments"][0]]}),
             (
                 "review",
-                {"reviews": [{"id": "r1", "state": "CHANGES_REQUESTED", "body": "fix it"}]},
+                {
+                    "reviews": [
+                        {"id": "r1", "state": "CHANGES_REQUESTED", "body": "fix it"}
+                    ]
+                },
             ),
             ("thread", {"reviewThreads": [thread()]}),
         ]
@@ -344,9 +645,11 @@ class MonitorTests(unittest.TestCase):
                     str(fixture),
                 ]
 
-                def run():
+                def run(fixture=fixture, data=data, base=base):
                     fixture.write_text(json.dumps(data))
-                    result = subprocess.run(base, capture_output=True, text=True)
+                    result = subprocess.run(
+                        base, capture_output=True, text=True, check=False
+                    )
                     self.assertEqual(0, result.returncode, result.stderr)
                     return json.loads(result.stdout)
 
@@ -399,17 +702,31 @@ class MonitorTests(unittest.TestCase):
 
             def run():
                 fixture.write_text(json.dumps(data))
-                return json.loads(subprocess.check_output([
-                    sys.executable, str(Path(check.__file__)), "check",
-                    "--repo", "o/r", "--pr", "1", "--state-dir", directory,
-                    "--fixture", str(fixture),
-                ], text=True))
+                return json.loads(
+                    subprocess.check_output(
+                        [
+                            sys.executable,
+                            str(Path(check.__file__)),
+                            "check",
+                            "--repo",
+                            "o/r",
+                            "--pr",
+                            "1",
+                            "--state-dir",
+                            directory,
+                            "--fixture",
+                            str(fixture),
+                        ],
+                        text=True,
+                    )
+                )
 
             first = run()
             self.assertEqual(1, first["recommendedIntervalMinutes"])
             self.assertFalse(first["codexReactionPresent"])
             reaction = {
-                "id": 1, "content": "+1",
+                "id": 1,
+                "content": "+1",
                 "user": {"login": "chatgpt-codex-connector[bot]"},
             }
             data["prReactions"] = [reaction]

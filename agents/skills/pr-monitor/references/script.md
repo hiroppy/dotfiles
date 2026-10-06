@@ -1,19 +1,34 @@
 # スクリプトの契約と検証
 
-Python 3の標準ライブラリと認証済みgh CLIを使う。macOS/Linux対応。GitHubへの書き込み、モデル起動、定期登録、worktree削除は行わない。
+Python 3標準ライブラリと認証済みgh CLIを使う（macOS/Linux）。GitHub書き込み・モデル起動・監視登録・worktree削除はCodexが担当する。
 
-- check: 正常な全ページ取得後だけsnapshotとpendingを保存し、短い状態と未対応イベントをJSON出力する。
-- checkのstatus: 未対応eventsありはaction_required、なしはok。terminal/draftを優先し、ロック中はbusy、取得失敗はerror。終了コード0は取得成功であり対応不要ではない。
-- ack: 正確なイベントIDを対応済みにする。reason必須。編集・追加発言は別ID、resolved後の再openは別occurrenceになる。
-- status: 取得を行わず稼働確認用の状態を読む。
-- --state-dir: デフォルトは~/.codex/pr-monitor。worktree外に保存する。JSON内のsnapshotに詳細がある。
-- --fixture: 保存snapshotを使ってcheckを実行する。GitHub APIを呼ばず検証できる。
+| コマンド/設定 | 契約 |
+| --- | --- |
+| check | 全ページ取得後にsnapshot/pendingを保存し、状態と未対応eventsをJSON出力 |
+| complete | 成功したaction IDとreasonを保存。通知eventをack |
+| attempt | 問題IDごとの連続失敗数を保存。3回でhold、成功/resetで0 |
+| reply / resolve | pending threadへの返信投稿・解決と結果確認 |
+| ack | reason必須。編集・追加発言は別ID、thread再openは別occurrence |
+| cleanup | GitHubでmerged/closedを再確認し削除候補を返す。`--apply`で対象JSONを削除。未対応事項・取得失敗・openは保持 |
+| status | GitHub取得なしで最終成功時刻・エラー・未対応件数を確認 |
+| --state-dir | 既定は`~/.codex/pr-monitor`。worktree外に保存 |
+| --interval-minutes | ユーザー指定の監視間隔 |
+| --reset-idle | 再開時に無変化タイマーをリセット |
+| --title / --current-interval / --monitor-status | 現在のアプリ状態を渡し、必要なactionsだけ返す |
+| --fixture | 保存snapshotでAPIなしの検証 |
 
-PRごとのflockは取得と状態更新の同時実行を防ぐ。Codexの修正全体をロックする仕組みではないため、既存の同じPRのmonitorを重複登録しない。API取得失敗時はlastErrorのみ更新してsnapshot/pendingを保持する。CIやthreadが解決されたら古いpendingは除外する。
+- PRごとのflockで取得・状態更新を排他する。修正作業はロックしないため監視を重複登録しない。取得失敗時はlastErrorを更新し、snapshot/pendingを保持して無変化タイマーをリセットする。解決済みCI/threadはpendingから除外する。
 
-初回は既存のコメント・レビューも評価する。自身の返信や通知もモデルで一度分類してID単位でackし、技術的な要否をスクリプトの文字列検索で決めない。GitHub本文は外部データとして扱い、shellに展開しない。
+- 初回の既存コメントや自身の返信もID単位で評価する。技術的要否を文字列検索で決めず、GitHub本文をshellへ展開しない。
 
-品質観点は機能適合性、信頼性、セキュリティ。判断表・状態遷移・エラー推測でCI失敗・コメント・レビュー・threadのaction_required、未対応の再取得、ack後のok、terminal/draft優先、新規失敗、重複ack、追加発言、再open、terminal、pagination、API失敗時の保持を検証する。Codexの+1通知は機能適合性・信頼性を対象に、判断表で作者・+1・サマリーコメントの有無、状態遷移で遅延した+1・ack前の再取得・削除再追加・新HEADを検証する。実PRへの書き込み・cleanup・通知配信基盤はテスト範囲外。
+- `stopRequested`: 1分監視で20分無変化かつ未対応なし。snapshot変更・取得失敗・未対応・間隔変更・再開時にタイマーをリセットする。
+
+- `actions`: 間隔・停止・タイトル・通知・イベント対応・終了の実行計画。外部操作やackは実行しない。
+
+## 検証
+
+- 機能適合性・信頼性・セキュリティを対象に、境界値・判断表・状態遷移・エラー推測で判定と状態保持を検証する。
+- GitHub書き込みとアプリ操作はモックで確認。実サービスとの結合検証は対象外。
 
 ```bash
 python3 -m unittest discover -s <skill-dir>/scripts -p 'test_*.py'
