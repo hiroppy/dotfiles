@@ -14,6 +14,7 @@ import check
 def snapshot():
     return {
         "pr": {
+            "id": "PR1",
             "state": "OPEN",
             "mergedAt": None,
             "isDraft": False,
@@ -64,6 +65,7 @@ class MonitorTests(unittest.TestCase):
             path = Path(directory) / "o--r-1.json"
             state["plannedActions"] = {a["id"]: a for a in actions}
             check.save(path, state)
+            check.prepare_notification(state, path, actions[1]["id"])
             base = ["check.py", "--repo", "o/r", "--pr", "1", "--state-dir", directory]
             with (
                 patch.object(
@@ -122,6 +124,30 @@ class MonitorTests(unittest.TestCase):
             check.save(path, state)
             body = Path(directory) / "reply.txt"
             body.write_text("Fixed.\nTests passed.")
+            live = thread()
+            live["pullRequest"] = {
+                "number": 1,
+                "headRefOid": "abc",
+                "repository": {"nameWithOwner": "o/r"},
+            }
+            calls = []
+
+            def mutate(query, **variables):
+                if "addPullRequestReviewThreadReply" in query:
+                    calls.append("reply")
+                    live["comments"].append(
+                        {
+                            "id": "reply",
+                            "url": "url",
+                            "body": variables["body"],
+                            "author": {"login": "me"},
+                        }
+                    )
+                else:
+                    calls.append("resolve")
+                    live["isResolved"] = True
+                return {}
+
             base = [
                 "check.py",
                 "--repo",
@@ -134,34 +160,204 @@ class MonitorTests(unittest.TestCase):
                 key,
             ]
             with (
-                patch.object(sys, "argv", base + ["reply", "--body-file", str(body)]),
                 patch.object(
                     check,
-                    "graphql",
-                    return_value={
-                        "addPullRequestReviewThreadReply": {
-                            "comment": {"id": "reply", "url": "url"}
-                        }
-                    },
-                ) as api,
-                patch("builtins.print"),
-            ):
-                self.assertEqual(0, check.main())
-                self.assertEqual("thread1", api.call_args.kwargs["id"])
-                self.assertEqual(body.read_text(), api.call_args.kwargs["body"])
-            with (
-                patch.object(sys, "argv", base + ["resolve"]),
-                patch.object(
-                    check,
-                    "graphql",
-                    return_value={
-                        "resolveReviewThread": {"thread": {"isResolved": True}}
-                    },
+                    "read_review_thread",
+                    side_effect=lambda _: (copy.deepcopy(live), "me"),
                 ),
+                patch.object(check, "graphql", side_effect=mutate),
                 patch("builtins.print"),
             ):
-                self.assertEqual(0, check.main())
+                for command in [["reply", "--body-file", str(body)]] * 2 + [
+                    ["resolve"]
+                ] * 2:
+                    with patch.object(sys, "argv", base + command):
+                        self.assertEqual(0, check.main())
+            self.assertEqual(["reply", "resolve"], calls)
             self.assertIn(key, json.loads(path.read_text())["pending"])
+
+    def test_finish_review_recovers_from_remote_success_and_lost_response(self):
+        for fail_at in (None, "reply", "resolve"):
+            with (
+                self.subTest(fail_at=fail_at),
+                tempfile.TemporaryDirectory() as directory,
+            ):
+                data = snapshot()
+                data["reviewThreads"] = [thread()]
+                state = check.update({}, data)
+                event_id = next(iter(state["pending"]))
+                path = Path(directory) / "state.json"
+                check.save(path, state)
+                live = thread()
+                live["pullRequest"] = {
+                    "number": 1,
+                    "headRefOid": "abc",
+                    "repository": {"nameWithOwner": "o/r"},
+                }
+                calls = []
+
+                def mutate(query, live=live, calls=calls, fail_at=fail_at, **variables):
+                    operation = (
+                        "reply"
+                        if "addPullRequestReviewThreadReply" in query
+                        else "resolve"
+                    )
+                    calls.append(operation)
+                    if operation == "reply":
+                        live["comments"].append(
+                            {
+                                "id": "reply1",
+                                "url": "reply-url",
+                                "updatedAt": "later",
+                                "body": variables["body"],
+                                "author": {"login": "me"},
+                            }
+                        )
+                    else:
+                        live["isResolved"] = True
+                    if operation == fail_at:
+                        raise RuntimeError("Response lost after successful mutation")
+                    return {}
+
+                with (
+                    patch.object(
+                        check,
+                        "read_review_thread",
+                        side_effect=lambda _, live=live: (copy.deepcopy(live), "me"),
+                    ),
+                    patch.object(check, "graphql", side_effect=mutate),
+                ):
+                    if fail_at:
+                        with self.assertRaises(RuntimeError):
+                            check.finish_review(
+                                state, path, event_id, "Fixed", "tested", "o/r", 1
+                            )
+                        state = json.loads(path.read_text())
+                        self.assertIn(event_id, state["pending"])
+                        self.assertNotIn(event_id, state["acknowledged"])
+                    result = check.finish_review(
+                        state, path, event_id, "Fixed", "tested", "o/r", 1
+                    )
+                    repeated = check.finish_review(
+                        json.loads(path.read_text()),
+                        path,
+                        event_id,
+                        "Fixed",
+                        "tested",
+                        "o/r",
+                        1,
+                    )
+                self.assertEqual(result, repeated)
+                self.assertEqual(["reply", "resolve"], calls)
+                stored = json.loads(path.read_text())
+                self.assertNotIn(event_id, stored["pending"])
+                self.assertEqual("tested", stored["acknowledged"][event_id])
+
+    def test_finish_review_blocks_changes_and_unconfirmed_resolution(self):
+        for change in (
+            "head",
+            "comment",
+            "extra_comment",
+            "wrong_pr",
+            "resolve_failure",
+            "reopened",
+        ):
+            with (
+                self.subTest(change=change),
+                tempfile.TemporaryDirectory() as directory,
+            ):
+                data = snapshot()
+                data["reviewThreads"] = [thread()]
+                state = check.update({}, data)
+                event_id = next(iter(state["pending"]))
+                path = Path(directory) / "state.json"
+                live = thread()
+                live["pullRequest"] = {
+                    "number": 1,
+                    "headRefOid": "abc",
+                    "repository": {"nameWithOwner": "o/r"},
+                }
+                if change == "head":
+                    live["pullRequest"]["headRefOid"] = "new"
+                elif change == "comment":
+                    live["comments"][0]["body"] = "edited"
+                elif change == "extra_comment":
+                    live["comments"].append({"id": "new", "body": "another issue"})
+                elif change == "wrong_pr":
+                    live["pullRequest"]["number"] = 2
+
+                def mutate(query, live=live, change=change, **variables):
+                    if "addPullRequestReviewThreadReply" in query:
+                        live["comments"].append(
+                            {
+                                "id": "reply1",
+                                "url": "url",
+                                "body": variables["body"],
+                                "author": {"login": "me"},
+                            }
+                        )
+                    elif change == "reopened":
+                        live["isResolved"] = True
+                    return {}
+
+                with (
+                    patch.object(
+                        check,
+                        "read_review_thread",
+                        side_effect=lambda _, live=live: (copy.deepcopy(live), "me"),
+                    ),
+                    patch.object(check, "graphql", side_effect=mutate) as api,
+                ):
+                    if change == "reopened":
+                        check.finish_review(
+                            state, path, event_id, "Fixed", "tested", "o/r", 1
+                        )
+                        live["isResolved"] = False
+                    with self.assertRaises(RuntimeError):
+                        check.finish_review(
+                            state, path, event_id, "Fixed", "tested", "o/r", 1
+                        )
+                    if change not in {"resolve_failure", "reopened"}:
+                        api.assert_not_called()
+                    if change != "reopened":
+                        self.assertIn(event_id, json.loads(path.read_text())["pending"])
+
+    def test_head_change_creates_new_review_event(self):
+        data = snapshot()
+        data["reviewThreads"] = [thread()]
+        state = check.update({}, data)
+        old_id = next(iter(state["pending"]))
+        data["pr"]["headRefOid"] = "new"
+        state = check.update(state, data)
+        self.assertNotIn(old_id, state["pending"])
+        self.assertTrue(
+            any(event["kind"] == "thread" for event in state["pending"].values())
+        )
+
+    def test_review_thread_fetch_paginates_comments(self):
+        first = thread()
+        first["comments"] = {
+            "nodes": [{"id": "first"}],
+            "pageInfo": {"hasNextPage": True, "endCursor": "cursor1"},
+        }
+        second = {
+            "comments": {
+                "nodes": [{"id": "second"}],
+                "pageInfo": {"hasNextPage": False, "endCursor": None},
+            },
+        }
+        with patch.object(
+            check,
+            "graphql",
+            side_effect=[
+                {"node": first, "viewer": {"login": "me"}},
+                {"node": second},
+            ],
+        ) as api:
+            result, login = check.read_review_thread("thread1")
+        self.assertEqual("me", login)
+        self.assertEqual([{"id": "first"}, {"id": "second"}], result["comments"])
+        self.assertEqual("cursor1", api.call_args.kwargs["cursor"])
 
     def test_ci_run_hint(self):
         data = snapshot()
@@ -498,7 +694,7 @@ class MonitorTests(unittest.TestCase):
             {"content": "EYES", "users": {"totalCount": 1}}
         ]
         self.assertFalse(check.update(state, data)["pending"])
-        self.assertTrue(check.eyes(data))
+        self.assertFalse(check.eyes(data))
         data["reviewThreads"][0]["comments"][0]["body"] = "follow up"
         self.assertTrue(check.update(state, data)["pending"])
         data["reviewThreads"][0]["isResolved"] = True
@@ -507,7 +703,7 @@ class MonitorTests(unittest.TestCase):
         data["reviewThreads"][0]["isResolved"] = False
         self.assertTrue(check.update(state, data)["pending"])
 
-    def test_eyes_checks_text_and_all_reactions(self):
+    def test_eyes_only_checks_pr_reactions(self):
         data = snapshot()
         reaction = {"content": "EYES", "users": {"totalCount": 1}}
         data["pr"].update(title="👀", body="👀")
@@ -517,7 +713,7 @@ class MonitorTests(unittest.TestCase):
         data["reviewThreads"][0]["comments"][0].update(
             body="👀", reactionGroups=[reaction]
         )
-        self.assertTrue(check.eyes(data))
+        self.assertFalse(check.eyes(data))
         data = snapshot()
         for content, count, blocked in [
             ("EYES", 1, True),
@@ -529,6 +725,84 @@ class MonitorTests(unittest.TestCase):
                     {"content": content, "users": {"totalCount": count}}
                 ]
                 self.assertEqual(check.eyes(data), blocked)
+
+    def test_merge_blocking_conditions(self):
+        cases = [
+            ({"state": "CLOSED"}, "not_open"),
+            ({"isDraft": True}, "draft"),
+            ({"mergeable": "CONFLICTING"}, "conflict"),
+            ({"mergeable": "UNKNOWN"}, "mergeability_unknown"),
+            ({"mergeStateStatus": "DIRTY"}, "conflict"),
+            ({"mergeStateStatus": "BLOCKED"}, "merge_state_blocked"),
+            ({"mergeStateStatus": "UNKNOWN"}, "merge_state_unknown"),
+            ({"reviewDecision": "CHANGES_REQUESTED"}, "review_changes_requested"),
+            ({"reviewDecision": "REVIEW_REQUIRED"}, "review_review_required"),
+        ]
+        for fields, reason in cases:
+            with self.subTest(fields=fields):
+                data = snapshot()
+                data["pr"].update(fields)
+                result = check.merge_decision(data, {})
+                self.assertFalse(result["canMerge"])
+                self.assertIn(reason, result["blockingReasons"])
+        for outcome, reason in [
+            ("FAILURE", "ci_failed"),
+            ("CANCELLED", "ci_failed"),
+            ("PENDING", "ci_pending"),
+            (None, "ci_pending"),
+            ("UNRECOGNIZED", "ci_failed"),
+            ("SUCCESS", None),
+            ("NEUTRAL", None),
+            ("SKIPPED", None),
+        ]:
+            with self.subTest(outcome=outcome):
+                data = snapshot()
+                data["pr"]["statusCheckRollup"] = [{"conclusion": outcome}]
+                result = check.merge_decision(data, {})
+                self.assertEqual(result["canMerge"], reason is None)
+                if reason:
+                    self.assertIn(reason, result["blockingReasons"])
+        for failures in (2, 3, 4):
+            result = check.merge_decision(
+                snapshot(), {"attempts": {"problem": {"failures": failures}}}
+            )
+            self.assertEqual(result["canMerge"], failures < 3)
+
+    def test_merge_decision_after_ack_and_resolution(self):
+        data = snapshot()
+        data["comments"] = [{"id": "c", "updatedAt": "now", "body": "FYI 👀"}]
+        state = check.update({}, data)
+        self.assertIn(
+            "pending_comment", check.merge_decision(data, state)["blockingReasons"]
+        )
+        for key in state["pending"]:
+            state["acknowledged"][key] = "informational"
+        state = check.update(state, data)
+        self.assertTrue(check.merge_decision(data, state)["canMerge"])
+        data["reviewThreads"] = [thread()]
+        state = check.update(state, data)
+        for key in state["pending"]:
+            state["acknowledged"][key] = "handled"
+        state = check.update(state, data)
+        self.assertIn(
+            "unresolved_threads", check.merge_decision(data, state)["blockingReasons"]
+        )
+        data["reviewThreads"][0]["isResolved"] = True
+        state = check.update(state, data)
+        self.assertTrue(check.merge_decision(data, state)["canMerge"])
+        data["reactions"] = [{"content": "EYES", "users": {"totalCount": 1}}]
+        self.assertIn(
+            "eyes_reaction", check.merge_decision(data, state)["blockingReasons"]
+        )
+        data["reactions"] = []
+        data["pr"]["statusCheckRollup"] = [{"status": "IN_PROGRESS"}]
+        self.assertFalse(check.merge_decision(data, state)["canMerge"])
+        data["pr"]["statusCheckRollup"] = [{"conclusion": "SUCCESS"}]
+        result = check.merge_decision(data, state)
+        self.assertTrue(result["canMerge"])
+        self.assertEqual(
+            result, check.merge_decision(copy.deepcopy(data), copy.deepcopy(state))
+        )
 
     def test_terminal_suppresses_work(self):
         data = snapshot()

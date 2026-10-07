@@ -17,7 +17,7 @@
 - If the repository contains a pull request template, use it as the basis for the pull request description.
 - Create pull requests as ready for review by default. Use draft only when the user explicitly requests it or the work is intentionally incomplete and not ready for review.
 - After successfully creating or publishing a pull request, automatically invoke `$pr-monitor` in the same task and begin monitoring immediately. Do not wait for the user to request monitoring separately. Skip this only when the user explicitly opts out.
-- When monitoring or managing a pull request, if the eyes emoji (`👀`) appears anywhere on the pull request, never merge it under any circumstances. Leave it open until the emoji is removed, even when all checks pass and every other merge condition is satisfied.
+- When monitoring or managing a pull request, run the pr-monitor check script immediately before merging and merge only when `canMerge` is true and merging is authorized. Follow `blockingReasons` when blocked. The eyes rule applies to an active eyes reaction on the PR itself; emoji in text or reactions on comments and reviews do not trigger it.
 - When review feedback continues across multiple rounds, reassess whether the accumulated changes are making the code over-engineered or unnecessarily complex. If they are, tell the user before continuing, explain the specific signs of excess complexity, and recommend the smallest behavior-preserving simplification.
 
 ## Post-Merge Continuation

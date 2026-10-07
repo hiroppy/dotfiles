@@ -29,12 +29,13 @@ python3 <skill-dir>/scripts/check.py ack --repo OWNER/REPO --pr NUMBER \
   --event EVENT_ID --reason 'commit・検証・返信ID、不要または保留の理由'
 ```
 
+- 解決したレビューthreadは`finish-review`で返信・resolve・ackを一括実行する。エラー時は同じevent ID・本文・reasonで再実行する。ackだけで対応完了にしない。詳細は[response.md](references/response.md)。
 - 取得だけでackしない。
 - 自身の返信も評価し、作者単位で除外しない。
 
 ## 制約・参照
 
-- PR上のどこかに👀があればマージ禁止。UNKNOWNを競合なしと判断しない。
+- マージは許可済みの範囲で`merge`を使う。スクリプトが再取得・`canMerge`判定・HEAD照合・結果確認を行う。`blocked`なら`blockingReasons`に従い、モデル側で上書きしない。詳細は[script.md](references/script.md)。
 - 監視依頼だけでは自動マージしない。force push/rebaseは禁止。
 - 同じ問題で3回失敗、レビュー2往復以上の平行線、重要な不確実性は保留して報告する。
 - 継続監視・通知・cleanup: [lifecycle.md](references/lifecycle.md)。
