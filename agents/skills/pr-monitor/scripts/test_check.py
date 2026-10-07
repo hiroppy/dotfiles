@@ -95,6 +95,8 @@ class MonitorTests(unittest.TestCase):
                             "attempt",
                             "--problem",
                             "ci:test",
+                            "--attempt-id",
+                            str(count),
                             "--outcome",
                             "failed",
                             "--reason",
@@ -447,9 +449,7 @@ class MonitorTests(unittest.TestCase):
         state = check.update(state, data)
         self.assertTrue(check.eyes(data))
         self.assertEqual("", check.plan_actions(state)[0]["titlePrefix"])
-        self.assertEqual(
-            "Chat", check.plan_actions(state, title="👍 Chat")[0]["title"]
-        )
+        self.assertEqual("Chat", check.plan_actions(state, title="👍 Chat")[0]["title"])
         # Keep requesting removal if the caller failed to apply it on the first poll.
         state = check.update(state, data)
         self.assertEqual("", check.plan_actions(state)[0]["titlePrefix"])

@@ -460,6 +460,24 @@ def save(path, state):
             os.unlink(temporary)
 
 
+def record_attempt(state, problem, attempt_id, outcome, reason):
+    receipts = state.setdefault("attemptReceipts", {}).setdefault(problem, {})
+    inputs = {"outcome": outcome, "reason": reason}
+    receipt = receipts.get(attempt_id)
+    if receipt is not None and receipt != inputs:
+        raise ValueError(
+            "Attempt ID already recorded with a different outcome or reason"
+        )
+    attempts = state.setdefault("attempts", {})
+    if receipt is None:
+        count = attempts.get(problem, {}).get("failures", 0)
+        count = count + 1 if outcome == "failed" else 0
+        attempts[problem] = {"failures": count, "reason": reason}
+        receipts[attempt_id] = inputs
+    count = attempts[problem]["failures"]
+    return {"status": "hold" if count >= 3 else "continue", "failures": count}
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
@@ -505,6 +523,9 @@ def main():
     )
     parser.add_argument("--action", help="Action ID returned by check")
     parser.add_argument("--problem", help="Stable problem ID across retries")
+    parser.add_argument(
+        "--attempt-id", help="Unique trial ID; reuse for command retries"
+    )
     parser.add_argument("--outcome", choices=["failed", "succeeded", "reset"])
     parser.add_argument("--body-file", type=Path, help="Review reply text")
     args = parser.parse_args()
@@ -536,18 +557,24 @@ def main():
             print(json.dumps({"status": "completed"}))
             return 0
         if args.command == "attempt":
-            if not args.problem or not args.outcome or not args.reason:
-                parser.error("attempt requires --problem, --outcome and --reason")
-            attempts = state.setdefault("attempts", {})
-            count = attempts.get(args.problem, {}).get("failures", 0)
-            count = count + 1 if args.outcome == "failed" else 0
-            attempts[args.problem] = {"failures": count, "reason": args.reason}
-            save(path, state)
-            print(
-                json.dumps(
-                    {"status": "hold" if count >= 3 else "continue", "failures": count}
+            if (
+                not args.problem
+                or not args.attempt_id
+                or not args.attempt_id.strip()
+                or not args.outcome
+                or not args.reason
+            ):
+                parser.error(
+                    "attempt requires --problem, --attempt-id, --outcome and --reason"
                 )
-            )
+            try:
+                result = record_attempt(
+                    state, args.problem, args.attempt_id, args.outcome, args.reason
+                )
+            except ValueError as error:
+                parser.error(str(error))
+            save(path, state)
+            print(json.dumps(result))
             return 0
         if args.command in {"reply", "resolve"}:
             event = (

@@ -6,7 +6,7 @@
 
 ## CI・競合
 
-- CIはeventのcheckからrunを特定し、返された`logArgs`（runIdが取れない場合はcheckのURL）で失敗箇所を読む。各試行後に`check.py attempt --repo OWNER/REPO --pr NUMBER --problem 問題ID --outcome failed|succeeded --reason 結果`を実行し、holdなら保留する。同じ原因には同じ問題IDを使う。
+- CIはeventのcheckからrunを特定し、返された`logArgs`（runIdが取れない場合はcheckのURL）で失敗箇所を読む。各試行後に`check.py attempt --repo OWNER/REPO --pr NUMBER --problem 問題ID --attempt-id 試行ID --outcome failed|succeeded --reason 結果`を実行し、holdなら保留する。同じ原因には同じ問題IDを使う。試行IDは実際の修正・検証試行ごとに一度だけ生成し、結果記録前に保持する。同じ結果のコマンド再送ではID・outcome・reasonを変えず、別の試行と成功/resetには新しいIDを使う。
 
 - 競合は最新baseをfetchし、PRのheadへ通常mergeする。両側の意図を保ち、未解消ファイル・競合マーカーを確認して検証・pushする。安全に解消できなければabortして判断材料を報告する。
 

@@ -6,7 +6,7 @@ Python 3標準ライブラリと認証済みgh CLIを使う（macOS/Linux）。G
 | --- | --- |
 | check | 全ページ取得後にsnapshot/pendingを保存し、状態と未対応eventsをJSON出力 |
 | complete | 成功したaction IDとreasonを保存。通知eventをack |
-| attempt | 問題IDごとの連続失敗数を保存。3回でhold、成功/resetで0 |
+| attempt | --attempt-id必須。問題IDと試行IDで重複を除外。3回でhold、成功/resetで0 |
 | reply / resolve | pending threadへの返信投稿・解決と結果確認 |
 | ack | reason必須。編集・追加発言は別ID、thread再openは別occurrence |
 | cleanup | GitHubでmerged/closedを再確認し削除候補を返す。`--apply`で対象JSONを削除。未対応事項・取得失敗・openは保持 |
@@ -28,9 +28,16 @@ Python 3標準ライブラリと認証済みgh CLIを使う（macOS/Linux）。G
 
 - `actions`: 間隔・停止・タイトル・通知・イベント対応・終了の実行計画。外部操作やackは実行しない。
 
+## attemptの再実行
+
+- 同じ問題ID・試行ID・outcome・reasonは一度だけ反映する。同じIDでoutcomeまたはreasonが変わった場合はエラーとして保存しない。
+- 試行履歴は成功/reset後も保持し、遅れて届いた古い失敗・成功・resetで現在の回数を変更しない。出力のstatus/failuresは元の試行時点ではなく現在のカウンターを返す。
+- 試行IDは問題ID内で一意。新しい試行には新しいIDを使う。既存stateのカウンターは保持するが、IDのない過去の記録は遡って重複判定できない。
+
 ## 検証
 
 - 機能適合性・信頼性・セキュリティを対象に、境界値・判断表・状態遷移・エラー推測で判定と状態保持を検証する。
+- attemptは機能適合性・信頼性を対象に境界値・状態遷移・判断表で検証する。同一試行の再送、2→3回のhold境界、成功/reset、古い試行の遅延再送、ID衝突・既存stateの移行を確認する。
 - GitHub書き込みとアプリ操作はモックで確認。実サービスとの結合検証は対象外。
 
 ```bash
