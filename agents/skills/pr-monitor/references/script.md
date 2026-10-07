@@ -31,7 +31,7 @@ Python 3標準ライブラリ、認証済みgh CLI、Gitを使う（macOS/Linux�
 - HEAD変更時のリアクション基準値は前回snapshotを使う。同じ取得でHEAD変更と新しいCodexの+1を検出した場合も通過通知を返す。初回取得の既存+1はHEADとの対応が不明なため通過とは断定しない。
 - `--title`を省略してもCodexの+1を一度検出したPRでは`set_title`の`titlePrefix`を返す。+1が消えた場合は空のprefixで👍を外す。実行側は現在のタイトルを取得して適用する。
 
-- checkの`actions`: 間隔・停止・タイトル・通知・イベント対応・終了の実行計画。check自体は外部操作やackを実行しない。通知のaction IDはcheck時刻が変わっても固定し、未確認の送達はPR状態が変わっても先頭のreconcile_notificationとして返す。
+- checkの`actions`: 間隔・停止・タイトル・通知・イベント対応・終了の実行計画。check自体は外部操作やackを実行しない。通知のaction IDはcheck時刻が変わっても固定し、未確認の送達はPR状態が変わってもreconcile_notificationとして返す。MERGED/CLOSED時のpause_monitorは送達確認より先に返し、確認待ちでも監視を停止する。
 
 ## レビュー対応の再実行
 
