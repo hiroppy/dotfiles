@@ -387,6 +387,9 @@ def plan_actions(state, title=None, current_interval=None, monitor_status="ACTIV
     snapshot = state["snapshot"]
     pr = snapshot["pr"]
     actions = []
+    # Stop scheduling before any fallible terminal cleanup or notification.
+    if pr["state"] in {"MERGED", "CLOSED"} and monitor_status == "ACTIVE":
+        actions.append({"type": "pause_monitor"})
     if title is not None:
         plain_title = title
         while plain_title.startswith("👍 "):
@@ -507,7 +510,14 @@ def action_receipts(state, actions):
                     "deliveryKey": action_id,
                 },
             )
-    return sorted(result, key=lambda action: action["type"] != "reconcile_notification")
+    terminal = state["snapshot"]["pr"]["state"] in {"MERGED", "CLOSED"}
+    return sorted(
+        result,
+        key=lambda action: (
+            not (terminal and action["type"] == "pause_monitor"),
+            action["type"] != "reconcile_notification",
+        ),
+    )
 
 
 def save(path, state):

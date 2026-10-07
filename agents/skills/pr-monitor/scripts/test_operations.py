@@ -167,7 +167,7 @@ class OperationTests(unittest.TestCase):
             data = snapshot()
             data["pr"]["state"] = "MERGED"
             state = check.update({}, data)
-            actions = check.plan_actions(state)
+            actions = check.plan_actions(state, monitor_status="PAUSED")
             notify = next(action for action in actions if action["type"] == "notify")
             state["plannedActions"] = {action["id"]: action for action in actions}
             result = check.prepare_notification(state, path, notify["id"])
@@ -179,12 +179,12 @@ class OperationTests(unittest.TestCase):
             )
             state = check.update(state, data)
             self.assertEqual(
-                "reconcile_notification", check.plan_actions(state)[0]["type"]
+                "reconcile_notification", check.plan_actions(state, monitor_status="PAUSED")[0]["type"]
             )
-            self.assertEqual(notify["id"], check.plan_actions(state)[0]["id"])
+            self.assertEqual(notify["id"], check.plan_actions(state, monitor_status="PAUSED")[0]["id"])
             data["pr"]["headRefOid"] = "different"
             state = check.update(state, data)
-            self.assertEqual(notify["id"], check.plan_actions(state)[0]["id"])
+            self.assertEqual(notify["id"], check.plan_actions(state, monitor_status="PAUSED")[0]["id"])
             check.record_notification(
                 state, path, notify["id"], "unknown", "no delivery evidence"
             )
@@ -212,7 +212,7 @@ class OperationTests(unittest.TestCase):
             )
             self.assertFalse(
                 any(
-                    action["id"] == notify["id"] for action in check.plan_actions(state)
+                    action["id"] == notify["id"] for action in check.plan_actions(state, monitor_status="PAUSED")
                 )
             )
             with self.assertRaises(RuntimeError):

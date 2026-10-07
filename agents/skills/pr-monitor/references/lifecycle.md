@@ -40,6 +40,8 @@ python3 <skill-dir>/scripts/check.py notification-result --repo OWNER/REPO --pr 
 
 ## 終了・cleanup
 
+- MERGED/CLOSEDを確認したら、cleanup・通知より先に対象automationをPAUSEDにする。後続が失敗しても定期監視は再開しない。未完了の後片付けは現在のチャットで継続し、必要な判断を報告する。後片付け完了後にautomationを削除する。
+
 - 指定されたdisposeを実行し、list_artifacts/list_threads等で対象worktreeの管理・共有・pin・他タスク使用状況を確認する。不明な値をfalseとして扱わない。通常のworktreeは関連づけの記録と実行中タスクから確認する。
 - 確認した証拠をworktree外のJSONへ保存する。`observedAt`はタイムゾーン付きISO時刻、他の項目は確認済みboolean。`inUse`はdispose後の他タスクによる使用を表す。スクリプトは60秒以内の証拠だけを受け付け、プロセスはlsofで別途確認する。
 

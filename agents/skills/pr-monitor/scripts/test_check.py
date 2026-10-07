@@ -55,11 +55,11 @@ class MonitorTests(unittest.TestCase):
         data = snapshot()
         data["pr"]["state"] = "MERGED"
         state = check.update({}, data)
-        actions = check.plan_actions(state)
+        actions = check.plan_actions(state, monitor_status="PAUSED")
         state["completedActions"] = {actions[0]["id"]: "done"}
         self.assertEqual(
             ["notify", "delete_monitor", "cleanup_state"],
-            [a["type"] for a in check.plan_actions(state)],
+            [a["type"] for a in check.plan_actions(state, monitor_status="PAUSED")],
         )
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "o--r-1.json"
@@ -85,7 +85,12 @@ class MonitorTests(unittest.TestCase):
                 self.assertEqual(0, check.main())
             self.assertEqual(
                 ["delete_monitor", "cleanup_state"],
-                [a["type"] for a in check.plan_actions(json.loads(path.read_text()))],
+                [
+                    a["type"]
+                    for a in check.plan_actions(
+                        json.loads(path.read_text()), monitor_status="PAUSED"
+                    )
+                ],
             )
             for count in range(1, 4):
                 with (
@@ -471,12 +476,36 @@ class MonitorTests(unittest.TestCase):
         for status, merged in [("MERGED", True), ("CLOSED", False)]:
             data["pr"]["state"] = status
             state = check.update(state, data)
-            expected = (["cleanup_worktree"] if merged else []) + [
+            expected = ["pause_monitor"] + (["cleanup_worktree"] if merged else []) + [
                 "notify",
                 "delete_monitor",
                 "cleanup_state",
             ]
             self.assertEqual(expected, [a["type"] for a in check.plan_actions(state)])
+
+    def test_terminal_monitor_stops_before_fallible_actions(self):
+        for status in ("MERGED", "CLOSED"):
+            with self.subTest(status=status):
+                data = snapshot()
+                data["pr"]["state"] = status
+                state = check.update({}, data)
+                actions = check.plan_actions(state, title="👍 Chat")
+                self.assertEqual("pause_monitor", actions[0]["type"])
+                state["notificationDeliveries"] = {
+                    "old-delivery": {
+                        "status": "unknown",
+                        "action": {
+                            "id": "old-delivery", "type": "notify", "message": "old"
+                        },
+                    }
+                }
+                actions = check.plan_actions(state, title="👍 Chat")
+                self.assertEqual("pause_monitor", actions[0]["type"])
+                self.assertEqual("reconcile_notification", actions[1]["type"])
+                # A paused retry must still offer unfinished terminal cleanup.
+                paused = check.plan_actions(state, monitor_status="PAUSED")
+                self.assertNotIn("pause_monitor", [a["type"] for a in paused])
+                self.assertIn("delete_monitor", [a["type"] for a in paused])
 
     def test_idle_stop_boundary_and_changes(self):
         data = snapshot()
