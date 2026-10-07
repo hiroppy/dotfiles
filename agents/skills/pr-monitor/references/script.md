@@ -1,6 +1,6 @@
 # スクリプトの契約と検証
 
-Python 3標準ライブラリ、認証済みgh CLI、Gitを使う（macOS/Linux）。通常worktreeのプロセス確認にはlsofが必要。レビュー・マージ・Git cleanupはスクリプト、アプリ操作・実際の通知送信・managed worktreeのarchiveはCodexが担当する。
+Python 3標準ライブラリ、認証済みgh CLI、Gitを使う（macOS/Linux）。通常worktreeのプロセス確認にはlsofが必要。レビュー・マージ・Git cleanupはスクリプト、任意のスケジューラ連携・実際の通知表示/送信・managed worktreeのarchiveは実行環境のエージェントが担当する。
 
 | コマンド/設定 | 契約 |
 | --- | --- |
@@ -10,7 +10,7 @@ Python 3標準ライブラリ、認証済みgh CLI、Gitを使う（macOS/Linux�
 | finish-review | 解決したthreadの返信・resolve・ackを再開可能な単一処理で実行。`--event`、`--body-file`、`--reason`必須 |
 | reply / resolve | 保留・反論用。finish-reviewと同じ実状態照合・再開処理を使い、ackはしない |
 | merge | 再取得・判定・HEAD照合・マージ・実状態確認。previewが既定、書き込みは--apply・--expected-head・許可根拠の--reasonが必要。--method squash（既定）/merge |
-| cleanup-worktree | merged PRの関連worktreeとbranchの安全確認・削除・中断再開。アプリ証拠が必要。managedはarchive_requiredを返す |
+| cleanup-worktree | merged PRの関連worktreeとbranchの安全確認・削除・中断再開。所有・使用状況の証拠が必要。managedはarchive_requiredを返す |
 | prepare-notification | action IDの送信前記録。初回はdispatch、再実行はdelivery_unknown、完了済みはcompleted |
 | notification-result | 送達証拠の--reasonと--outcome succeeded/not_sent/unknownを記録。succeededで対応eventをack |
 | ack | reason必須。編集・追加発言は別ID、thread再openは別occurrence |
@@ -19,7 +19,7 @@ Python 3標準ライブラリ、認証済みgh CLI、Gitを使う（macOS/Linux�
 | --state-dir | 既定は`~/.codex/pr-monitor`。worktree外に保存 |
 | --interval-minutes | ユーザー指定の監視間隔 |
 | --reset-idle | 再開時に無変化タイマーをリセット |
-| --title / --current-interval / --monitor-status | 現在のアプリ状態を渡し、必要なactionsだけ返す |
+| --title / --current-interval / --monitor-status | 任意の連携状態を渡す。monitor-statusはNONEが既定、ACTIVE/PAUSEDは実際のスケジューラ使用時だけ指定 |
 | --fixture | 保存snapshotでAPIなしの検証 |
 
 - PRごとのflockで取得・状態更新を排他する。修正作業はロックしないため監視を重複登録しない。取得失敗時はlastErrorを更新し、snapshot/pendingを保持して無変化タイマーをリセットする。解決済みCI/threadはpendingから除外する。
@@ -29,7 +29,7 @@ Python 3標準ライブラリ、認証済みgh CLI、Gitを使う（macOS/Linux�
 - `stopRequested`: 1分監視で20分無変化かつ未対応なし。snapshot変更・取得失敗・未対応・間隔変更・再開時にタイマーをリセットする。
 
 - HEAD変更時のリアクション基準値は前回snapshotを使う。同じ取得でHEAD変更と新しいCodexの+1を検出した場合も通過通知を返す。初回取得の既存+1はHEADとの対応が不明なため通過とは断定しない。
-- `--title`を省略してもCodexの+1を一度検出したPRでは`set_title`の`titlePrefix`を返す。+1が消えた場合は空のprefixで👍を外す。実行側は現在のタイトルを取得して適用する。
+- タイトル連携は`--title`を明示した場合だけ`set_title`を返す。連携なしでは👍の有無に関わらずタイトル取得・変更を要求しない。
 
 - checkの`actions`: 間隔・停止・タイトル・通知・イベント対応・終了の実行計画。check自体は外部操作やackを実行しない。通知のaction IDはcheck時刻が変わっても固定し、未確認の送達はPR状態が変わってもreconcile_notificationとして返す。MERGED/CLOSED時のpause_monitorは送達確認より先に返し、確認待ちでも監視を停止する。
 
@@ -62,6 +62,8 @@ python3 <skill-dir>/scripts/check.py merge --repo OWNER/REPO --pr NUMBER --apply
 - 試行IDは問題ID内で一意。新しい試行には新しいIDを使う。既存stateのカウンターは保持するが、IDのない過去の記録は遡って重複判定できない。
 
 ## 検証
+
+- アプリ非依存の実行は機能適合性・互換性を対象に判断表でNONE/ACTIVE/PAUSEDとOPEN/MERGED/CLOSEDを確認する。CLI既定ではアプリ操作なし、イベント対応は維持、ACTIVEの終了時は停止が先、タイトル操作は明示時だけを受け入れ条件とする。実スケジューラとの結合は対象外。
 
 - 機能適合性・信頼性・セキュリティを対象に、境界値・判断表・状態遷移・エラー推測で判定と状態保持を検証する。
 - マージ判定は機能適合性・信頼性を対象に判断表で各阻止条件、境界値でEYES件数と失敗回数、状態遷移でack・thread解決・CI完了後の解除を確認する。取得後の外部変更は再取得とHEAD照合で軽減するが、GitHub側のbranch protectionによる最終検証が必要。

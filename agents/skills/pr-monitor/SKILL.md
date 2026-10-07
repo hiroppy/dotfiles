@@ -5,7 +5,7 @@ description: Monitor GitHub PRs using a bundled check script; fix CI failures, m
 
 # PR Monitor
 
-スクリプトでGitHub取得・差分判定、Codexで未対応イベントを処理する。
+スクリプトでGitHub取得・差分判定、実行するエージェントが未対応イベントを処理する。Python 3・認証済みgh CLI・Gitが必要。特定のアプリやautomationツールは必須ではない。
 
 ## 確認
 
@@ -15,6 +15,7 @@ PR未指定なら `gh pr view --json number,url` と `gh repo view --json nameWi
 python3 <skill-dir>/scripts/check.py check --repo OWNER/REPO --pr NUMBER
 ```
 
+- 既定はスケジューラなし（`--monitor-status NONE`）。継続監視は[lifecycle.md](references/lifecycle.md)に従い実行環境で設定する。
 - checkの`actions`を[lifecycle.md](references/lifecycle.md)に従って順番に実行する。
 - errorは取得失敗、busyは次回確認。
 - 未対応イベントは前回と同じでも処理する。進められなければ理由と必要な判断を通知する。

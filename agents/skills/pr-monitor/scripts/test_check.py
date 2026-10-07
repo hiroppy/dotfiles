@@ -51,6 +51,46 @@ def thread():
 
 
 class MonitorTests(unittest.TestCase):
+    def test_portable_actions_keep_events_without_app_operations(self):
+        data = snapshot()
+        data["reviewThreads"] = [thread()]
+        state = check.update({}, data)
+        state["codexReactionSeen"] = True
+        self.assertEqual(
+            ["handle_event"], [a["type"] for a in check.plan_actions(state)]
+        )
+        for status in ("MERGED", "CLOSED"):
+            data["pr"]["state"] = status
+            state = check.update({}, data)
+            expected = ["notify", "cleanup_state"]
+            if status == "MERGED":
+                expected.insert(0, "cleanup_worktree")
+            self.assertEqual(expected, [a["type"] for a in check.plan_actions(state)])
+
+    def test_cli_defaults_to_no_scheduler(self):
+        with tempfile.TemporaryDirectory() as directory:
+            fixture = Path(directory) / "fixture.json"
+            fixture.write_text(json.dumps(snapshot()))
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    str(Path(check.__file__)),
+                    "check",
+                    "--repo",
+                    "o/r",
+                    "--pr",
+                    "1",
+                    "--fixture",
+                    str(fixture),
+                    "--state-dir",
+                    directory,
+                ],
+                capture_output=True,
+                text=True,
+                check=True,
+            )
+            self.assertEqual([], json.loads(result.stdout)["actions"])
+
     def test_action_receipts_and_attempt_cli(self):
         data = snapshot()
         data["pr"]["state"] = "MERGED"
@@ -372,7 +412,9 @@ class MonitorTests(unittest.TestCase):
                 "detailsUrl": "https://github.com/o/r/actions/runs/123/job/456",
             }
         ]
-        action = check.plan_actions(check.update({}, data), current_interval=1)[0]
+        action = check.plan_actions(
+            check.update({}, data), current_interval=1, monitor_status="ACTIVE"
+        )[0]
         self.assertEqual(123, action["runId"])
         self.assertEqual(
             ["gh", "run", "view", "123", "--log-failed"], action["logArgs"]
@@ -437,11 +479,15 @@ class MonitorTests(unittest.TestCase):
 
     def test_action_plan_interval_stop_and_paused(self):
         state = check.update({}, snapshot())
-        self.assertEqual([], check.plan_actions(state, current_interval=1))
-        action = check.plan_actions(state, current_interval=20)[0]
+        self.assertEqual(
+            [], check.plan_actions(state, current_interval=1, monitor_status="ACTIVE")
+        )
+        action = check.plan_actions(
+            state, current_interval=20, monitor_status="ACTIVE"
+        )[0]
         self.assertEqual("FREQ=MINUTELY;INTERVAL=1", action["rrule"])
         state["stopRequested"] = True
-        actions = check.plan_actions(state, current_interval=1)
+        actions = check.plan_actions(state, current_interval=1, monitor_status="ACTIVE")
         self.assertEqual(["pause_monitor", "notify"], [a["type"] for a in actions])
         self.assertEqual(
             ["notify"],
@@ -456,7 +502,10 @@ class MonitorTests(unittest.TestCase):
             [
                 {k: v for k, v in a.items() if k != "id"}
                 for a in check.plan_actions(
-                    state, title="👍 👍 Chat", current_interval=1
+                    state,
+                    title="👍 👍 Chat",
+                    current_interval=1,
+                    monitor_status="ACTIVE",
                 )
             ],
         )
@@ -464,24 +513,36 @@ class MonitorTests(unittest.TestCase):
             {"id": 1, "content": "+1", "user": {"login": "chatgpt-codex-connector"}}
         ]
         state = check.update(state, data)
-        actions = check.plan_actions(state, title="Chat", current_interval=1)
+        actions = check.plan_actions(
+            state, title="Chat", current_interval=1, monitor_status="ACTIVE"
+        )
         self.assertEqual("👍 Chat", actions[0]["title"])
         self.assertEqual("notify", actions[1]["type"])
         key = actions[1]["eventId"]
         state["acknowledged"][key] = "notified"
         state = check.update(state, data)
         self.assertEqual(
-            [], check.plan_actions(state, title="👍 Chat", current_interval=1)
+            [],
+            check.plan_actions(
+                state, title="👍 Chat", current_interval=1, monitor_status="ACTIVE"
+            ),
         )
         for status, merged in [("MERGED", True), ("CLOSED", False)]:
             data["pr"]["state"] = status
             state = check.update(state, data)
-            expected = ["pause_monitor"] + (["cleanup_worktree"] if merged else []) + [
-                "notify",
-                "delete_monitor",
-                "cleanup_state",
-            ]
-            self.assertEqual(expected, [a["type"] for a in check.plan_actions(state)])
+            expected = (
+                ["pause_monitor"]
+                + (["cleanup_worktree"] if merged else [])
+                + [
+                    "notify",
+                    "delete_monitor",
+                    "cleanup_state",
+                ]
+            )
+            self.assertEqual(
+                expected,
+                [a["type"] for a in check.plan_actions(state, monitor_status="ACTIVE")],
+            )
 
     def test_terminal_monitor_stops_before_fallible_actions(self):
         for status in ("MERGED", "CLOSED"):
@@ -489,17 +550,23 @@ class MonitorTests(unittest.TestCase):
                 data = snapshot()
                 data["pr"]["state"] = status
                 state = check.update({}, data)
-                actions = check.plan_actions(state, title="👍 Chat")
+                actions = check.plan_actions(
+                    state, title="👍 Chat", monitor_status="ACTIVE"
+                )
                 self.assertEqual("pause_monitor", actions[0]["type"])
                 state["notificationDeliveries"] = {
                     "old-delivery": {
                         "status": "unknown",
                         "action": {
-                            "id": "old-delivery", "type": "notify", "message": "old"
+                            "id": "old-delivery",
+                            "type": "notify",
+                            "message": "old",
                         },
                     }
                 }
-                actions = check.plan_actions(state, title="👍 Chat")
+                actions = check.plan_actions(
+                    state, title="👍 Chat", monitor_status="ACTIVE"
+                )
                 self.assertEqual("pause_monitor", actions[0]["type"])
                 self.assertEqual("reconcile_notification", actions[1]["type"])
                 # A paused retry must still offer unfinished terminal cleanup.
@@ -634,12 +701,16 @@ class MonitorTests(unittest.TestCase):
         state = check.update(state, data, now=started)
         self.assertEqual(1, state["recommendedIntervalMinutes"])
         self.assertEqual("def", state["codexPassedHead"])
-        actions = check.plan_actions(state, title="Chat", current_interval=1)
+        actions = check.plan_actions(
+            state, title="Chat", current_interval=1, monitor_status="ACTIVE"
+        )
         self.assertEqual("👍 Chat", actions[0]["title"])
         self.assertTrue(any(a["type"] == "notify" for a in actions))
-        self.assertEqual(
-            {"type": "set_title", "titlePrefix": "👍 "},
-            {k: v for k, v in check.plan_actions(state)[0].items() if k != "id"},
+        self.assertFalse(
+            any(
+                a["type"] == "set_title"
+                for a in check.plan_actions(state, monitor_status="ACTIVE")
+            )
         )
         data["prReactions"] = [dict(data["prReactions"][0], id=4)]
         approved_at = started
@@ -666,18 +737,38 @@ class MonitorTests(unittest.TestCase):
             }
         ]
         state = check.update(state, data)
-        self.assertEqual("👍 ", check.plan_actions(state)[0]["titlePrefix"])
+        self.assertEqual(
+            "👍 Chat",
+            check.plan_actions(state, title="Chat", monitor_status="ACTIVE")[0][
+                "title"
+            ],
+        )
         data = copy.deepcopy(data)
         data["pr"]["headRefOid"] = "new-head"
         data["prReactions"] = []
         data["reactions"] = [{"content": "EYES", "users": {"totalCount": 1}}]
         state = check.update(state, data)
         self.assertTrue(check.eyes(data))
-        self.assertEqual("", check.plan_actions(state)[0]["titlePrefix"])
-        self.assertEqual("Chat", check.plan_actions(state, title="👍 Chat")[0]["title"])
+        self.assertEqual(
+            "Chat",
+            check.plan_actions(state, title="👍 Chat", monitor_status="ACTIVE")[0][
+                "title"
+            ],
+        )
+        self.assertEqual(
+            "Chat",
+            check.plan_actions(state, title="👍 Chat", monitor_status="ACTIVE")[0][
+                "title"
+            ],
+        )
         # Keep requesting removal if the caller failed to apply it on the first poll.
         state = check.update(state, data)
-        self.assertEqual("", check.plan_actions(state)[0]["titlePrefix"])
+        self.assertEqual(
+            "Chat",
+            check.plan_actions(state, title="👍 Chat", monitor_status="ACTIVE")[0][
+                "title"
+            ],
+        )
         self.assertFalse(
             any(e["kind"] == "codex_passed" for e in state["pending"].values())
         )
