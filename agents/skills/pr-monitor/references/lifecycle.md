@@ -2,12 +2,12 @@
 
 ## 監視
 
-- 既定の`check`はスケジューラなし（`--monitor-status NONE`）。PR取得・イベント対応・マージ判定は定期実行ツールがなくても進める。タイトルを渡さなければタイトル変更も要求しない。
+- `check`の既定は従来どおり`--monitor-status ACTIVE`。間隔変更・停止・登録削除・titlePrefixのactionsも従来どおり返す。actionsは実行計画であり、Codex固有ツールを要求するものではない。実行側が利用中の連携に適用するか、連携未使用の根拠を確認してスキップする。
 - 継続監視は実行環境が提供する定期実行機能、cron、CI、またはエージェントの待機・再確認で行う。スケジューラは次の実行を起動するための任意の連携であり、PR対応の前提ではない。待機する場合は各回のcheck後にactionsを処理し、推奨間隔で再確認する。単にcheckをcron実行しても修正エージェントは起動しない。
 - PRごとに実行主体を1つにし、既存監視を再利用する。「1回だけ」は登録しない。登録可能な機能がなければ、定期監視が未登録であることを明示し、その場のPR対応を続ける。登録したと推測しない。
-- スケジューラ連携時だけ`--monitor-status ACTIVE|PAUSED`と`--current-interval`を渡す。タイトル連携時は`--title`を渡す。ユーザー指定間隔は`--interval-minutes`。停止済み監視はユーザー指示で再開し、最初のcheckに`--reset-idle`を付ける。
+- スケジューラ連携時は実際の`--monitor-status ACTIVE|PAUSED`と`--current-interval`を渡す。既存の呼び出しは変更不要。タイトル連携では`--title`を渡すか、titlePrefixから現在のタイトルを変更する。ユーザー指定間隔は`--interval-minutes`。停止済み監視はユーザー指示で再開し、最初のcheckに`--reset-idle`を付ける。
 - 登録・変更後に対象・間隔・有効状態を確認する。実行指示にはPR URL、repo/number、worktree、承認範囲と「checkのactionsを順番に実行する」を記載する。
-- 待機・再確認では`stopRequested`で停止し、MERGED/CLOSEDでは次のcheckを予約しない。外部スケジューラを実際に使っている場合はNONEで隠さず、停止を確認してから終了処理へ進む。
+- 待機・再確認では`stopRequested`で停止し、MERGED/CLOSEDでは次のcheckを予約しない。外部スケジューラを実際に使っている場合は停止を確認してから終了処理へ進む。
 
 ## actionsの実行
 
@@ -15,7 +15,7 @@
 | --- | --- |
 | set_interval | 選択したスケジューラでminutes（またはrrule）を適用。他の設定は保持 |
 | pause_monitor | 選択したスケジューラの実行を停止する |
-| set_title | 実行環境の任意のタイトル変更機能でtitleを適用。既に同じなら完了として記録。古いtitlePrefix形式は連携中の場合だけ現在のタイトルから適用 |
+| set_title | 実行環境の任意のタイトル変更機能でtitleを適用。既に同じなら完了として記録。titlePrefixなら現在のタイトルの先頭の重複した👍を除いてprefixを適用 |
 | notify | prepare-notificationがdispatchを返した場合だけ通知し、notification-resultで結果を記録 |
 | reconcile_notification | 通知履歴等の証拠から送達を確認。不明なら再送せず後続を止める |
 | handle_event | eventIdのイベントをresponse.mdで処理 |
@@ -25,7 +25,7 @@
 
 - 通知以外の各操作の成功後に`check.py complete --repo OWNER/REPO --pr NUMBER --action ID --reason 結果`で記録する。通知は以下の専用手順でeventもackされる。
 - handle_eventは対応後にeventをackする。cleanup_stateはJSONを削除するためcomplete不要。
-- 順番に実行する。実際のスケジューラ停止失敗、通知送達不明、GitHub操作やcleanupの失敗は後続を止めて報告する。未登録のスケジューラ・未使用のタイトル連携の古いactionは、未使用の根拠を記録してcompleteし、PR対応を続ける。実在する監視を停止済みと推測しない。
+- 順番に実行する。実際のスケジューラ停止失敗、通知送達不明、GitHub操作やcleanupの失敗は後続を止めて報告する。未登録のスケジューラに対するset_interval/pause_monitor/delete_monitor、未使用のタイトル連携に対するset_titleは、未使用の根拠とスキップ理由をcompleteに記録してPR対応を続ける。ツールがないだけでは連携未使用の証拠にならない。既存監視の有無が不明なら調査し、安全に独立して行えるイベント対応を続けるが、停止確認が必要な終了処理は保留する。実在する監視を停止済みと推測しない。
 - actionsが空なら静かに終了する。PAUSEDの監視を自動再開しない。
 
 ## 通知
@@ -42,7 +42,7 @@ python3 <skill-dir>/scripts/check.py notification-result --repo OWNER/REPO --pr 
 
 ## 終了・cleanup
 
-- MERGED/CLOSEDを確認したら、cleanup・通知より先に使用中のスケジューラを停止する（NONEなら停止操作は不要）。後続が失敗しても定期監視は再開しない。未完了の後片付けは現在のチャットで継続し、必要な判断を報告する。後片付け完了後にスケジューラ登録を削除する。
+- MERGED/CLOSEDを確認したら、cleanup・通知より先に使用中のスケジューラを停止する（監視が未登録と確認できた場合はスキップ理由を記録）。後続が失敗しても定期監視は再開しない。未完了の後片付けは現在のチャットで継続し、必要な判断を報告する。後片付け完了後にスケジューラ登録を削除する。
 
 - disposeが指定されている場合は実行し、実行環境のタスク管理機能、Git worktree一覧、関連づけの記録等で対象worktreeの管理・共有・pin・他タスク使用状況を確認する。アプリ管理外の通常worktreeはmanaged=false、pin機能がない環境はpinned=falseの根拠を記録する。不明な値をfalseとして扱わない。通常のworktreeは関連づけの記録と実行中タスクから確認する。
 - 確認した証拠をworktree外のJSONへ保存する。`observedAt`はタイムゾーン付きISO時刻、他の項目は確認済みboolean。`inUse`はdispose後の他タスクによる使用を表す。スクリプトは60秒以内の証拠だけを受け付け、プロセスはlsofで別途確認する。

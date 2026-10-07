@@ -382,7 +382,7 @@ def update(state, snapshot, now=None, interval_minutes=None):
     }
 
 
-def plan_actions(state, title=None, current_interval=None, monitor_status="NONE"):
+def plan_actions(state, title=None, current_interval=None, monitor_status="ACTIVE"):
     """Return external operations without performing or acknowledging them."""
     snapshot = state["snapshot"]
     pr = snapshot["pr"]
@@ -397,13 +397,23 @@ def plan_actions(state, title=None, current_interval=None, monitor_status="NONE"
         desired_title = ("👍 " if codex_reaction_ids(snapshot) else "") + plain_title
         if desired_title != title:
             actions.append({"type": "set_title", "title": desired_title})
+    elif pr["state"] == "OPEN" and state.get("codexReactionSeen"):
+        actions.append(
+            {
+                "type": "set_title",
+                "titlePrefix": "👍 " if codex_reaction_ids(snapshot) else "",
+            }
+        )
     if pr["state"] != "OPEN":
         if pr["state"] == "MERGED":
             actions.append({"type": "cleanup_worktree"})
-        actions.append({"type": "notify", "message": f"{pr['url']}: {pr['state']}"})
-        if monitor_status != "NONE":
-            actions.append({"type": "delete_monitor"})
-        actions.append({"type": "cleanup_state"})
+        actions.extend(
+            [
+                {"type": "notify", "message": f"{pr['url']}: {pr['state']}"},
+                {"type": "delete_monitor"},
+                {"type": "cleanup_state"},
+            ]
+        )
         return action_receipts(state, actions)
     if monitor_status == "ACTIVE":
         if state["stopRequested"]:
@@ -817,17 +827,17 @@ def main():
         "--fixture", type=Path, help="Use a saved snapshot instead of GitHub"
     )
     parser.add_argument(
-        "--interval-minutes", type=int, help="Requested polling interval"
+        "--interval-minutes", type=int, help="Actual heartbeat interval"
     )
     parser.add_argument(
         "--reset-idle", action="store_true", help="Reset idle timer on resume"
     )
     parser.add_argument("--title", help="Current chat title")
     parser.add_argument(
-        "--current-interval", type=int, help="Current scheduler interval"
+        "--current-interval", type=int, help="Current heartbeat interval"
     )
     parser.add_argument(
-        "--monitor-status", choices=["NONE", "ACTIVE", "PAUSED"], default="NONE"
+        "--monitor-status", choices=["ACTIVE", "PAUSED"], default="ACTIVE"
     )
     parser.add_argument(
         "--apply", action="store_true", help="Delete eligible state with cleanup"

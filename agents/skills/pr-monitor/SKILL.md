@@ -15,7 +15,7 @@ PR未指定なら `gh pr view --json number,url` と `gh repo view --json nameWi
 python3 <skill-dir>/scripts/check.py check --repo OWNER/REPO --pr NUMBER
 ```
 
-- 既定はスケジューラなし（`--monitor-status NONE`）。継続監視は[lifecycle.md](references/lifecycle.md)に従い実行環境で設定する。
+- actionsの出力契約は従来どおり。スケジューラやタイトル機能への接続は実行側で選び、未使用の連携は根拠つきでスキップする。継続監視は[lifecycle.md](references/lifecycle.md)に従い実行環境で設定する。
 - checkの`actions`を[lifecycle.md](references/lifecycle.md)に従って順番に実行する。
 - errorは取得失敗、busyは次回確認。
 - 未対応イベントは前回と同じでも処理する。進められなければ理由と必要な判断を通知する。

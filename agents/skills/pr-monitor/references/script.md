@@ -19,7 +19,7 @@ Python 3標準ライブラリ、認証済みgh CLI、Gitを使う（macOS/Linux�
 | --state-dir | 既定は`~/.codex/pr-monitor`。worktree外に保存 |
 | --interval-minutes | ユーザー指定の監視間隔 |
 | --reset-idle | 再開時に無変化タイマーをリセット |
-| --title / --current-interval / --monitor-status | 任意の連携状態を渡す。monitor-statusはNONEが既定、ACTIVE/PAUSEDは実際のスケジューラ使用時だけ指定 |
+| --title / --current-interval / --monitor-status | 現在の連携状態を渡す。monitor-statusは従来どおりACTIVEが既定。actionsを実行する仕組みは実行環境が選ぶ |
 | --fixture | 保存snapshotでAPIなしの検証 |
 
 - PRごとのflockで取得・状態更新を排他する。修正作業はロックしないため監視を重複登録しない。取得失敗時はlastErrorを更新し、snapshot/pendingを保持して無変化タイマーをリセットする。解決済みCI/threadはpendingから除外する。
@@ -29,7 +29,7 @@ Python 3標準ライブラリ、認証済みgh CLI、Gitを使う（macOS/Linux�
 - `stopRequested`: 1分監視で20分無変化かつ未対応なし。snapshot変更・取得失敗・未対応・間隔変更・再開時にタイマーをリセットする。
 
 - HEAD変更時のリアクション基準値は前回snapshotを使う。同じ取得でHEAD変更と新しいCodexの+1を検出した場合も通過通知を返す。初回取得の既存+1はHEADとの対応が不明なため通過とは断定しない。
-- タイトル連携は`--title`を明示した場合だけ`set_title`を返す。連携なしでは👍の有無に関わらずタイトル取得・変更を要求しない。
+- `--title`を省略してもCodexの+1を一度検出したPRでは従来どおり`set_title`の`titlePrefix`を返す。連携未使用の実行側は根拠つきでスキップし、タイトル機能を必須にしない。
 
 - checkの`actions`: 間隔・停止・タイトル・通知・イベント対応・終了の実行計画。check自体は外部操作やackを実行しない。通知のaction IDはcheck時刻が変わっても固定し、未確認の送達はPR状態が変わってもreconcile_notificationとして返す。MERGED/CLOSED時のpause_monitorは送達確認より先に返し、確認待ちでも監視を停止する。
 
@@ -63,7 +63,7 @@ python3 <skill-dir>/scripts/check.py merge --repo OWNER/REPO --pr NUMBER --apply
 
 ## 検証
 
-- アプリ非依存の実行は機能適合性・互換性を対象に判断表でNONE/ACTIVE/PAUSEDとOPEN/MERGED/CLOSEDを確認する。CLI既定ではアプリ操作なし、イベント対応は維持、ACTIVEの終了時は停止が先、タイトル操作は明示時だけを受け入れ条件とする。実スケジューラとの結合は対象外。
+- 互換性・機能適合性を対象に判断表と状態遷移でACTIVE/PAUSED、OPEN/MERGED/CLOSED、title/titlePrefixを確認する。既存の既定値・actions・停止優先順を維持することを受け入れ条件とする。任意の実スケジューラとの結合と手順の自動実行は対象外。
 
 - 機能適合性・信頼性・セキュリティを対象に、境界値・判断表・状態遷移・エラー推測で判定と状態保持を検証する。
 - マージ判定は機能適合性・信頼性を対象に判断表で各阻止条件、境界値でEYES件数と失敗回数、状態遷移でack・thread解決・CI完了後の解除を確認する。取得後の外部変更は再取得とHEAD照合で軽減するが、GitHub側のbranch protectionによる最終検証が必要。
