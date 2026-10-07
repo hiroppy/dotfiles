@@ -13,6 +13,8 @@ import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
 
+from worktree_cleanup import cleanup_worktree
+
 PAGE = "pageInfo { hasNextPage endCursor }"
 APPROVAL_GRACE_SECONDS = 10 * 60
 IDLE_STOP_SECONDS = 20 * 60
@@ -72,7 +74,7 @@ def collect(repo, number):
         "--repo",
         repo,
         "--json",
-        "state,mergedAt,isDraft,headRefOid,baseRefOid,mergeable,mergeStateStatus,url,body,title,statusCheckRollup",
+        "id,state,mergedAt,isDraft,headRefOid,baseRefOid,mergeable,mergeStateStatus,reviewDecision,url,body,title,statusCheckRollup",
     )
     if pr["state"] != "OPEN" or pr["isDraft"]:
         return {
@@ -226,6 +228,7 @@ def events(snapshot, passed_for_head=False):
             add(
                 "thread",
                 [
+                    head,
                     thread["id"],
                     [
                         {k: c.get(k) for k in ("id", "updatedAt", "body")}
@@ -238,22 +241,53 @@ def events(snapshot, passed_for_head=False):
 
 
 def eyes(snapshot):
-    items = [
-        snapshot["pr"],
-        *snapshot.get("comments", []),
-        *snapshot.get("reviews", []),
-    ]
-    for thread in snapshot.get("reviewThreads", []):
-        items.extend(thread["comments"])
-    groups = list(snapshot.get("reactions", []))
-    for item in items:
-        groups.extend(item.get("reactionGroups", []))
     return any(
-        "👀" in item.get(field, "") for item in items for field in ("body", "title")
-    ) or any(
         group["content"] == "EYES" and group["users"]["totalCount"] > 0
-        for group in groups
+        for group in snapshot.get("reactions", [])
     )
+
+
+def merge_decision(snapshot, state):
+    pr = snapshot["pr"]
+    reasons = []
+    if pr["state"] != "OPEN":
+        reasons.append("not_open")
+    if pr["isDraft"]:
+        reasons.append("draft")
+    if eyes(snapshot):
+        reasons.append("eyes_reaction")
+    if pr["mergeable"] == "CONFLICTING" or pr["mergeStateStatus"] == "DIRTY":
+        reasons.append("conflict")
+    elif pr["mergeable"] != "MERGEABLE":
+        reasons.append("mergeability_unknown")
+    if pr["mergeStateStatus"] not in {"CLEAN", "HAS_HOOKS"}:
+        reasons.append("merge_state_" + pr["mergeStateStatus"].lower())
+    if pr.get("reviewDecision") in {"CHANGES_REQUESTED", "REVIEW_REQUIRED"}:
+        reasons.append("review_" + pr["reviewDecision"].lower())
+    for check in pr.get("statusCheckRollup") or []:
+        outcome = check.get("conclusion") or check.get("state")
+        if outcome in {"SUCCESS", "NEUTRAL", "SKIPPED"}:
+            continue
+        if check.get("status") in {
+            "QUEUED",
+            "IN_PROGRESS",
+            "WAITING",
+            "PENDING",
+        } or outcome in {None, "", "PENDING", "EXPECTED"}:
+            reasons.append("ci_pending")
+        else:
+            reasons.append("ci_failed")
+    if any(not thread["isResolved"] for thread in snapshot.get("reviewThreads", [])):
+        reasons.append("unresolved_threads")
+    for event in state.get("pending", {}).values():
+        if event["kind"] in {"comment", "review", "thread", "ci", "conflict"}:
+            reasons.append("pending_" + event["kind"])
+    if any(
+        attempt.get("failures", 0) >= 3
+        for attempt in state.get("attempts", {}).values()
+    ):
+        reasons.append("hold")
+    return {"canMerge": not reasons, "blockingReasons": sorted(set(reasons))}
 
 
 def update(state, snapshot, now=None, interval_minutes=None):
@@ -386,6 +420,7 @@ def plan_actions(state, title=None, current_interval=None, monitor_status="ACTIV
                     {
                         "type": "notify",
                         "message": f"{pr['url']}: 20分間変化なしで監視停止",
+                        "trigger": "idle_stop",
                     },
                 ]
             )
@@ -400,7 +435,11 @@ def plan_actions(state, title=None, current_interval=None, monitor_status="ACTIV
             )
     if monitor_status == "PAUSED" and state["stopRequested"]:
         actions.append(
-            {"type": "notify", "message": f"{pr['url']}: 20分間変化なしで監視停止"}
+            {
+                "type": "notify",
+                "message": f"{pr['url']}: 20分間変化なしで監視停止",
+                "trigger": "idle_stop",
+            }
         )
     for event in state["pending"].values():
         if event["kind"] == "codex_passed":
@@ -431,20 +470,44 @@ def action_receipts(state, actions):
     completed = state.get("completedActions", {})
     context = [
         state["snapshot"]["pr"]["headRefOid"],
-        state["idleSince"],
         state["snapshot"]["pr"]["state"],
     ]
     result = []
     for action in actions:
-        action = dict(action, id=digest([context, action]))
+        identity = [context, action]
+        if action["type"] == "pause_monitor" or (action.get("trigger") == "idle_stop"):
+            identity.append(state["idleSince"])
+        action = dict(action, id=digest(identity))
         if (
             action["type"]
             not in {"set_title", "set_interval", "pause_monitor", "handle_event"}
             and action["id"] in completed
         ):
             continue
+        delivery = state.get("notificationDeliveries", {}).get(action["id"])
+        if action["type"] == "notify" and delivery and delivery["status"] != "not_sent":
+            action = {
+                **action,
+                "type": "reconcile_notification",
+                "deliveryKey": action["id"],
+            }
         result.append(action)
-    return result
+    # An uncertain older notification must remain visible even after the PR changes.
+    current_ids = {action["id"] for action in result}
+    for action_id, delivery in state.get("notificationDeliveries", {}).items():
+        if (
+            delivery["status"] in {"started", "unknown"}
+            and action_id not in current_ids
+            and action_id not in completed
+        ):
+            result.append(
+                {
+                    **delivery["action"],
+                    "type": "reconcile_notification",
+                    "deliveryKey": action_id,
+                },
+            )
+    return sorted(result, key=lambda action: action["type"] != "reconcile_notification")
 
 
 def save(path, state):
@@ -460,6 +523,267 @@ def save(path, state):
             os.unlink(temporary)
 
 
+def read_review_thread(thread_id):
+    query = (
+        "query($id:ID!,$cursor:String) { viewer { login } node(id:$id) { "
+        "... on PullRequestReviewThread { id isResolved pullRequest { number headRefOid "
+        "repository { nameWithOwner } } comments(first:100,after:$cursor) { nodes { "
+        + COMMENT
+        + " } "
+        + PAGE
+        + " } } } }"
+    )
+    result = graphql(query, id=thread_id)
+    thread = result["node"]
+    if not thread:
+        raise RuntimeError("Review thread not found")
+    first = thread["comments"]
+
+    def fetch(cursor):
+        if cursor is None:
+            return first
+        return graphql(query, id=thread_id, cursor=cursor)["node"]["comments"]
+
+    return {**thread, "comments": connection(fetch)}, result["viewer"]["login"]
+
+
+def validate_review_thread(thread, login, receipt, repo, number):
+    pr = thread["pullRequest"]
+    if (
+        pr["number"] != number
+        or pr["repository"]["nameWithOwner"].lower() != repo.lower()
+    ):
+        raise RuntimeError("Review thread belongs to another PR")
+    if pr["headRefOid"] != receipt["head"]:
+        raise RuntimeError("PR head changed; run check and reassess the review")
+    replies = [
+        comment
+        for comment in thread["comments"]
+        if comment["body"] == receipt["replyBody"]
+        and (comment.get("author") or {}).get("login") == login
+    ]
+    reply_ids = {comment["id"] for comment in replies}
+    source = [
+        {key: comment.get(key) for key in ("id", "body", "updatedAt")}
+        for comment in thread["comments"]
+        if comment["id"] not in reply_ids
+    ]
+    expected = [
+        {key: comment.get(key) for key in ("id", "body", "updatedAt")}
+        for comment in receipt["thread"]["comments"]
+    ]
+    if source != expected:
+        raise RuntimeError("Review comments changed; run check and reassess the review")
+    return replies[0] if replies else None
+
+
+def review_operation(state, path, event_id, body, reason, repo, number, operation):
+    receipts = state.setdefault("reviewCompletions", {})
+    key = event_id if operation == "finish-review" else operation + ":" + event_id
+    receipt = receipts.get(key)
+    if receipt is None:
+        event = state.get("pending", {}).get(event_id)
+        if not event or event["kind"] != "thread":
+            raise RuntimeError("Expected one pending review thread event")
+        receipt = {
+            "thread": event["thread"],
+            "head": state["snapshot"]["pr"]["headRefOid"],
+            "body": body,
+            "reason": reason,
+            "replyBody": body.rstrip()
+            + "\n\n<!-- pr-monitor:"
+            + digest([repo.lower(), number, key, body])
+            + " -->",
+        }
+        # A standalone resolve may follow a reply without an intervening check.
+        prior = receipts.get("reply:" + event_id)
+        if operation == "resolve" and prior and prior.get("reply"):
+            receipt["replyBody"] = prior["replyBody"]
+        receipts[key] = receipt
+        save(path, state)
+    elif receipt["body"] != body or receipt["reason"] != reason:
+        raise RuntimeError("Retry must use the original reply body and reason")
+    thread_id = receipt["thread"]["id"]
+    thread, login = read_review_thread(thread_id)
+    reply = validate_review_thread(thread, login, receipt, repo, number)
+    if operation != "reply" and receipt.get("completed") and not thread["isResolved"]:
+        raise RuntimeError("Review thread reopened; run check and reassess the review")
+    if operation != "resolve":
+        if reply is None:
+            if receipt.get("reply") or receipt.get("completed"):
+                raise RuntimeError(
+                    "Recorded reply is missing or edited; reassess the review"
+                )
+            graphql(
+                "mutation($id:ID!,$body:String!) { addPullRequestReviewThreadReply(input:{pullRequestReviewThreadId:$id,body:$body}) { comment { id url } } }",
+                id=thread_id,
+                body=receipt["replyBody"],
+            )
+            thread, login = read_review_thread(thread_id)
+            reply = validate_review_thread(thread, login, receipt, repo, number)
+            if reply is None:
+                raise RuntimeError("Reply could not be confirmed")
+        receipt["reply"] = {key: reply[key] for key in ("id", "url")}
+        save(path, state)
+    if operation != "reply" and not thread["isResolved"]:
+        graphql(
+            "mutation($id:ID!) { resolveReviewThread(input:{threadId:$id}) { thread { id isResolved } } }",
+            id=thread_id,
+        )
+        thread, login = read_review_thread(thread_id)
+        validate_review_thread(thread, login, receipt, repo, number)
+        if not thread["isResolved"]:
+            raise RuntimeError("Thread resolution not confirmed")
+    receipt["completed"] = True
+    if operation == "finish-review":
+        state.setdefault("acknowledged", {})[event_id] = reason
+        state.get("pending", {}).pop(event_id, None)
+    save(path, state)
+    return {
+        "status": "completed",
+        "eventId": event_id,
+        "reply": receipt.get("reply"),
+        "resolved": thread["isResolved"],
+        "acknowledged": operation == "finish-review",
+    }
+
+
+def finish_review(state, path, event_id, body, reason, repo, number):
+    return review_operation(
+        state, path, event_id, body, reason, repo, number, "finish-review"
+    )
+
+
+def merge_pr(state, path, repo, number, method, expected_head, apply, reason):
+    live = collect(repo, number)
+    refreshed = update(state, live)
+    state.clear()
+    state.update(refreshed)
+    save(path, state)
+    pr = live["pr"]
+    if pr["state"] == "MERGED":
+        return {
+            "status": "merged",
+            "alreadyMerged": True,
+            "head": pr["headRefOid"],
+            "url": pr["url"],
+        }
+    decision = merge_decision(live, state)
+    if not decision["canMerge"]:
+        return {"status": "blocked", "head": pr["headRefOid"], **decision}
+    if not apply:
+        return {"status": "eligible", "head": pr["headRefOid"], **decision}
+    if not reason or expected_head != pr["headRefOid"]:
+        raise RuntimeError(
+            "Merge requires authorization reason and matching --expected-head"
+        )
+    receipt = state.get("mergeOperation")
+    if receipt and (receipt["head"] != expected_head or receipt["method"] != method):
+        raise RuntimeError(
+            "Merge retry inputs changed; reassess before starting a new operation"
+        )
+    state["mergeOperation"] = {
+        "head": expected_head,
+        "method": method,
+        "reason": reason,
+        "status": "started",
+    }
+    save(path, state)
+    error = None
+    try:
+        graphql(
+            "mutation($id:ID!,$head:GitObjectID!,$method:PullRequestMergeMethod!) { mergePullRequest(input:{pullRequestId:$id,expectedHeadOid:$head,mergeMethod:$method}) { pullRequest { state } } }",
+            id=pr["id"],
+            head=expected_head,
+            method=method.upper(),
+        )
+    except (RuntimeError, subprocess.TimeoutExpired) as caught:
+        error = str(caught)
+    confirmed = collect(repo, number)
+    refreshed = update(state, confirmed)
+    state.clear()
+    state.update(refreshed)
+    merged = confirmed["pr"]["state"] == "MERGED"
+    state["mergeOperation"]["status"] = "merged" if merged else "unconfirmed"
+    save(path, state)
+    if not merged:
+        raise RuntimeError(error or "Merge not confirmed; run check before retrying")
+    return {
+        "status": "merged",
+        "alreadyMerged": False,
+        "head": expected_head,
+        "url": pr["url"],
+    }
+
+
+def prepare_notification(state, path, action_id):
+    deliveries = state.setdefault("notificationDeliveries", {})
+    receipt = deliveries.get(action_id)
+    if action_id in state.get("completedActions", {}):
+        return {"status": "completed", "deliveryKey": action_id}
+    if receipt and receipt["status"] != "not_sent":
+        return {
+            "status": "delivery_unknown",
+            "deliveryKey": action_id,
+            "message": receipt["action"]["message"],
+        }
+    action = state.get("plannedActions", {}).get(action_id)
+    if not action or action["type"] not in {"notify", "reconcile_notification"}:
+        raise RuntimeError("Expected a planned notification action")
+    action = {**action, "type": "notify"}
+    deliveries[action_id] = {"status": "started", "action": action}
+    save(path, state)
+    return {
+        "status": "dispatch",
+        "deliveryKey": action_id,
+        "message": action["message"],
+    }
+
+
+def record_notification(state, path, action_id, outcome, reason):
+    receipt = state.get("notificationDeliveries", {}).get(action_id)
+    if not receipt or not reason:
+        raise RuntimeError(
+            "Notification outcome requires a prepared action and evidence reason"
+        )
+    if action_id in state.get("completedActions", {}):
+        if outcome != "succeeded":
+            raise RuntimeError("Completed notification cannot be reset")
+        return {"status": "completed", "deliveryKey": action_id}
+    if outcome not in {"succeeded", "not_sent", "unknown"}:
+        raise RuntimeError("Unsupported notification outcome")
+    receipt.update(status=outcome, reason=reason)
+    if outcome == "succeeded":
+        state.setdefault("completedActions", {})[action_id] = reason
+        event_id = receipt["action"].get("eventId")
+        if event_id:
+            state.setdefault("acknowledged", {})[event_id] = reason
+            state.get("pending", {}).pop(event_id, None)
+    save(path, state)
+    return {
+        "status": "completed" if outcome == "succeeded" else outcome,
+        "deliveryKey": action_id,
+    }
+
+
+def record_attempt(state, problem, attempt_id, outcome, reason):
+    receipts = state.setdefault("attemptReceipts", {}).setdefault(problem, {})
+    inputs = {"outcome": outcome, "reason": reason}
+    receipt = receipts.get(attempt_id)
+    if receipt is not None and receipt != inputs:
+        raise ValueError(
+            "Attempt ID already recorded with a different outcome or reason"
+        )
+    attempts = state.setdefault("attempts", {})
+    if receipt is None:
+        count = attempts.get(problem, {}).get("failures", 0)
+        count = count + 1 if outcome == "failed" else 0
+        attempts[problem] = {"failures": count, "reason": reason}
+        receipts[attempt_id] = inputs
+    count = attempts[problem]["failures"]
+    return {"status": "hold" if count >= 3 else "continue", "failures": count}
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
@@ -473,6 +797,11 @@ def main():
             "attempt",
             "reply",
             "resolve",
+            "finish-review",
+            "merge",
+            "cleanup-worktree",
+            "prepare-notification",
+            "notification-result",
         ],
     )
     parser.add_argument("--repo", required=True, help="owner/repo")
@@ -505,8 +834,23 @@ def main():
     )
     parser.add_argument("--action", help="Action ID returned by check")
     parser.add_argument("--problem", help="Stable problem ID across retries")
-    parser.add_argument("--outcome", choices=["failed", "succeeded", "reset"])
+    parser.add_argument(
+        "--attempt-id", help="Unique trial ID; reuse for command retries"
+    )
+    parser.add_argument(
+        "--outcome", choices=["failed", "succeeded", "reset", "not_sent", "unknown"]
+    )
     parser.add_argument("--body-file", type=Path, help="Review reply text")
+    parser.add_argument("--expected-head", help="Exact authorized PR head for merge")
+    parser.add_argument("--method", choices=["merge", "squash"], default="squash")
+    parser.add_argument(
+        "--repository", type=Path, help="Separate checkout for worktree cleanup"
+    )
+    parser.add_argument("--worktree", type=Path, help="Exact associated worktree path")
+    parser.add_argument("--branch", help="Associated local PR branch")
+    parser.add_argument(
+        "--ownership-file", type=Path, help="Fresh app ownership evidence JSON"
+    )
     args = parser.parse_args()
     if args.interval_minutes is not None and args.interval_minutes < 1:
         parser.error("Interval must be positive")
@@ -524,56 +868,115 @@ def main():
             return 0
         state = json.loads(path.read_text()) if path.exists() else {}
         if args.command == "complete":
+            if args.action in state.get("completedActions", {}) and args.reason:
+                print(json.dumps({"status": "completed"}))
+                return 0
             action = state.get("plannedActions", {}).get(args.action)
             if not action or not args.reason:
                 parser.error("complete requires a planned --action and --reason")
+            if action["type"] in {"notify", "reconcile_notification"}:
+                result = record_notification(
+                    state, path, args.action, "succeeded", args.reason
+                )
+                print(json.dumps(result))
+                return 0
             state.setdefault("completedActions", {})[args.action] = args.reason
-            event_id = action.get("eventId")
-            if event_id and action["type"] == "notify":
-                state.setdefault("acknowledged", {})[event_id] = args.reason
-                state.get("pending", {}).pop(event_id, None)
             save(path, state)
             print(json.dumps({"status": "completed"}))
             return 0
         if args.command == "attempt":
-            if not args.problem or not args.outcome or not args.reason:
-                parser.error("attempt requires --problem, --outcome and --reason")
-            attempts = state.setdefault("attempts", {})
-            count = attempts.get(args.problem, {}).get("failures", 0)
-            count = count + 1 if args.outcome == "failed" else 0
-            attempts[args.problem] = {"failures": count, "reason": args.reason}
+            if (
+                not args.problem
+                or not args.attempt_id
+                or not args.attempt_id.strip()
+                or args.outcome not in {"failed", "succeeded", "reset"}
+                or not args.reason
+            ):
+                parser.error(
+                    "attempt requires --problem, --attempt-id, --outcome and --reason"
+                )
+            try:
+                result = record_attempt(
+                    state, args.problem, args.attempt_id, args.outcome, args.reason
+                )
+            except ValueError as error:
+                parser.error(str(error))
             save(path, state)
-            print(
-                json.dumps(
-                    {"status": "hold" if count >= 3 else "continue", "failures": count}
-                )
-            )
+            print(json.dumps(result))
             return 0
-        if args.command in {"reply", "resolve"}:
-            event = (
-                state.get("pending", {}).get(args.event[0])
-                if len(args.event) == 1
-                else None
-            )
-            if not event or event["kind"] != "thread":
-                parser.error("reply/resolve requires one pending thread --event")
-            thread_id = event["thread"]["id"]
-            if args.command == "reply":
-                if not args.body_file:
-                    parser.error("reply requires --body-file")
-                body = args.body_file.read_text()
-                result = graphql(
-                    "mutation($id:ID!,$body:String!) { addPullRequestReviewThreadReply(input:{pullRequestReviewThreadId:$id,body:$body}) { comment { id url } } }",
-                    id=thread_id,
-                    body=body,
-                )
-            else:
-                result = graphql(
-                    "mutation($id:ID!) { resolveReviewThread(input:{threadId:$id}) { thread { id isResolved } } }",
-                    id=thread_id,
-                )
-                if not result["resolveReviewThread"]["thread"]["isResolved"]:
-                    raise RuntimeError("Thread resolution not confirmed")
+        if args.command in {
+            "finish-review",
+            "reply",
+            "resolve",
+            "merge",
+            "cleanup-worktree",
+            "prepare-notification",
+            "notification-result",
+        }:
+            try:
+                if args.command in {"finish-review", "reply", "resolve"}:
+                    if len(args.event) != 1 or (
+                        args.command != "resolve" and not args.body_file
+                    ):
+                        parser.error(
+                            "Review operation requires one --event and reply --body-file"
+                        )
+                    if args.command == "finish-review" and not args.reason:
+                        parser.error("finish-review requires --reason")
+                    result = review_operation(
+                        state,
+                        path,
+                        args.event[0],
+                        args.body_file.read_text() if args.body_file else "",
+                        args.reason or "",
+                        args.repo,
+                        args.pr,
+                        args.command,
+                    )
+                elif args.command == "merge":
+                    result = merge_pr(
+                        state,
+                        path,
+                        args.repo,
+                        args.pr,
+                        args.method,
+                        args.expected_head,
+                        args.apply,
+                        args.reason,
+                    )
+                elif args.command == "cleanup-worktree":
+                    if not args.repository or not args.worktree or not args.branch:
+                        parser.error(
+                            "cleanup-worktree requires --repository, --worktree and --branch"
+                        )
+                    result = cleanup_worktree(
+                        state,
+                        path,
+                        args.repo,
+                        args.pr,
+                        args.repository,
+                        args.worktree,
+                        args.branch,
+                        args.ownership_file,
+                        args.apply,
+                        gh,
+                        save,
+                    )
+                elif args.command == "prepare-notification":
+                    result = prepare_notification(state, path, args.action)
+                else:
+                    result = record_notification(
+                        state, path, args.action, args.outcome, args.reason
+                    )
+            except (
+                RuntimeError,
+                subprocess.TimeoutExpired,
+                KeyError,
+                ValueError,
+                OSError,
+            ) as error:
+                print(json.dumps({"status": "error", "error": str(error)}))
+                return 1
             print(json.dumps(result))
             return 0
         if args.command == "cleanup":
@@ -581,6 +984,29 @@ def main():
                 print(json.dumps({"status": "absent", "stateFile": str(path)}))
                 return 0
             pending = state.get("pending", {}).values()
+            if any(
+                delivery["status"] in {"started", "unknown"}
+                for delivery in state.get("notificationDeliveries", {}).values()
+            ):
+                print(
+                    json.dumps(
+                        {
+                            "status": "retained",
+                            "reason": "notification_delivery_unknown",
+                        }
+                    )
+                )
+                return 0
+            if any(
+                not receipt.get("completed")
+                for receipt in state.get("worktreeCleanups", {}).values()
+            ):
+                print(
+                    json.dumps(
+                        {"status": "retained", "reason": "worktree_cleanup_incomplete"}
+                    )
+                )
+                return 0
             if any(event["kind"] != "terminal" for event in pending):
                 print(json.dumps({"status": "retained", "reason": "pending_events"}))
                 return 0
@@ -633,11 +1059,15 @@ def main():
         if args.command == "ack":
             if not args.event or not args.reason:
                 parser.error("ack requires --event and --reason")
-            if any(key not in state.get("pending", {}) for key in args.event):
+            if any(
+                key not in state.get("pending", {})
+                and key not in state.get("acknowledged", {})
+                for key in args.event
+            ):
                 parser.error("Unknown or stale event ID; run check again")
             for key in args.event:
-                state.setdefault("acknowledged", {})[key] = args.reason
-                del state["pending"][key]
+                state.setdefault("acknowledged", {}).setdefault(key, args.reason)
+                state.get("pending", {}).pop(key, None)
             save(path, state)
             print(json.dumps({"status": "acknowledged", "count": len(args.event)}))
             return 0
@@ -699,6 +1129,7 @@ def main():
                     "url": pr["url"],
                     "mergeable": pr["mergeable"],
                     "mergeBlockedByEyes": eyes(snapshot),
+                    **merge_decision(snapshot, state),
                     "stateFile": str(path),
                     "events": list(state["pending"].values()),
                 },
