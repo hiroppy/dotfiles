@@ -222,6 +222,10 @@ def cleanup_worktree(
         return {"status": "retained", "blockingReasons": ["cleanup_target_recreated"]}
     if not apply:
         return {"status": "eligible", **binding, "managed": managed}
+    # Process/Git checks may take time; do not act on the earlier cached evidence.
+    blockers, managed = ownership_blockers(worktree, ownership_file)
+    if blockers:
+        return {"status": "retained", "blockingReasons": sorted(set(blockers))}
     receipt = receipts.setdefault(key, binding)
     save(state_path, state)
     if target and managed is True:

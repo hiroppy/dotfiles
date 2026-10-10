@@ -455,6 +455,25 @@ class CleanupTests(unittest.TestCase):
         self.assertIn("ownership_evidence_stale", self.cleanup()["blockingReasons"])
         self.assertTrue(self.worktree.exists())
 
+    def test_use_observation_changed_during_checks_blocks_removal(self):
+        def started_using(_):
+            self.evidence["inUse"] = True
+            self.write_evidence()
+            return []
+
+        with patch.object(
+            worktree_cleanup, "process_blockers", side_effect=started_using
+        ):
+            result = self.cleanup()
+        self.assertIn("worktree_inUse", result["blockingReasons"])
+        self.assertTrue(self.worktree.exists())
+        self.assertEqual(
+            self.head,
+            worktree_cleanup.git(
+                self.repository, "rev-parse", "refs/heads/" + self.branch
+            ),
+        )
+
     def test_unavailable_app_metadata_does_not_block_git_cleanup(self):
         for field in ("managed", "pinned"):
             self.evidence.pop(field)
