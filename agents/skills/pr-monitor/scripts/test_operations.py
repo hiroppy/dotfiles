@@ -167,9 +167,15 @@ class OperationTests(unittest.TestCase):
             data = snapshot()
             data["pr"]["state"] = "MERGED"
             state = check.update({}, data)
-            actions = check.plan_actions(state, monitor_status="PAUSED")
+            actions = check.plan_actions(state, title="Chat", monitor_status="PAUSED")
             notify = next(action for action in actions if action["type"] == "notify")
             state["plannedActions"] = {action["id"]: action for action in actions}
+            cleanup = next(
+                action for action in actions if action["type"] == "cleanup_worktree"
+            )
+            state["completedActions"] = {
+                cleanup["id"]: "cleanup confirmed before notification"
+            }
             result = check.prepare_notification(state, path, notify["id"])
             self.assertEqual("dispatch", result["status"])
             state = json.loads(path.read_text())
@@ -179,12 +185,25 @@ class OperationTests(unittest.TestCase):
             )
             state = check.update(state, data)
             self.assertEqual(
-                "reconcile_notification", check.plan_actions(state, monitor_status="PAUSED")[0]["type"]
+                "reconcile_notification",
+                check.plan_actions(state, title="Chat", monitor_status="PAUSED")[0][
+                    "type"
+                ],
             )
-            self.assertEqual(notify["id"], check.plan_actions(state, monitor_status="PAUSED")[0]["id"])
+            self.assertEqual(
+                notify["id"],
+                check.plan_actions(state, title="Chat", monitor_status="PAUSED")[0][
+                    "id"
+                ],
+            )
             data["pr"]["headRefOid"] = "different"
             state = check.update(state, data)
-            self.assertEqual(notify["id"], check.plan_actions(state, monitor_status="PAUSED")[0]["id"])
+            self.assertEqual(
+                notify["id"],
+                check.plan_actions(state, title="Chat", monitor_status="PAUSED")[0][
+                    "id"
+                ],
+            )
             check.record_notification(
                 state, path, notify["id"], "unknown", "no delivery evidence"
             )
@@ -212,7 +231,10 @@ class OperationTests(unittest.TestCase):
             )
             self.assertFalse(
                 any(
-                    action["id"] == notify["id"] for action in check.plan_actions(state, monitor_status="PAUSED")
+                    action["id"] == notify["id"]
+                    for action in check.plan_actions(
+                        state, title="Chat", monitor_status="PAUSED"
+                    )
                 )
             )
             with self.assertRaises(RuntimeError):
@@ -431,6 +453,39 @@ class CleanupTests(unittest.TestCase):
         ).isoformat()
         self.write_evidence()
         self.assertIn("ownership_evidence_stale", self.cleanup()["blockingReasons"])
+        self.assertTrue(self.worktree.exists())
+
+    def test_use_observation_changed_during_checks_blocks_removal(self):
+        def started_using(_):
+            self.evidence["inUse"] = True
+            self.write_evidence()
+            return []
+
+        with patch.object(
+            worktree_cleanup, "process_blockers", side_effect=started_using
+        ):
+            result = self.cleanup()
+        self.assertIn("worktree_inUse", result["blockingReasons"])
+        self.assertTrue(self.worktree.exists())
+        self.assertEqual(
+            self.head,
+            worktree_cleanup.git(
+                self.repository, "rev-parse", "refs/heads/" + self.branch
+            ),
+        )
+
+    def test_unavailable_app_metadata_does_not_block_git_cleanup(self):
+        for field in ("managed", "pinned"):
+            self.evidence.pop(field)
+        self.write_evidence()
+        self.assertEqual("completed", self.cleanup()["status"])
+        self.assertFalse(self.worktree.exists())
+
+    def test_explicit_pin_is_preserved_without_managed_metadata(self):
+        self.evidence["managed"] = None
+        self.evidence["pinned"] = True
+        self.write_evidence()
+        self.assertIn("worktree_pinned", self.cleanup()["blockingReasons"])
         self.assertTrue(self.worktree.exists())
 
     def test_managed_archive_handoff_and_confirmation(self):
