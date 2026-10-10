@@ -13,6 +13,7 @@ import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
 
+from workflow import next_step, require_turn, require_type
 from worktree_cleanup import cleanup_worktree
 
 PAGE = "pageInfo { hasNextPage endCursor }"
@@ -390,18 +391,23 @@ def plan_actions(state, title=None, current_interval=None, monitor_status="ACTIV
     # Stop scheduling before any fallible terminal cleanup or notification.
     if pr["state"] in {"MERGED", "CLOSED"} and monitor_status == "ACTIVE":
         actions.append({"type": "pause_monitor"})
+    title_prefix = (
+        "👍 " if pr["state"] != "MERGED" and codex_reaction_ids(snapshot) else ""
+    )
     if title is not None:
         plain_title = title
         while plain_title.startswith("👍 "):
             plain_title = plain_title.removeprefix("👍 ")
-        desired_title = ("👍 " if codex_reaction_ids(snapshot) else "") + plain_title
+        desired_title = title_prefix + plain_title
         if desired_title != title:
             actions.append({"type": "set_title", "title": desired_title})
-    elif pr["state"] == "OPEN" and state.get("codexReactionSeen"):
+    elif pr["state"] == "MERGED" or (
+        pr["state"] == "OPEN" and state.get("codexReactionSeen")
+    ):
         actions.append(
             {
                 "type": "set_title",
-                "titlePrefix": "👍 " if codex_reaction_ids(snapshot) else "",
+                "titlePrefix": title_prefix,
             }
         )
     if pr["state"] != "OPEN":
@@ -731,6 +737,7 @@ def prepare_notification(state, path, action_id):
     receipt = deliveries.get(action_id)
     if action_id in state.get("completedActions", {}):
         return {"status": "completed", "deliveryKey": action_id}
+    require_turn(state, action_id)
     if receipt and receipt["status"] != "not_sent":
         return {
             "status": "delivery_unknown",
@@ -776,6 +783,36 @@ def record_notification(state, path, action_id, outcome, reason):
     }
 
 
+def complete_action(state, path, action_id, reason):
+    if action_id in state.get("completedActions", {}) and reason:
+        return {"status": "completed"}
+    action = state.get("plannedActions", {}).get(action_id)
+    if not action or not reason:
+        raise ValueError("complete requires a planned --action and --reason")
+    require_turn(state, action_id)
+    kind = action["type"]
+    if kind in {"handle_event", "cleanup_state"}:
+        raise ValueError("Use the dedicated operation returned by next")
+    if kind == "cleanup_worktree" and not any(
+        receipt.get("completed")
+        for receipt in state.get("worktreeCleanups", {}).values()
+    ):
+        raise ValueError("Worktree cleanup must be confirmed by cleanup-worktree")
+    if kind in {"notify", "reconcile_notification"}:
+        return record_notification(state, path, action_id, "succeeded", reason)
+    state.setdefault("completedActions", {})[action_id] = reason
+    options = state.setdefault("checkOptions", {})
+    if kind == "set_interval":
+        options["--current-interval"] = action["minutes"]
+    elif kind == "pause_monitor":
+        options["--monitor-status"] = "PAUSED"
+        state["monitorStatus"] = "PAUSED"
+    elif kind == "set_title" and "title" in action:
+        options["--title"] = action["title"]
+    save(path, state)
+    return {"status": "completed"}
+
+
 def record_attempt(state, problem, attempt_id, outcome, reason):
     receipts = state.setdefault("attemptReceipts", {}).setdefault(problem, {})
     inputs = {"outcome": outcome, "reason": reason}
@@ -800,6 +837,8 @@ def main():
         "command",
         choices=[
             "check",
+            "next",
+            "defer-title",
             "ack",
             "status",
             "cleanup",
@@ -834,6 +873,17 @@ def main():
     )
     parser.add_argument("--title", help="Current chat title")
     parser.add_argument(
+        "--execution-mode",
+        choices=["direct", "external"],
+        default="direct",
+        help="Direct wait/recheck loop or existing external scheduler integration",
+    )
+    parser.add_argument(
+        "--once",
+        action="store_true",
+        help="Explicit one-shot check without continuous monitoring",
+    )
+    parser.add_argument(
         "--current-interval", type=int, help="Current heartbeat interval"
     )
     parser.add_argument(
@@ -848,7 +898,14 @@ def main():
         "--attempt-id", help="Unique trial ID; reuse for command retries"
     )
     parser.add_argument(
-        "--outcome", choices=["failed", "succeeded", "reset", "not_sent", "unknown"]
+        "--outcome",
+        choices=[
+            "failed",
+            "succeeded",
+            "reset",
+            "not_sent",
+            "unknown",
+        ],
     )
     parser.add_argument("--body-file", type=Path, help="Review reply text")
     parser.add_argument("--expected-head", help="Exact authorized PR head for merge")
@@ -877,22 +934,53 @@ def main():
             print(json.dumps({"status": "busy"}))
             return 0
         state = json.loads(path.read_text()) if path.exists() else {}
-        if args.command == "complete":
-            if args.action in state.get("completedActions", {}) and args.reason:
-                print(json.dumps({"status": "completed"}))
-                return 0
+
+        def command(name, *arguments):
+            result = [
+                sys.executable,
+                str(Path(__file__).resolve()),
+                name,
+                "--repo",
+                args.repo,
+                "--pr",
+                str(args.pr),
+                "--state-dir",
+                str(args.state_dir.resolve()),
+                *arguments,
+            ]
+            if name == "check":
+                for flag, value in state.get("checkOptions", {}).items():
+                    if value is not None:
+                        result.extend([flag, str(value)])
+                if state.get("once"):
+                    result.append("--once")
+            return result
+
+        if args.command == "next":
+            print(json.dumps(next_step(state, command), ensure_ascii=False))
+            return 0
+        if args.command == "defer-title":
             action = state.get("plannedActions", {}).get(args.action)
-            if not action or not args.reason:
-                parser.error("complete requires a planned --action and --reason")
-            if action["type"] in {"notify", "reconcile_notification"}:
-                result = record_notification(
-                    state, path, args.action, "succeeded", args.reason
+            if not action or action["type"] != "set_title" or not args.reason:
+                parser.error(
+                    "defer-title requires a planned title --action and --reason"
                 )
-                print(json.dumps(result))
-                return 0
-            state.setdefault("completedActions", {})[args.action] = args.reason
-            save(path, state)
-            print(json.dumps({"status": "completed"}))
+            if args.action not in state.get("completedActions", {}):
+                state.setdefault("deferredTitles", {}).setdefault(
+                    args.action, args.reason
+                )
+                save(path, state)
+            print(json.dumps(next_step(state, command), ensure_ascii=False))
+            return 0
+        if args.command == "complete":
+            try:
+                result = complete_action(state, path, args.action, args.reason)
+            except ValueError as error:
+                parser.error(str(error))
+            except RuntimeError as error:
+                print(json.dumps({"status": "blocked", "error": str(error)}))
+                return 1
+            print(json.dumps(result))
             return 0
         if args.command == "attempt":
             if (
@@ -955,6 +1043,8 @@ def main():
                         args.reason,
                     )
                 elif args.command == "cleanup-worktree":
+                    if args.apply:
+                        require_type(state, "cleanup_worktree")
                     if not args.repository or not args.worktree or not args.branch:
                         parser.error(
                             "cleanup-worktree requires --repository, --worktree and --branch"
@@ -991,8 +1081,22 @@ def main():
             return 0
         if args.command == "cleanup":
             if not path.exists():
-                print(json.dumps({"status": "absent", "stateFile": str(path)}))
+                print(
+                    json.dumps(
+                        {
+                            "status": "absent",
+                            "stateFile": str(path),
+                            "nextStep": {"status": "finished", "canEndTurn": True},
+                        }
+                    )
+                )
                 return 0
+            if args.apply:
+                try:
+                    require_type(state, "cleanup_state")
+                except RuntimeError as error:
+                    print(json.dumps({"status": "retained", "reason": str(error)}))
+                    return 0
             pending = state.get("pending", {}).values()
             if any(
                 delivery["status"] in {"started", "unknown"}
@@ -1044,6 +1148,9 @@ def main():
                     {
                         "status": "deleted" if args.apply else "eligible",
                         "stateFile": str(path),
+                        "nextStep": {"status": "finished", "canEndTurn": True}
+                        if args.apply
+                        else None,
                     }
                 )
             )
@@ -1092,6 +1199,16 @@ def main():
                 state["idleSince"] = None
                 state["snapshotFingerprint"] = None
             state = update(state, snapshot, interval_minutes=args.interval_minutes)
+            state["once"] = args.once
+            state["monitorStatus"] = args.monitor_status
+            state["executionMode"] = args.execution_mode
+            state["checkOptions"] = {
+                "--interval-minutes": args.interval_minutes,
+                "--current-interval": args.current_interval,
+                "--monitor-status": args.monitor_status,
+                "--title": args.title,
+                "--execution-mode": args.execution_mode,
+            }
         except (
             RuntimeError,
             subprocess.TimeoutExpired,
@@ -1115,6 +1232,11 @@ def main():
         actions = plan_actions(
             state, args.title, args.current_interval, args.monitor_status
         )
+        # A new check must verify the current chat title again, even after a skip.
+        for action in actions:
+            if action["type"] == "set_title":
+                state.get("completedActions", {}).pop(action["id"], None)
+                state.get("deferredTitles", {}).pop(action["id"], None)
         state["plannedActions"] = {action["id"]: action for action in actions}
         save(path, state)
         pr = snapshot["pr"]
@@ -1131,6 +1253,7 @@ def main():
                 {
                     "status": status,
                     "actions": actions,
+                    "nextStep": next_step(state, command),
                     "stopRequested": state["stopRequested"],
                     "head": pr["headRefOid"],
                     "headChanged": bool(old_head and old_head != pr["headRefOid"]),

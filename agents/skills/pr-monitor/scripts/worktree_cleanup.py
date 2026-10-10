@@ -6,6 +6,12 @@ import subprocess
 from datetime import datetime, timezone
 from pathlib import Path
 
+SHARED_MOUNT_PROCESS = (
+    "/System/Library/Frameworks/Virtualization.framework/Versions/A/XPCServices/"
+    "com.apple.Virtualization.VirtualMachine.xpc/Contents/MacOS/"
+    "com.apple.Virtualization.VirtualMachine"
+)
+
 
 def git(repository, *args):
     result = subprocess.run(
@@ -37,7 +43,7 @@ def worktrees(repository):
 def process_blockers(worktree):
     try:
         result = subprocess.run(
-            ["lsof", "-t", "+D", str(worktree)],
+            ["lsof", "-Fpfa", "+D", str(worktree)],
             capture_output=True,
             text=True,
             timeout=30,
@@ -45,10 +51,50 @@ def process_blockers(worktree):
         )
     except (OSError, subprocess.TimeoutExpired):
         return ["process_state_unknown"]
-    if result.stdout.strip():
-        return ["active_processes"]
     if result.stderr.strip() or result.returncode not in {0, 1}:
         return ["process_state_unknown"]
+    processes = {}
+    files = None
+    for line in result.stdout.splitlines():
+        field, value = line[:1], line[1:]
+        if field == "p":
+            if not value.isdigit():
+                return ["process_state_unknown"]
+            files = processes.setdefault(value, [])
+        elif field == "f":
+            if files is None:
+                return ["process_state_unknown"]
+            files.append({"descriptor": value, "access": None})
+        elif field == "a":
+            if not files:
+                return ["process_state_unknown"]
+            files[-1]["access"] = value
+    if result.stdout.strip() and not processes:
+        return ["process_state_unknown"]
+    for pid, files in processes.items():
+        try:
+            process = subprocess.run(
+                ["ps", "-p", pid, "-o", "comm="],
+                capture_output=True,
+                text=True,
+                timeout=10,
+                check=False,
+            )
+        except (OSError, subprocess.TimeoutExpired):
+            return ["process_state_unknown"]
+        if process.returncode or process.stderr.strip() or not process.stdout.strip():
+            return ["process_state_unknown"]
+        # The host VM keeps shared directories open even with no guest workload.
+        # Actual container/task use is checked separately through inUse evidence.
+        if process.stdout.strip() != SHARED_MOUNT_PROCESS:
+            return ["active_processes"]
+        if not files:
+            return ["process_state_unknown"]
+        if any(
+            not re.fullmatch(r"\*?\d+", file["descriptor"]) or file["access"] != "r"
+            for file in files
+        ):
+            return ["active_processes"]
     return []
 
 
@@ -65,12 +111,13 @@ def ownership_blockers(worktree, ownership_file):
     blockers = []
     if age < 0 or age > 60:
         blockers.append("ownership_evidence_stale")
-    for field in ("shared", "pinned", "inUse"):
+    for field in ("shared", "inUse"):
         if evidence.get(field) is not False:
             blockers.append("worktree_" + field)
-    if not isinstance(evidence.get("managed"), bool):
-        blockers.append("managed_state_unknown")
-    return blockers, evidence.get("managed", False)
+    if evidence.get("pinned") is True:
+        blockers.append("worktree_pinned")
+    # Missing app metadata is not evidence of an app-protected worktree.
+    return blockers, evidence.get("managed")
 
 
 def cleanup_worktree(
@@ -177,7 +224,7 @@ def cleanup_worktree(
         return {"status": "eligible", **binding, "managed": managed}
     receipt = receipts.setdefault(key, binding)
     save(state_path, state)
-    if target and managed:
+    if target and managed is True:
         return {
             "status": "archive_required",
             "worktree": key,

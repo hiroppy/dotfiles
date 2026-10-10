@@ -51,15 +51,46 @@ def thread():
 
 
 class MonitorTests(unittest.TestCase):
+    def test_merged_clears_title_prefix_even_when_reaction_remains(self):
+        data = snapshot()
+        data["pr"]["state"] = "MERGED"
+        data["prReactions"] = [
+            {"id": 1, "content": "+1", "user": {"login": "chatgpt-codex-connector"}}
+        ]
+        state = check.update({}, data)
+        for title in ("👍 Chat", "👍 👍 Chat"):
+            actions = check.plan_actions(state, title=title)
+            action = next(a for a in actions if a["type"] == "set_title")
+            self.assertEqual("Chat", action["title"])
+            self.assertLess(
+                actions.index(action),
+                next(
+                    i for i, a in enumerate(actions) if a["type"] == "cleanup_worktree"
+                ),
+            )
+        self.assertFalse(
+            any(
+                a["type"] == "set_title"
+                for a in check.plan_actions(state, title="Chat")
+            )
+        )
+        action = next(a for a in check.plan_actions(state) if a["type"] == "set_title")
+        self.assertEqual("", action["titlePrefix"])
+
     def test_action_receipts_and_attempt_cli(self):
         data = snapshot()
         data["pr"]["state"] = "MERGED"
         state = check.update({}, data)
-        actions = check.plan_actions(state, monitor_status="PAUSED")
+        actions = check.plan_actions(state, title="Chat", monitor_status="PAUSED")
         state["completedActions"] = {actions[0]["id"]: "done"}
         self.assertEqual(
             ["notify", "delete_monitor", "cleanup_state"],
-            [a["type"] for a in check.plan_actions(state, monitor_status="PAUSED")],
+            [
+                a["type"]
+                for a in check.plan_actions(
+                    state, title="Chat", monitor_status="PAUSED"
+                )
+            ],
         )
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "o--r-1.json"
@@ -88,7 +119,9 @@ class MonitorTests(unittest.TestCase):
                 [
                     a["type"]
                     for a in check.plan_actions(
-                        json.loads(path.read_text()), monitor_status="PAUSED"
+                        json.loads(path.read_text()),
+                        title="Chat",
+                        monitor_status="PAUSED",
                     )
                 ],
             )
@@ -476,11 +509,15 @@ class MonitorTests(unittest.TestCase):
         for status, merged in [("MERGED", True), ("CLOSED", False)]:
             data["pr"]["state"] = status
             state = check.update(state, data)
-            expected = ["pause_monitor"] + (["cleanup_worktree"] if merged else []) + [
-                "notify",
-                "delete_monitor",
-                "cleanup_state",
-            ]
+            expected = (
+                ["pause_monitor"]
+                + (["set_title", "cleanup_worktree"] if merged else [])
+                + [
+                    "notify",
+                    "delete_monitor",
+                    "cleanup_state",
+                ]
+            )
             self.assertEqual(expected, [a["type"] for a in check.plan_actions(state)])
 
     def test_terminal_monitor_stops_before_fallible_actions(self):
@@ -495,7 +532,9 @@ class MonitorTests(unittest.TestCase):
                     "old-delivery": {
                         "status": "unknown",
                         "action": {
-                            "id": "old-delivery", "type": "notify", "message": "old"
+                            "id": "old-delivery",
+                            "type": "notify",
+                            "message": "old",
                         },
                     }
                 }
