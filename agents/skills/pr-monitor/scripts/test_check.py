@@ -694,6 +694,33 @@ class MonitorTests(unittest.TestCase):
         state = check.update(state, data, now=approved_at + timedelta(minutes=11))
         self.assertEqual(20, state["recommendedIntervalMinutes"])
 
+    def test_title_requires_ci_and_reviews_ready(self):
+        ready = snapshot()
+        ready["prReactions"] = [
+            {"id": 1, "content": "+1", "user": {"login": "chatgpt-codex-connector"}}
+        ]
+        for status, review, unresolved, expected in (
+            ("SUCCESS", "APPROVED", False, "👍 "),
+            ("PENDING", "APPROVED", False, ""),
+            ("FAILURE", "APPROVED", False, ""),
+            ("SUCCESS", "REVIEW_REQUIRED", False, ""),
+            ("SUCCESS", "CHANGES_REQUESTED", False, ""),
+            ("SUCCESS", "APPROVED", True, ""),
+        ):
+            with self.subTest(status=status, review=review, unresolved=unresolved):
+                data = copy.deepcopy(ready)
+                data["pr"].update(
+                    statusCheckRollup=[{"state": status}], reviewDecision=review
+                )
+                if unresolved:
+                    data["reviewThreads"] = [thread()]
+                state = check.update({}, data)
+                self.assertEqual(expected, check.plan_actions(state)[0]["titlePrefix"])
+                actions = check.plan_actions(
+                    state, title="👍 Chat" if not expected else "Chat"
+                )
+                self.assertEqual(expected + "Chat", actions[0]["title"])
+
     def test_title_prefix_removed_when_reaction_changes_to_eyes(self):
         data = snapshot()
         state = check.update({}, data)

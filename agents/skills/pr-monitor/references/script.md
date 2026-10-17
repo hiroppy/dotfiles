@@ -33,7 +33,8 @@ Python 3標準ライブラリ、認証済みgh CLI、Gitを使う（macOS/Linux�
 
 - HEAD変更時のリアクション基準値は前回snapshotを使う。同じ取得でHEAD変更と新しいCodexの+1を検出した場合も通過通知を返す。初回取得の既存+1はHEADとの対応が不明なため通過とは断定しない。
 - MERGEDではチャットタイトル先頭の👍を除去する。`--title`なしでも空のtitlePrefixを返し、cleanupより先に適用する。GitHubの👍が残っていても再付与しない。
-- `--title`を省略してもCodexの+1を一度検出したOPEN PRでは従来どおり`set_title`の`titlePrefix`を返す。連携未使用の実行側は根拠つきでスキップし、タイトル機能を必須にしない。
+- チャットタイトルの👍はCodexの+1があり、`canMerge: true`（CI成功、レビュー待ち・修正要求・未解決スレッド・未対応イベント・👀などの阻止条件なし）の場合だけ付与する。付与後に阻止条件が発生したら除去し、解消後に再付与する。
+- `--title`を省略してもCodexの+1を一度検出したOPEN PRでは`set_title`の`titlePrefix`を返す。連携未使用の実行側は根拠つきでスキップし、タイトル機能を必須にしない。
 
 - checkの`actions`: 間隔・停止・タイトル・通知・イベント対応・終了の実行計画。check自体は外部操作やackを実行しない。通知のaction IDはcheck時刻が変わっても固定し、未確認の送達はPR状態が変わってもreconcile_notificationとして返す。MERGED/CLOSED時のpause_monitorは送達確認より先に返し、確認待ちでも監視を停止する。
 
@@ -95,3 +96,5 @@ python3 <skill-dir>/scripts/check.py merge --repo OWNER/REPO --pr NUMBER --apply
 ```bash
 python3 -m unittest discover -s <skill-dir>/scripts -p 'test_*.py'
 ```
+
+- タイトルの機能適合性・信頼性は判断表でCI成功/待機/失敗とレビュー承認/待機/修正要求・未解決スレッドを確認する。付与と除去の両方、およびtitle/titlePrefixの一致を受け入れ条件とする。実GitHub・アプリ連携は対象外。
