@@ -392,7 +392,9 @@ def plan_actions(state, title=None, current_interval=None, monitor_status="ACTIV
     if pr["state"] in {"MERGED", "CLOSED"} and monitor_status == "ACTIVE":
         actions.append({"type": "pause_monitor"})
     title_prefix = (
-        "👍 " if pr["state"] != "MERGED" and codex_reaction_ids(snapshot) else ""
+        "👍 "
+        if codex_reaction_ids(snapshot) and merge_decision(snapshot, state)["canMerge"]
+        else ""
     )
     if title is not None:
         plain_title = title
