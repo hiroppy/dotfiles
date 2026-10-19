@@ -1,4 +1,4 @@
-"""Validate and resume cleanup of one merged PR worktree without force-removing files."""
+"""Clean a merged PR worktree while preserving unapproved files and active work."""
 
 import json
 import re
@@ -100,7 +100,7 @@ def process_blockers(worktree):
 
 def ownership_blockers(worktree, ownership_file):
     if not ownership_file:
-        return ["ownership_unknown"], False
+        return ["ownership_unknown"], False, False
     evidence = json.loads(ownership_file.read_text())
     if Path(evidence["worktree"]).resolve() != worktree:
         raise RuntimeError("Ownership evidence names another worktree")
@@ -117,7 +117,39 @@ def ownership_blockers(worktree, ownership_file):
     if evidence.get("pinned") is True:
         blockers.append("worktree_pinned")
     # Missing app metadata is not evidence of an app-protected worktree.
-    return blockers, evidence.get("managed")
+    return blockers, evidence.get("managed"), evidence.get("discardIgnored") is True
+
+
+def checkout_blockers(repository, worktree, branch, head, discard_ignored):
+    entries = worktrees(repository)
+    target = next(
+        (entry for entry in entries if Path(entry["worktree"]).resolve() == worktree),
+        None,
+    )
+    blockers = []
+    if target:
+        if "locked" in target or "prunable" in target:
+            blockers.append("locked_or_prunable")
+        if target.get("branch") != "refs/heads/" + branch or target.get("HEAD") != head:
+            blockers.append("worktree_head_changed")
+        # An archive snapshot does not retain ignored files. Discarding them
+        # therefore requires explicit permission even for a managed worktree.
+        status_args = ["status", "--porcelain", "--untracked-files=all"]
+        if not discard_ignored:
+            status_args.append("--ignored")
+        if git(worktree, *status_args):
+            blockers.append("local_files_present")
+    elif worktree.exists():
+        blockers.append("unregistered_path_present")
+    tip = git(repository, "for-each-ref", "--format=%(objectname)", "refs/heads/" + branch)
+    if tip and tip != head:
+        blockers.append("branch_head_changed")
+    if any(
+        entry.get("branch") == "refs/heads/" + branch and entry is not target
+        for entry in entries
+    ):
+        blockers.append("branch_in_use")
+    return blockers, target
 
 
 def cleanup_worktree(
@@ -174,25 +206,16 @@ def cleanup_worktree(
     if receipt and any(receipt[field] != value for field, value in binding.items()):
         raise RuntimeError("Cleanup retry target changed")
     entries = worktrees(repository)
-    target = next(
-        (entry for entry in entries if Path(entry["worktree"]).resolve() == worktree),
-        None,
-    )
     if entries and Path(entries[0]["worktree"]).resolve() == worktree:
         raise RuntimeError("Refusing cleanup of the primary worktree")
-    blockers, managed = ownership_blockers(worktree, ownership_file)
+    blockers, managed, discard_ignored = ownership_blockers(worktree, ownership_file)
+    git_blockers, target = checkout_blockers(
+        repository, worktree, branch, pr["headRefOid"], discard_ignored
+    )
+    blockers.extend(git_blockers)
     if Path.cwd().resolve().is_relative_to(worktree):
         blockers.append("current_worktree")
     if target:
-        if "locked" in target or "prunable" in target:
-            blockers.append("locked_or_prunable")
-        if (
-            target.get("branch") != "refs/heads/" + branch
-            or target.get("HEAD") != pr["headRefOid"]
-        ):
-            blockers.append("worktree_head_changed")
-        if git(worktree, "status", "--porcelain", "--untracked-files=all", "--ignored"):
-            blockers.append("local_files_present")
         blockers.extend(process_blockers(worktree))
         common = git(
             worktree, "rev-parse", "--path-format=absolute", "--git-common-dir"
@@ -201,21 +224,12 @@ def cleanup_worktree(
             repository, "rev-parse", "--path-format=absolute", "--git-common-dir"
         ):
             raise RuntimeError("Worktree belongs to another repository")
-    elif worktree.exists():
-        blockers.append("unregistered_path_present")
-    elif not receipt:
+    elif not worktree.exists() and not receipt:
         # Without a saved binding, an absent path is not evidence of prior cleanup.
         blockers.append("cleanup_binding_missing")
     branch_tip = git(
         repository, "for-each-ref", "--format=%(objectname)", "refs/heads/" + branch
     )
-    if branch_tip and branch_tip != pr["headRefOid"]:
-        blockers.append("branch_head_changed")
-    if any(
-        entry.get("branch") == "refs/heads/" + branch and entry is not target
-        for entry in entries
-    ):
-        blockers.append("branch_in_use")
     if blockers:
         return {"status": "retained", "blockingReasons": sorted(set(blockers))}
     if receipt and receipt.get("completed") and (target or branch_tip):
@@ -223,7 +237,11 @@ def cleanup_worktree(
     if not apply:
         return {"status": "eligible", **binding, "managed": managed}
     # Process/Git checks may take time; do not act on the earlier cached evidence.
-    blockers, managed = ownership_blockers(worktree, ownership_file)
+    blockers, managed, discard_ignored = ownership_blockers(worktree, ownership_file)
+    git_blockers, target = checkout_blockers(
+        repository, worktree, branch, pr["headRefOid"], discard_ignored
+    )
+    blockers.extend(git_blockers)
     if blockers:
         return {"status": "retained", "blockingReasons": sorted(set(blockers))}
     receipt = receipts.setdefault(key, binding)
@@ -235,6 +253,13 @@ def cleanup_worktree(
             "operation": "archive_worktree",
         }
     if target:
+        if discard_ignored:
+            git(worktree, "clean", "-fdX")
+            blockers, _ = checkout_blockers(
+                repository, worktree, branch, pr["headRefOid"], False
+            )
+            if blockers:
+                return {"status": "retained", "blockingReasons": sorted(set(blockers))}
         git(repository, "worktree", "remove", str(worktree))
     if worktree.exists() or any(
         Path(entry["worktree"]).resolve() == worktree for entry in worktrees(repository)

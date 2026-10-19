@@ -58,6 +58,8 @@ python3 <skill-dir>/scripts/check.py cleanup-worktree --repo OWNER/REPO --pr NUM
 ```
 
 - 対象worktreeの外から実行する。`eligible`はpreview、`retained`は保持、`completed`だけをcleanup成功とする。スクリプトがmerged・PRとの関連・primary/default branch・HEAD・未保存/ignoredファイル・プロセス・ロック・他worktreeの使用を検査する。
+- repositoryのcleanupが再利用用の依存や生成物を残す場合、worktree全体の削除が許可済みで、残るignoredファイルを破棄してよいことを確認してから証拠JSONへ`"discardIgnored": true`を追加する。既定ではignoredも保護する。tracked/untrackedの変更、共有・pin・使用中・HEAD変更は、この指定でも保護する。通常worktreeは最新状態を再検査してignoredだけを削除し、managed worktreeはignoredを事前削除せず管理元のarchiveへ渡す。
+- archiveの`queued`は受付結果であり削除成功ではない。ディレクトリ・Git登録・管理元の添付で結果を確認する。添付が復元されていれば保持された状態として、共有や保護理由を確認し、同じ要求を待機・再送し続けない。
 - `archive_required`なら管理元が提供する正確な識別子とarchive操作を使う。成功後に証拠を更新し、同じcleanup-worktreeを再実行する。managed=trueによるarchiveや、確認済みのpin・明示的な削除保護は迂回しない。CLI作成の通常worktreeや管理状態不明のworktreeは、他の安全条件を満たせばGitで削除する。
 - worktree削除とbranch削除の間で中断しても同じ対象で再開する。branchはPRのpush済みHEADと照合し、update-refの期待値付き削除を使う。再作成・追加commit・使用中の対象は保持する。
 - 未マージcloseでは作業を保持する。cleanup・報告後に対象スケジューラの登録を削除する。停止指示では監視だけ解除、一時停止ではPAUSEDにする。

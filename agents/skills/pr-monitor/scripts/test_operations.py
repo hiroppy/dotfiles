@@ -497,6 +497,105 @@ class CleanupTests(unittest.TestCase):
         worktree_cleanup.git(self.repository, "worktree", "remove", str(self.worktree))
         self.assertEqual("completed", self.cleanup()["status"])
 
+    def ignored_dependency(self):
+        ignore = self.root / "ignore"
+        ignore.write_text("node_modules\n")
+        worktree_cleanup.git(self.worktree, "config", "core.excludesFile", str(ignore))
+        dependency = self.worktree / "node_modules"
+        dependency.mkdir()
+        marker = dependency / "generated"
+        marker.write_text("reinstallable dependency")
+        return marker
+
+    def test_explicit_discard_removes_ignored_dependencies_only_on_apply(self):
+        marker = self.ignored_dependency()
+        self.evidence["discardIgnored"] = True
+        self.write_evidence()
+        self.assertEqual("eligible", self.cleanup(False)["status"])
+        self.assertTrue(marker.exists())
+        self.assertEqual("completed", self.cleanup()["status"])
+        self.assertFalse(self.worktree.exists())
+
+    def test_managed_discard_delegates_without_removing_ignored_files(self):
+        marker = self.ignored_dependency()
+        self.evidence.update(managed=True, discardIgnored=True)
+        self.write_evidence()
+        self.assertEqual("archive_required", self.cleanup()["status"])
+        self.assertTrue(marker.exists())
+
+    def test_shared_worktree_keeps_ignored_files_even_with_discard_permission(self):
+        marker = self.ignored_dependency()
+        self.evidence.update(shared=True, discardIgnored=True)
+        self.write_evidence()
+        self.assertIn("worktree_shared", self.cleanup()["blockingReasons"])
+        self.assertTrue(marker.exists())
+
+    def test_new_untracked_file_during_checks_prevents_discard(self):
+        marker = self.ignored_dependency()
+        self.evidence["discardIgnored"] = True
+        self.write_evidence()
+
+        def create_work(_):
+            (self.worktree / "new-work").write_text("keep")
+            return []
+
+        with patch.object(worktree_cleanup, "process_blockers", side_effect=create_work):
+            self.assertIn("local_files_present", self.cleanup()["blockingReasons"])
+        self.assertTrue(marker.exists())
+
+    def test_head_change_during_checks_prevents_discard(self):
+        marker = self.ignored_dependency()
+        self.evidence["discardIgnored"] = True
+        self.write_evidence()
+
+        def commit_work(_):
+            worktree_cleanup.git(self.worktree, "commit", "--allow-empty", "-m", "New work")
+            return []
+
+        with patch.object(worktree_cleanup, "process_blockers", side_effect=commit_work):
+            self.assertIn("worktree_head_changed", self.cleanup()["blockingReasons"])
+        self.assertTrue(marker.exists())
+
+    def test_lock_during_checks_prevents_discard(self):
+        marker = self.ignored_dependency()
+        self.evidence["discardIgnored"] = True
+        self.write_evidence()
+
+        def lock_worktree(_):
+            worktree_cleanup.git(self.repository, "worktree", "lock", str(self.worktree))
+            return []
+
+        with patch.object(worktree_cleanup, "process_blockers", side_effect=lock_worktree):
+            self.assertIn("locked_or_prunable", self.cleanup()["blockingReasons"])
+        self.assertTrue(marker.exists())
+
+    def test_discard_permission_revoked_during_checks_keeps_ignored_files(self):
+        marker = self.ignored_dependency()
+        self.evidence["discardIgnored"] = True
+        self.write_evidence()
+
+        def revoke_permission(_):
+            self.evidence["discardIgnored"] = False
+            self.write_evidence()
+            return []
+
+        with patch.object(worktree_cleanup, "process_blockers", side_effect=revoke_permission):
+            self.assertIn("local_files_present", self.cleanup()["blockingReasons"])
+        self.assertTrue(marker.exists())
+
+    def test_ignored_dependency_symlink_does_not_delete_shared_target(self):
+        marker = self.ignored_dependency()
+        marker.unlink()
+        marker.parent.rmdir()
+        shared = self.root / "shared-dependency-store"
+        shared.mkdir()
+        (shared / "keep").write_text("shared")
+        marker.parent.symlink_to(shared, target_is_directory=True)
+        self.evidence["discardIgnored"] = True
+        self.write_evidence()
+        self.assertEqual("completed", self.cleanup()["status"])
+        self.assertEqual("shared", (shared / "keep").read_text())
+
     def test_unmerged_head_changes_and_active_processes_block_cleanup(self):
         self.pr["state"] = "OPEN"
         self.assertIn("pr_not_merged", self.cleanup()["blockingReasons"])
