@@ -265,7 +265,8 @@ def cleanup_worktree(
         return {"status": "retained", "blockingReasons": ["cleanup_target_recreated"]}
     if not apply:
         return {"status": "eligible", **binding, "managed": managed}
-    # Process/Git checks may take time; do not act on the earlier cached evidence.
+    # Recheck processes before refreshing ownership and Git state for deletion.
+    process_recheck = process_blockers(worktree) if target else []
     blockers, managed, discard_ignored, fallback = ownership_blockers(
         worktree, ownership_file
     )
@@ -273,6 +274,7 @@ def cleanup_worktree(
         repository, worktree, branch, pr["headRefOid"], discard_ignored
     )
     blockers.extend(git_blockers)
+    blockers.extend(process_recheck)
     if blockers:
         return {"status": "retained", "blockingReasons": sorted(set(blockers))}
     receipt = receipts.setdefault(key, binding)

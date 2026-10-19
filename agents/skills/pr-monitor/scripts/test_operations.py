@@ -571,6 +571,20 @@ class CleanupTests(unittest.TestCase):
             self.assertIn("active_processes", self.cleanup()["blockingReasons"])
         self.assertTrue(self.worktree.exists())
 
+    def test_archive_fallback_preserves_process_started_after_initial_check(self):
+        marker = self.ignored_dependency()
+        self.evidence["discardIgnored"] = True
+        self.enable_archive_fallback()
+        with patch.object(
+            worktree_cleanup, "process_blockers", side_effect=[[], ["active_processes"]]
+        ):
+            self.assertIn("active_processes", self.cleanup()["blockingReasons"])
+        self.assertTrue(marker.exists())
+        self.assertEqual(
+            self.head,
+            worktree_cleanup.git(self.repository, "rev-parse", "refs/heads/" + self.branch),
+        )
+
     def test_archive_fallback_wait_boundary(self):
         self.enable_archive_fallback(seconds=60)
         self.assertEqual("completed", self.cleanup()["status"])
@@ -640,7 +654,8 @@ class CleanupTests(unittest.TestCase):
         self.write_evidence()
 
         def lock_worktree(_):
-            worktree_cleanup.git(self.repository, "worktree", "lock", str(self.worktree))
+            if not any("locked" in entry for entry in worktree_cleanup.worktrees(self.repository)):
+                worktree_cleanup.git(self.repository, "worktree", "lock", str(self.worktree))
             return []
 
         with patch.object(worktree_cleanup, "process_blockers", side_effect=lock_worktree):
