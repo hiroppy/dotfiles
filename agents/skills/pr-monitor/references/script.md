@@ -13,7 +13,7 @@ Python 3標準ライブラリ、認証済みgh CLI、Gitを使う（macOS/Linux�
 | finish-review | 解決したthreadの返信・resolve・ackを再開可能な単一処理で実行。`--event`、`--body-file`、`--reason`必須 |
 | reply / resolve | 保留・反論用。finish-reviewと同じ実状態照合・再開処理を使い、ackはしない |
 | merge | 再取得・判定・HEAD照合・マージ・実状態確認。previewが既定、書き込みは--apply・--expected-head・許可根拠の--reasonが必要。--method squash（既定）/merge |
-| cleanup-worktree | merged PRの関連worktreeとbranchの安全確認・削除・中断再開。所有・使用状況の証拠が必要。managedはarchive_requiredを返す |
+| cleanup-worktree | merged PRの関連worktreeとbranchの安全確認・削除・中断再開。所有・使用状況の証拠が必要。managedはまずarchive_requiredを返す。未完了時はlifecycle.mdのarchiveFallback証拠で安全検査後に代替削除する |
 | prepare-notification | action IDの送信前記録。初回はdispatch、再実行はdelivery_unknown、完了済みはcompleted |
 | notification-result | 送達証拠の--reasonと--outcome succeeded/not_sent/unknownを記録。succeededで対応eventをack |
 | ack | reason必須。編集・追加発言は別ID、thread再openは別occurrence |
@@ -88,7 +88,7 @@ python3 <skill-dir>/scripts/check.py merge --repo OWNER/REPO --pr NUMBER --apply
 - レビュー完了は状態遷移・エラー推測で、返信/resolve成功直後の通信切断、再実行、未確認resolve、HEAD/コメント変更、再openを検証する。返信・resolve各1回、確認前のack禁止を受け入れ条件とする。
 - マージは判断表・状態遷移・エラー推測で新規コメント・HEAD不一致・👀・応答消失・既マージを確認する。阻止時の書き込み禁止、再実行時のマージmutation省略が受け入れ条件。
 - プロセス判定は信頼性と機能適合性を対象に判断表で、macOS共有マウントの読み取り参照、書き込み/cwd、一般アプリ、混在、観測失敗を検証する。共有参照のみは削除を阻止せず、実使用・取得不明は保持する。ゲスト内の実使用は所有証拠のinUseで別途確認し、lsofだけで推測しない。
-- cleanupは一時Gitリポジトリで削除・再実行・worktree削除直後の中断を検証する。未保存/ignored・追加commit・使用中/共有・証拠の鮮度・再作成を保持することが受け入れ条件。
+- cleanupは一時Gitリポジトリで削除・再実行・worktree削除直後の中断、archive未完了からの代替削除と60秒の待機境界・保護拒否・証拠不足を検証する。未保存/ignored・追加commit・使用中/共有・証拠の鮮度・再作成を保持することが受け入れ条件。
 - 通知は送信前記録・送達不明・証拠付き未送信/成功・PR状態変更の状態遷移を検証する。未確認通知の再dispatch・ack・状態削除を禁止する。
 - attemptは機能適合性・信頼性を対象に境界値・状態遷移・判断表で検証する。同一試行の再送、2→3回のhold境界、成功/reset、古い試行の遅延再送、ID衝突・既存stateの移行を確認する。
 - GitHub書き込みとアプリ操作・lsof結果はモックで確認。実GitHub・アプリとの結合、別ホストの同時操作、API読み書き間の外部変更に対する原子的保証は対象外。

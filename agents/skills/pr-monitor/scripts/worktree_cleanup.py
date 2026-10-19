@@ -100,7 +100,7 @@ def process_blockers(worktree):
 
 def ownership_blockers(worktree, ownership_file):
     if not ownership_file:
-        return ["ownership_unknown"], False, False
+        return ["ownership_unknown"], False, False, None
     evidence = json.loads(ownership_file.read_text())
     if Path(evidence["worktree"]).resolve() != worktree:
         raise RuntimeError("Ownership evidence names another worktree")
@@ -116,8 +116,34 @@ def ownership_blockers(worktree, ownership_file):
             blockers.append("worktree_" + field)
     if evidence.get("pinned") is True:
         blockers.append("worktree_pinned")
+    fallback = evidence.get("archiveFallback")
+    if fallback is not None:
+        # A stalled app request is distinct from an explicit protection refusal.
+        if (
+            not isinstance(fallback, dict)
+            or fallback.get("outcome") not in {"incomplete", "failed"}
+            or fallback.get("protectionDenied") is not False
+            or not isinstance(fallback.get("reason"), str)
+            or not fallback["reason"].strip()
+        ):
+            blockers.append("archive_fallback_unverified")
+        else:
+            try:
+                attempted = datetime.fromisoformat(fallback["attemptedAt"])
+                if attempted.tzinfo is None:
+                    raise ValueError("Archive attempt requires a timezone")
+                elapsed = (observed - attempted).total_seconds()
+                if elapsed < 60:
+                    blockers.append("archive_fallback_too_early")
+            except (KeyError, TypeError, ValueError):
+                blockers.append("archive_fallback_unverified")
     # Missing app metadata is not evidence of an app-protected worktree.
-    return blockers, evidence.get("managed"), evidence.get("discardIgnored") is True
+    return (
+        blockers,
+        evidence.get("managed"),
+        evidence.get("discardIgnored") is True,
+        fallback,
+    )
 
 
 def checkout_blockers(repository, worktree, branch, head, discard_ignored):
@@ -208,7 +234,9 @@ def cleanup_worktree(
     entries = worktrees(repository)
     if entries and Path(entries[0]["worktree"]).resolve() == worktree:
         raise RuntimeError("Refusing cleanup of the primary worktree")
-    blockers, managed, discard_ignored = ownership_blockers(worktree, ownership_file)
+    blockers, managed, discard_ignored, fallback = ownership_blockers(
+        worktree, ownership_file
+    )
     git_blockers, target = checkout_blockers(
         repository, worktree, branch, pr["headRefOid"], discard_ignored
     )
@@ -237,7 +265,9 @@ def cleanup_worktree(
     if not apply:
         return {"status": "eligible", **binding, "managed": managed}
     # Process/Git checks may take time; do not act on the earlier cached evidence.
-    blockers, managed, discard_ignored = ownership_blockers(worktree, ownership_file)
+    blockers, managed, discard_ignored, fallback = ownership_blockers(
+        worktree, ownership_file
+    )
     git_blockers, target = checkout_blockers(
         repository, worktree, branch, pr["headRefOid"], discard_ignored
     )
@@ -246,13 +276,16 @@ def cleanup_worktree(
         return {"status": "retained", "blockingReasons": sorted(set(blockers))}
     receipt = receipts.setdefault(key, binding)
     save(state_path, state)
-    if target and managed is True:
+    if target and managed is True and fallback is None:
         return {
             "status": "archive_required",
             "worktree": key,
             "operation": "archive_worktree",
         }
     if target:
+        if managed is True:
+            receipt["archiveFallback"] = fallback
+            save(state_path, state)
         if discard_ignored:
             git(worktree, "clean", "-fdX")
             blockers, _ = checkout_blockers(
