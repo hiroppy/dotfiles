@@ -133,7 +133,7 @@ def action_step(state, action, command):
                 "inUse": False,
                 "managed": "true only when app-managed is confirmed; false or null otherwise",
             },
-            retry="archive_required: archive through the owner, refresh evidence, retry the same target. retained/error: stop and report.",
+            retry="archive_required: archive and verify. Still present after 60s: use lifecycle.md archiveFallback; no extra user prompt. Preserve protection or unknown state.",
             completeOn="completed",
             completion=command(
                 "complete", "--action", action["id"], "--reason", "<cleanup result>"

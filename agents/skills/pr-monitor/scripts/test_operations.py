@@ -497,6 +497,98 @@ class CleanupTests(unittest.TestCase):
         worktree_cleanup.git(self.repository, "worktree", "remove", str(self.worktree))
         self.assertEqual("completed", self.cleanup()["status"])
 
+    def enable_archive_fallback(self, seconds=61):
+        observed = datetime.now(timezone.utc)
+        self.evidence.update(
+            managed=True,
+            observedAt=observed.isoformat(),
+            archiveFallback={
+                "attemptedAt": (
+                    observed - timedelta(seconds=seconds)
+                ).isoformat(),
+                "outcome": "incomplete",
+                "protectionDenied": False,
+                "reason": "App returned queued; checkout and attachment still present after waiting.",
+            },
+        )
+        self.write_evidence()
+
+    def test_stalled_archive_falls_back_to_git_and_records_evidence(self):
+        marker = self.ignored_dependency()
+        self.evidence["discardIgnored"] = True
+        self.enable_archive_fallback()
+        self.assertEqual("eligible", self.cleanup(False)["status"])
+        self.assertTrue(marker.exists())
+        self.assertEqual("completed", self.cleanup()["status"])
+        self.assertFalse(self.worktree.exists())
+        receipt = self.state["worktreeCleanups"][str(self.worktree.resolve())]
+        self.assertEqual(self.evidence["archiveFallback"], receipt["archiveFallback"])
+        self.assertEqual("completed", self.cleanup()["status"])
+
+    def test_archive_fallback_requires_wait_and_observed_outcome(self):
+        self.enable_archive_fallback(seconds=59)
+        self.assertIn("archive_fallback_too_early", self.cleanup()["blockingReasons"])
+        self.enable_archive_fallback()
+        self.evidence["archiveFallback"]["outcome"] = "unknown"
+        self.write_evidence()
+        self.assertIn("archive_fallback_unverified", self.cleanup()["blockingReasons"])
+        self.assertTrue(self.worktree.exists())
+
+    def test_archive_fallback_cannot_override_protection_or_new_work(self):
+        self.enable_archive_fallback()
+        for field in ("shared", "pinned", "inUse"):
+            with self.subTest(field=field):
+                self.evidence[field] = True
+                self.write_evidence()
+                self.assertEqual("retained", self.cleanup()["status"])
+                self.evidence[field] = False
+        self.evidence["archiveFallback"]["protectionDenied"] = True
+        self.write_evidence()
+        self.assertIn("archive_fallback_unverified", self.cleanup()["blockingReasons"])
+        self.enable_archive_fallback()
+        (self.worktree / "new-work").write_text("keep")
+        self.assertIn("local_files_present", self.cleanup()["blockingReasons"])
+        self.assertTrue(self.worktree.exists())
+
+    def test_archive_fallback_requires_known_unpinned_state(self):
+        self.enable_archive_fallback()
+        for pinned in (None, "missing"):
+            with self.subTest(pinned=pinned):
+                self.evidence["pinned"] = pinned
+                if pinned == "missing":
+                    self.evidence.pop("pinned")
+                self.write_evidence()
+                self.assertIn(
+                    "archive_fallback_unverified", self.cleanup()["blockingReasons"]
+                )
+                self.assertTrue(self.worktree.exists())
+
+    def test_archive_fallback_rechecks_active_processes(self):
+        self.enable_archive_fallback()
+        with patch.object(
+            worktree_cleanup, "process_blockers", return_value=["active_processes"]
+        ):
+            self.assertIn("active_processes", self.cleanup()["blockingReasons"])
+        self.assertTrue(self.worktree.exists())
+
+    def test_archive_fallback_preserves_process_started_after_initial_check(self):
+        marker = self.ignored_dependency()
+        self.evidence["discardIgnored"] = True
+        self.enable_archive_fallback()
+        with patch.object(
+            worktree_cleanup, "process_blockers", side_effect=[[], ["active_processes"]]
+        ):
+            self.assertIn("active_processes", self.cleanup()["blockingReasons"])
+        self.assertTrue(marker.exists())
+        self.assertEqual(
+            self.head,
+            worktree_cleanup.git(self.repository, "rev-parse", "refs/heads/" + self.branch),
+        )
+
+    def test_archive_fallback_wait_boundary(self):
+        self.enable_archive_fallback(seconds=60)
+        self.assertEqual("completed", self.cleanup()["status"])
+
     def ignored_dependency(self):
         ignore = self.root / "ignore"
         ignore.write_text("node_modules\n")
@@ -562,7 +654,8 @@ class CleanupTests(unittest.TestCase):
         self.write_evidence()
 
         def lock_worktree(_):
-            worktree_cleanup.git(self.repository, "worktree", "lock", str(self.worktree))
+            if not any("locked" in entry for entry in worktree_cleanup.worktrees(self.repository)):
+                worktree_cleanup.git(self.repository, "worktree", "lock", str(self.worktree))
             return []
 
         with patch.object(worktree_cleanup, "process_blockers", side_effect=lock_worktree):
