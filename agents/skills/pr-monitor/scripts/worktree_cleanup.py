@@ -121,6 +121,7 @@ def ownership_blockers(worktree, ownership_file):
         # A stalled app request is distinct from an explicit protection refusal.
         if (
             not isinstance(fallback, dict)
+            or evidence.get("pinned") is not False
             or fallback.get("outcome") not in {"incomplete", "failed"}
             or fallback.get("protectionDenied") is not False
             or not isinstance(fallback.get("reason"), str)

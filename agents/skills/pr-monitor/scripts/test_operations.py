@@ -550,6 +550,19 @@ class CleanupTests(unittest.TestCase):
         self.assertIn("local_files_present", self.cleanup()["blockingReasons"])
         self.assertTrue(self.worktree.exists())
 
+    def test_archive_fallback_requires_known_unpinned_state(self):
+        self.enable_archive_fallback()
+        for pinned in (None, "missing"):
+            with self.subTest(pinned=pinned):
+                self.evidence["pinned"] = pinned
+                if pinned == "missing":
+                    self.evidence.pop("pinned")
+                self.write_evidence()
+                self.assertIn(
+                    "archive_fallback_unverified", self.cleanup()["blockingReasons"]
+                )
+                self.assertTrue(self.worktree.exists())
+
     def test_archive_fallback_rechecks_active_processes(self):
         self.enable_archive_fallback()
         with patch.object(

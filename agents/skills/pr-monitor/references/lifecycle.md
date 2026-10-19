@@ -61,7 +61,7 @@ python3 <skill-dir>/scripts/check.py cleanup-worktree --repo OWNER/REPO --pr NUM
 - repositoryのcleanupが再利用用の依存や生成物を残す場合、worktree全体の削除が許可済みで、残るignoredファイルを破棄してよいことを確認してから証拠JSONへ`"discardIgnored": true`を追加する。既定ではignoredも保護する。tracked/untrackedの変更、共有・pin・使用中・HEAD変更は、この指定でも保護する。通常worktreeは最新状態を再検査してignoredだけを削除し、managed worktreeはignoredを事前削除せず管理元のarchiveへ渡す。
 - `archive_required`なら管理元でarchiveし、checkout・Git登録の不在を確認して同じcleanupを再実行する。`queued`は完了扱いにしない。
 - archive依頼から60秒後も残る場合は、所有・保護・使用状況を再確認する。安全条件を満たせば、追加のユーザー指示なしでGitによる代替削除へ進む。共有・pin・使用中・未保存変更・明示的な保護拒否・状態不明は保持する。
-- 代替削除は所有証拠へ`archiveFallback`を追加して同じcommandを実行する。`attemptedAt`は実際の依頼時刻、`outcome`は`incomplete`または`failed`、`reason`は応答と再確認結果。`protectionDenied: false`を確認できた場合だけ使う。`managed`の書換えや強制削除で保護を回避しない。
+- 代替削除は所有証拠へ`archiveFallback`を追加して同じcommandを実行する。`attemptedAt`は実際の依頼時刻、`outcome`は`incomplete`または`failed`、`reason`は応答と再確認結果。`pinned: false`と`protectionDenied: false`を確認できた場合だけ使う。`managed`の書換えや強制削除で保護を回避しない。
 
 ```json
 {"archiveFallback":{"attemptedAt":"2026-10-20T08:00:00+09:00","outcome":"incomplete","protectionDenied":false,"reason":"queuedの60秒後も残存。共有・使用・削除保護なしを再確認"}}
