@@ -20,3 +20,5 @@ config/fish/functions/*
 
 .claude
 .worktrees
+
+__pycache__
