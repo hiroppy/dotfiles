@@ -42,6 +42,9 @@ python3 <skill-dir>/scripts/check.py notification-result --repo OWNER/REPO --pr 
 
 ## 終了・cleanup
 
+- 新規の開発用worktreeは、チャットのprimary checkoutと分けて作成する。通常のGit worktreeを`git worktree add`で作り、commandへ明示的な作業pathを渡す。削除対象をアプリのprimary checkoutへ紐づけない。独立したcleanup依頼は[worktree-cleanup](../../worktree-cleanup/SKILL.md)からも同じscriptへ接続する。
+- 既存チャットのprimary checkoutとして削除を拒否された場合は、その保護をGit操作で回避しない。利用可能なら管理元の正規の移動手順で関連づけを変更し、保護状態を再確認する。移動不能なら具体的なblockerを報告し、同じ削除許可を繰り返し求めない。
+
 - MERGED/CLOSEDを確認したら、cleanup・通知より先に使用中のスケジューラを停止する（監視が未登録と確認できた場合はスキップ理由を記録）。後続が失敗しても定期監視は再開しない。未完了の後片付けは現在のチャットで継続し、必要な判断を報告する。後片付け完了後にスケジューラ登録を削除する。
 
 - disposeが指定されている場合は実行し、実行環境のタスク管理機能、Git worktree一覧、関連づけの記録等で対象worktreeの管理・共有・pin・他タスク使用状況を確認する。管理下と確認できた場合だけmanaged=trueを記録する。アプリ管理状態やpinが取得不能ならnullまたは省略し、その理由を記録する。取得不能・アプリ操作の拒否だけでarchiveを要求しない。shared/inUseはGitの関連づけ、タスクの作業場所、プロセス等から確認し、不明な値をfalseにしない。通常のworktreeは関連づけの記録と実行中タスクから確認する。
