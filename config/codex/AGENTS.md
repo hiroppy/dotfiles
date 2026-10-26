@@ -32,6 +32,10 @@
 - Create and use a dedicated Git worktree when starting development work.
 - Create the worktree from the latest `main` branch. If the `main` worktree already contains changes, leave them untouched.
 - After a pull request is merged, follow the Post-Merge Continuation workflow.
+- For merged-PR worktree removal, use the shared `worktree-cleanup` skill at `~/.codex/skills/worktree-cleanup/SKILL.md`. It reuses the existing `pr-monitor` cleanup script and receipts; do not maintain a second deletion implementation. Follow repository-specific resource cleanup and environment requirements before Git removal.
+- Keep the chat's primary checkout separate from disposable development worktrees. From a surviving checkout, use `git worktree add` and pass the development worktree's absolute path explicitly to commands. Do not attach it as the chat's primary checkout through app creation or attachment tools. Inspect existing worktrees and attachments first and reuse a suitable worktree; do not create another solely for cleanup.
+- Existing post-merge cleanup authorization is sufficient; do not ask the user to repeat a deletion request. Confirm cleanup, directory and Git registration removal, and local branch removal before reporting success.
+- Respect app protection for an existing primary, pinned, or shared checkout. Do not bypass rejection with shell deletion or app-state edits. Report the exact blocker and supported relocation step if available; a repeated deletion request does not remove the protection.
 
 ## Environment
 
