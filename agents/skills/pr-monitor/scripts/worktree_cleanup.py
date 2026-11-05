@@ -46,7 +46,7 @@ def process_blockers(worktree):
             ["lsof", "-Fpfa", "+D", str(worktree)],
             capture_output=True,
             text=True,
-            timeout=30,
+            timeout=120,
             check=False,
         )
     except (OSError, subprocess.TimeoutExpired):
