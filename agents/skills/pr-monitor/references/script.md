@@ -4,7 +4,7 @@ Python 3標準ライブラリ、認証済みgh CLI、Gitを使う（macOS/Linux�
 
 | コマンド/設定 | 契約 |
 | --- | --- |
-| check | 全ページ取得後にsnapshot/pendingと操作計画を保存。既存のactions/eventsに加えnextStepを返す。既定は継続監視、単発は--once |
+| check | 全ページ取得後にsnapshot/pendingと操作計画を保存。既存のactions/eventsに加えnextStepを返す |
 | defer-title | タイトル同期の失敗・機能不在を記録して後続へ進む。完了扱いにはしない。次のcheckで再試行する |
 | next | 保存済み計画から次の未完了操作を1つ返す。GitHub取得や外部書き込みは行わない |
 | --execution-mode | direct（既定）はその場で待機・再確認。外部連携を使う既存実行側はexternalを指定する |
@@ -41,9 +41,9 @@ Python 3標準ライブラリ、認証済みgh CLI、Gitを使う（macOS/Linux�
 ## 次の操作と継続監視
 
 - 実行時の手順はcheck.nextStep / nextのJSONを正とする。actionsは互換用の全体計画として維持する。
-- 対応がなくても、継続監視ではcontinue_required / canEndTurn=falseとwaitSecondsを返す。scriptが通常1分・Draft 5分・Codexの👍検出から10分後は20分を計算し、ユーザー指定を優先する。待機・再確認を続け、1回確認しただけで終了しない。単発は--once。
+- 対応がなくても、継続監視ではcontinue_required / canEndTurn=falseとwaitSecondsを返す。scriptが通常1分・Draft 5分・Codexの👍検出から10分後は20分を計算し、ユーザー指定を優先する。待機・再確認を続け、1回確認しただけで終了しない。
 - directでは外部スケジューラ用のset_interval/pause_monitor/delete_monitorをnextの対象から除外し、返された待機時間と停止条件を使う。externalでは従来の連携actionsを実行する。
-- 単発・PAUSED・無変化による停止・MERGED/CLOSEDの後処理完了はfinished / canEndTurn=true。従来の監視間隔と20分無変化停止条件は維持する。
+- PAUSED・無変化による停止・MERGED/CLOSEDの後処理完了はfinished / canEndTurn=true。従来の監視間隔と20分無変化停止条件は維持する。
 - 取得失敗中はcheck_requiredを返し、古い計画による外部操作を拒否する。
 - タイトル同期は任意。失敗・tool不在時はdefer-titleでその回だけ保留し、ユーザー確認なしでCI・レビュー・cleanupを続ける。終了時の未同期タイトルはstate削除を阻止しない。
 - 完了済みactionsとack済みeventsを除いて次を選ぶ。通知準備後はreconcile_notificationに切り替わる。通知送信、worktree削除、state削除は先行操作が未完了なら拒否する。
@@ -79,7 +79,7 @@ python3 <skill-dir>/scripts/check.py merge --repo OWNER/REPO --pr NUMBER --apply
 
 ## 検証
 
-- 今回の制御フローは機能適合性・信頼性を対象に、状態遷移で無変化時の継続、単発/PAUSED/終了、通知の送達不明、完了・再実行・状態削除を確認する。境界値で👍後599→600秒の間隔変更、判断表でDraft・ユーザー指定の優先を確認する。外部操作の順序違反時は状態を書き換えないことが受け入れ条件。実スケジューラとの結合、待機ツールの呼び出し、エージェントがcanEndTurnに従うことの保証は対象外。
+- 今回の制御フローは機能適合性・信頼性を対象に、状態遷移で無変化時の継続、旧形式の保存状態からの継続、PAUSED/終了、通知の送達不明、完了・再実行・状態削除を確認する。境界値で👍後599→600秒の間隔変更、判断表でDraft・ユーザー指定の優先を確認する。外部操作の順序違反時は状態を書き換えないことが受け入れ条件。実スケジューラとの結合、待機ツールの呼び出し、エージェントがcanEndTurnに従うことの保証は対象外。
 
 - 互換性・機能適合性を対象に判断表と状態遷移でACTIVE/PAUSED、OPEN/MERGED/CLOSED、title/titlePrefixを確認する。既存の既定値・actions・停止優先順を維持することを受け入れ条件とする。任意の実スケジューラとの結合と手順の自動実行は対象外。
 

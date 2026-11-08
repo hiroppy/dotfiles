@@ -881,11 +881,6 @@ def main():
         help="Direct wait/recheck loop or existing external scheduler integration",
     )
     parser.add_argument(
-        "--once",
-        action="store_true",
-        help="Explicit one-shot check without continuous monitoring",
-    )
-    parser.add_argument(
         "--current-interval", type=int, help="Current heartbeat interval"
     )
     parser.add_argument(
@@ -954,8 +949,6 @@ def main():
                 for flag, value in state.get("checkOptions", {}).items():
                     if value is not None:
                         result.extend([flag, str(value)])
-                if state.get("once"):
-                    result.append("--once")
             return result
 
         if args.command == "next":
@@ -1201,7 +1194,6 @@ def main():
                 state["idleSince"] = None
                 state["snapshotFingerprint"] = None
             state = update(state, snapshot, interval_minutes=args.interval_minutes)
-            state["once"] = args.once
             state["monitorStatus"] = args.monitor_status
             state["executionMode"] = args.execution_mode
             state["checkOptions"] = {

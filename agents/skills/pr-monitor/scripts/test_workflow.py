@@ -135,14 +135,15 @@ class WorkflowTests(unittest.TestCase):
         with self.assertRaises(RuntimeError):
             workflow.require_turn(state, next(iter(state["plannedActions"])))
 
-    def test_default_continues_and_once_finishes(self):
+    def test_legacy_once_state_does_not_end_monitoring(self):
         state = planned(current_interval=1)
+        state["once"] = True
+
         result = workflow.next_step(state, command)
+
         self.assertEqual("continue_required", result["status"])
         self.assertFalse(result["canEndTurn"])
-        state["once"] = True
-        state["plannedActions"] = {a["id"]: a for a in check.plan_actions(state)}
-        self.assertEqual("finished", workflow.next_step(state, command)["status"])
+        self.assertEqual(["check"], result["command"])
 
     def test_direct_mode_keeps_waiting_after_multiple_unchanged_checks(self):
         state = planned()
