@@ -78,7 +78,10 @@ def next_step(state, command):
         "command": None if finished else command("check"),
         "instruction": None
         if finished
-        else "Wait minutes and run command again; do not end the turn.",
+        else (
+            "Wait waitSeconds seconds, execute command, and process its nextStep. "
+            "Continue in this turn until canEndTurn is true."
+        ),
     }
 
 
