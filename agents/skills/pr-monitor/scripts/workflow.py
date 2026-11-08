@@ -13,8 +13,6 @@ def pending_actions(state):
             "pending", {}
         ):
             continue
-        if state.get("once") and action["type"] == "set_interval":
-            continue
         if state.get("executionMode") == "direct" and action["type"] in {
             "set_interval",
             "pause_monitor",
@@ -67,7 +65,6 @@ def next_step(state, command):
         state["snapshot"]["pr"]["state"] != "OPEN"
         or state.get("monitorStatus") == "PAUSED"
         or state.get("stopRequested")
-        or state.get("once")
     )
     minutes = state["recommendedIntervalMinutes"]
     return {
