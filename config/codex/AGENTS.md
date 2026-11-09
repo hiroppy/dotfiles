@@ -12,6 +12,7 @@
 
 ## Pull Requests
 
+- For repository changes you are asked to implement, treat publishing a pull request as part of completing the task. After verification, commit and push the changes and open a PR against the default branch, or update the existing PR for the same work. Proceed without a separate request or confirmation unless the user asks to keep the changes local, skip the PR, or stop at an earlier step. If publication is blocked, report the specific blocker.
 - Write pull request titles that follow Conventional Commits.
 - Do not add tool or agent labels such as `[codex]` to pull request titles.
 - If the repository contains a pull request template, use it as the basis for the pull request description.
