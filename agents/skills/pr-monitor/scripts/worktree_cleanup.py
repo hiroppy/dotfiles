@@ -43,9 +43,14 @@ def worktrees(repository):
 def process_blockers(worktree):
     # `lsof +D` walks every file below the worktree and times out on large
     # dependency trees, so list all open files once and filter by path.
+    roots = {str(worktree), str(Path(worktree).resolve())}
+    # lsof escapes non-printable and non-ASCII bytes in names, so such roots
+    # cannot be matched reliably.
+    if not all(root.isascii() and root.isprintable() for root in roots):
+        return ["process_state_unknown"]
     try:
         result = subprocess.run(
-            ["lsof", "-w", "-Fpfan"],
+            ["lsof", "-n", "-P", "-Fpfan"],
             capture_output=True,
             text=True,
             timeout=120,
@@ -55,7 +60,6 @@ def process_blockers(worktree):
         return ["process_state_unknown"]
     if result.stderr.strip() or result.returncode not in {0, 1}:
         return ["process_state_unknown"]
-    roots = {str(worktree), str(Path(worktree).resolve())}
     seen = set()
     processes = {}
     files = None
@@ -77,7 +81,7 @@ def process_blockers(worktree):
                 return ["process_state_unknown"]
             files[-1]["access"] = value
         elif field == "n":
-            if not files:
+            if not files or re.search(r"\((?:l?stat|readlink): ", value):
                 return ["process_state_unknown"]
             if any(value == root or value.startswith(root + "/") for root in roots):
                 processes.setdefault(pid, []).append(files[-1])

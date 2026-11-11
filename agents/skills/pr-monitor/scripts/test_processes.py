@@ -91,6 +91,27 @@ class ProcessTests(unittest.TestCase):
             self.assertEqual([], worktree_cleanup.process_blockers(Path("/worktree")))
         self.assertEqual(1, run.call_count)
 
+    def test_unreadable_name_is_unknown(self):
+        with patch.object(
+            worktree_cleanup.subprocess,
+            "run",
+            return_value=subprocess.CompletedProcess(
+                [], 0, "p123\nfcwd\nar\nn/ (readlink: Permission denied)\n", ""
+            ),
+        ):
+            self.assertEqual(
+                ["process_state_unknown"],
+                worktree_cleanup.process_blockers(Path("/worktree")),
+            )
+
+    def test_non_ascii_worktree_is_unknown_without_scanning(self):
+        with patch.object(worktree_cleanup.subprocess, "run") as run:
+            self.assertEqual(
+                ["process_state_unknown"],
+                worktree_cleanup.process_blockers(Path("/作業")),
+            )
+        run.assert_not_called()
+
     def test_process_identity_failure_is_unknown(self):
         with patch.object(
             worktree_cleanup.subprocess,
