@@ -1,4 +1,6 @@
-# Global Codex Instructions
+# Global Coding Agent Instructions
+
+These instructions apply to every AI coding agent working in this environment, regardless of the tool or editor used.
 
 ## Autonomy and Judgment
 
@@ -31,7 +33,7 @@
 
 ## Git Worktrees
 
-- Create and use a dedicated Git worktree when starting development work.
+- Before modifying repository files for development work, create and use a dedicated Git worktree, or reuse a suitable dedicated worktree.
 - Create the worktree from the latest `main` branch. If the `main` worktree already contains changes, leave them untouched.
 - After a pull request is merged, follow the Post-Merge Continuation workflow.
 - For merged-PR worktree removal, use the shared `worktree-cleanup` skill at `~/.codex/skills/worktree-cleanup/SKILL.md`. It reuses the existing `pr-monitor` cleanup script and receipts; do not maintain a second deletion implementation. Follow repository-specific resource cleanup and environment requirements before Git removal.
