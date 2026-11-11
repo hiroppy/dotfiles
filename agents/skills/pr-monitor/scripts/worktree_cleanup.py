@@ -41,9 +41,16 @@ def worktrees(repository):
 
 
 def process_blockers(worktree):
+    # `lsof +D` walks every file below the worktree and times out on large
+    # dependency trees, so list all open files once and filter by path.
+    roots = {str(worktree), str(Path(worktree).resolve())}
+    # lsof escapes non-printable and non-ASCII bytes in names, so such roots
+    # cannot be matched reliably.
+    if not all(root.isascii() and root.isprintable() for root in roots):
+        return ["process_state_unknown"]
     try:
         result = subprocess.run(
-            ["lsof", "-Fpfa", "+D", str(worktree)],
+            ["lsof", "-n", "-P", "-Fpfan"],
             capture_output=True,
             text=True,
             timeout=120,
@@ -53,14 +60,18 @@ def process_blockers(worktree):
         return ["process_state_unknown"]
     if result.stderr.strip() or result.returncode not in {0, 1}:
         return ["process_state_unknown"]
+    seen = set()
     processes = {}
     files = None
+    pid = None
     for line in result.stdout.splitlines():
         field, value = line[:1], line[1:]
         if field == "p":
             if not value.isdigit():
                 return ["process_state_unknown"]
-            files = processes.setdefault(value, [])
+            pid = value
+            seen.add(pid)
+            files = []
         elif field == "f":
             if files is None:
                 return ["process_state_unknown"]
@@ -69,7 +80,12 @@ def process_blockers(worktree):
             if not files:
                 return ["process_state_unknown"]
             files[-1]["access"] = value
-    if result.stdout.strip() and not processes:
+        elif field == "n":
+            if not files or re.search(r"\((?:l?stat|readlink): ", value):
+                return ["process_state_unknown"]
+            if any(value == root or value.startswith(root + "/") for root in roots):
+                processes.setdefault(pid, []).append(files[-1])
+    if result.stdout.strip() and not seen:
         return ["process_state_unknown"]
     for pid, files in processes.items():
         try:
@@ -245,7 +261,10 @@ def cleanup_worktree(
     if Path.cwd().resolve().is_relative_to(worktree):
         blockers.append("current_worktree")
     if target:
-        blockers.extend(process_blockers(worktree))
+        # Apply mode rechecks processes right before deletion; scanning twice
+        # would outlive the 60-second ownership evidence.
+        if not apply:
+            blockers.extend(process_blockers(worktree))
         common = git(
             worktree, "rev-parse", "--path-format=absolute", "--git-common-dir"
         )

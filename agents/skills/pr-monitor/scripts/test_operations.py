@@ -571,12 +571,12 @@ class CleanupTests(unittest.TestCase):
             self.assertIn("active_processes", self.cleanup()["blockingReasons"])
         self.assertTrue(self.worktree.exists())
 
-    def test_archive_fallback_preserves_process_started_after_initial_check(self):
+    def test_archive_fallback_preserves_ignored_files_for_active_process(self):
         marker = self.ignored_dependency()
         self.evidence["discardIgnored"] = True
         self.enable_archive_fallback()
         with patch.object(
-            worktree_cleanup, "process_blockers", side_effect=[[], ["active_processes"]]
+            worktree_cleanup, "process_blockers", side_effect=[["active_processes"]]
         ):
             self.assertIn("active_processes", self.cleanup()["blockingReasons"])
         self.assertTrue(marker.exists())
