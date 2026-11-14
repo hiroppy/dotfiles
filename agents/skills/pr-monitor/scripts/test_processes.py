@@ -1,3 +1,4 @@
+import json
 import subprocess
 import unittest
 from pathlib import Path
@@ -35,6 +36,55 @@ class ProcessTests(unittest.TestCase):
                         worktree_cleanup.SHARED_MOUNT_PROCESS,
                     ),
                 )
+
+    def test_docker_vm_write_references_require_mount_check(self):
+        references = (
+            "p123\nf6\nau\nn/Users/dev/Library/Containers/com.docker.docker/Data/vms/0/data/Docker.raw\n"
+            "f*10\naw\nn/worktree/emulator.log\n"
+        )
+        with patch.object(worktree_cleanup, "docker_desktop_mounts_worktree") as mounts:
+            for mounted in (False, True):
+                mounts.return_value = mounted
+                self.assertEqual(
+                    ["active_processes"] if mounted else [],
+                    self.blockers(references, worktree_cleanup.SHARED_MOUNT_PROCESS),
+                )
+            self.assertEqual(2, mounts.call_count)
+
+    def test_desktop_checks_containers_and_local_volume_devices(self):
+        cases = (
+            ("/host_mnt/worktree/firebase", "", True),
+            ("/", "", True),
+            ("/worktree-sibling", "/run/host_mnt/worktree/data", True),
+            ("/worktree-sibling", "/elsewhere", False),
+        )
+        for source, device, expected in cases:
+            responses = (
+                "Docker Desktop",
+                "container-id",
+                "volume-name",
+                json.dumps([{"Mounts": [{"Source": source}]}]),
+                json.dumps([{"Options": {"device": device}}]),
+            )
+            with self.subTest(source=source, device=device), patch.object(
+                Path, "is_socket", return_value=True
+            ), patch.object(
+                worktree_cleanup.subprocess,
+                "run",
+                side_effect=[subprocess.CompletedProcess([], 0, value) for value in responses],
+            ) as run:
+                self.assertEqual(
+                    expected, worktree_cleanup.docker_desktop_mounts_worktree(Path("/worktree"))
+                )
+                self.assertIn("--all", run.call_args_list[1].args[0])
+
+    def test_desktop_inspection_failure_keeps_worktree(self):
+        with patch.object(Path, "is_socket", return_value=True), patch.object(
+            worktree_cleanup.subprocess,
+            "run",
+            side_effect=subprocess.TimeoutExpired("docker", 10),
+        ):
+            self.assertTrue(worktree_cleanup.docker_desktop_mounts_worktree(Path("/worktree")))
 
     def test_application_read_reference_is_still_active(self):
         for executable in (

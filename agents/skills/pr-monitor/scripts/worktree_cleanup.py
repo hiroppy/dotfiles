@@ -40,6 +40,47 @@ def worktrees(repository):
     return result
 
 
+def docker_desktop_mounts_worktree(worktree):
+    # Query the local engine even if this shell normally targets a remote one.
+    socket = Path.home() / ".docker/run/docker.sock"
+    if not socket.is_socket():
+        return True
+
+    def docker(*args):
+        return subprocess.run(
+            ["docker", "--host", f"unix://{socket}", *args],
+            capture_output=True,
+            text=True,
+            timeout=10,
+            check=True,
+        ).stdout
+
+    def overlaps(path):
+        # Docker Desktop can report a Mac path with its VM-side prefix.
+        path = path.removeprefix("/run/host_mnt").removeprefix("/host_mnt")
+        if not path.startswith("/"):
+            return False
+        source = Path(path).resolve()
+        return source.is_relative_to(worktree) or worktree.is_relative_to(source)
+
+    try:
+        if docker("info", "--format", "{{.OperatingSystem}}").strip() != "Docker Desktop":
+            return True
+        containers = docker("container", "ls", "--all", "--quiet", "--no-trunc").split()
+        volumes = docker("volume", "ls", "--quiet").split()
+        if containers:
+            for container in json.loads(docker("container", "inspect", *containers)):
+                if any(overlaps(mount["Source"]) for mount in container["Mounts"]):
+                    return True
+        if volumes:
+            for volume in json.loads(docker("volume", "inspect", *volumes)):
+                if overlaps((volume["Options"] or {}).get("device", "")):
+                    return True
+    except (OSError, RuntimeError, subprocess.SubprocessError, ValueError, KeyError, TypeError):
+        return True
+    return False
+
+
 def process_blockers(worktree):
     # `lsof +D` walks every file below the worktree and times out on large
     # dependency trees, so list all open files once and filter by path.
@@ -62,6 +103,7 @@ def process_blockers(worktree):
         return ["process_state_unknown"]
     seen = set()
     processes = {}
+    docker_vms = set()
     files = None
     pid = None
     for line in result.stdout.splitlines():
@@ -83,6 +125,11 @@ def process_blockers(worktree):
         elif field == "n":
             if not files or re.search(r"\((?:l?stat|readlink): ", value):
                 return ["process_state_unknown"]
+            if (
+                value.endswith("/Docker.raw")
+                and "/Library/Containers/com.docker.docker/Data/" in value
+            ):
+                docker_vms.add(pid)
             if any(value == root or value.startswith(root + "/") for root in roots):
                 processes.setdefault(pid, []).append(files[-1])
     if result.stdout.strip() and not seen:
@@ -107,8 +154,12 @@ def process_blockers(worktree):
         if not files:
             return ["process_state_unknown"]
         if any(
-            not re.fullmatch(r"\*?\d+", file["descriptor"]) or file["access"] != "r"
+            not re.fullmatch(r"\*?\d+", file["descriptor"]) or file["access"] not in {"r", "w", "u"}
             for file in files
+        ):
+            return ["active_processes"]
+        if any(file["access"] != "r" for file in files) and (
+            pid not in docker_vms or docker_desktop_mounts_worktree(Path(worktree).resolve())
         ):
             return ["active_processes"]
     return []
