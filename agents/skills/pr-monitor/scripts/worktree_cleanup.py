@@ -57,7 +57,10 @@ def docker_desktop_mounts_worktree(worktree):
 
     def overlaps(path):
         # Docker Desktop can report a Mac path with its VM-side prefix.
-        path = path.removeprefix("/run/host_mnt").removeprefix("/host_mnt")
+        for prefix in ("/run/host_mnt", "/host_mnt"):
+            if path == prefix or path.startswith(prefix + "/"):
+                path = path[len(prefix):] or "/"
+                break
         if not path.startswith("/"):
             return False
         source = Path(path).resolve()

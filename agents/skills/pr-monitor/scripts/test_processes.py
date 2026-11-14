@@ -55,6 +55,9 @@ class ProcessTests(unittest.TestCase):
         cases = (
             ("/host_mnt/worktree/firebase", "", True),
             ("/", "", True),
+            ("/host_mnt", "", True),
+            ("/run/host_mnt", "", True),
+            ("/host_mnt/worktree-sibling", "", False),
             ("/worktree-sibling", "/run/host_mnt/worktree/data", True),
             ("/worktree-sibling", "/elsewhere", False),
         )
