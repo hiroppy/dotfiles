@@ -50,7 +50,7 @@ python3 <skill-dir>/scripts/check.py notification-result --repo OWNER/REPO --pr 
 - disposeが指定されている場合は実行し、実行環境のタスク管理機能、Git worktree一覧、関連づけの記録等で対象worktreeの管理・共有・pin・他タスク使用状況を確認する。管理下と確認できた場合だけmanaged=trueを記録する。アプリ管理状態やpinが取得不能ならnullまたは省略し、その理由を記録する。取得不能・アプリ操作の拒否だけでarchiveを要求しない。shared/inUseはGitの関連づけ、タスクの作業場所、プロセス等から確認し、不明な値をfalseにしない。通常のworktreeは関連づけの記録と実行中タスクから確認する。
 - 共有・他チャット使用中と判定された場合は、紐付くチャットと子エージェントの作業状況を確認する。同じPRのレビュー等に使った完了済み子エージェントへの紐付けが残っている場合は、管理元の正規のチャットアーカイブ操作でその紐付けを整理する。エージェントの停止だけで紐付けが消えたとみなさない。無関係なチャットや作業中の子エージェントはアーカイブしない。
 - 整理後は管理元から対象worktreeの関連づけ・共有・使用状況を再取得する。保護が解除されたことを確認して証拠を更新し、同じ対象のcleanupを再試行する。共有中という結果をfalseに書き換えたり、管理DBの直接編集やGitによる強制削除で回避しない。正規操作が利用不能・拒否された場合や共有が残る場合は対象を保持し、残る紐付けと理由を報告する。成功またはブロッカーが解消しないことを確認したら再試行を止める。
-- 確認した証拠をworktree外のJSONへ保存する。`observedAt`はタイムゾーン付きISO時刻、shared/inUseは確認済みboolean。managed/pinnedは確認できたbooleanまたは不明を表すnull。`inUse`はdispose後も残る他タスク・稼働中コンテナ等による実際の使用を表す。共有マウントの存在や共有機構のファイル参照だけではtrueにしない。スクリプトは60秒以内の証拠だけを受け付け、プロセスはlsofとpsで別途確認する。macOS Virtualizationの共有マウント用プロセスが保持する読み取り参照だけなら削除を阻止しない。書き込み、対象内のcwd、一般アプリの参照、観測失敗は保持する。
+- 確認した証拠をworktree外のJSONへ保存する。`observedAt`はタイムゾーン付きISO時刻、shared/inUseは確認済みboolean。managed/pinnedは確認できたbooleanまたは不明を表すnull。`inUse`はdispose後も残る他タスク・稼働中コンテナ等による実際の使用を表す。共有マウントの存在や共有機構のファイル参照だけではtrueにしない。スクリプトは60秒以内の証拠だけを受け付け、プロセスはlsofとpsで別途確認する。macOS Virtualizationの共有マウント用プロセスが保持する読み取り参照だけなら削除を阻止しない。書き込み用の参照は、Docker Desktop VMと識別でき、ローカルのDocker Desktopで停止済みを含むコンテナのマウントとボリュームが対象パスを使用していないと確認できた場合だけ削除を許可する。対象内のcwd、一般アプリの参照、観測失敗は保持する。
 
 ```json
 {"worktree":"/absolute/path","observedAt":"2026-10-07T12:00:00+09:00","shared":false,"pinned":false,"inUse":false,"managed":true}
