@@ -84,7 +84,7 @@ def process_blockers(worktree):
             if not files or re.search(r"\((?:l?stat|readlink): ", value):
                 return ["process_state_unknown"]
             if any(value == root or value.startswith(root + "/") for root in roots):
-                processes.setdefault(pid, []).append(files[-1])
+                processes.setdefault(pid, []).append({**files[-1], "path": value})
     if result.stdout.strip() and not seen:
         return ["process_state_unknown"]
     for pid, files in processes.items():
@@ -106,10 +106,21 @@ def process_blockers(worktree):
             return ["active_processes"]
         if not files:
             return ["process_state_unknown"]
-        if any(
-            not re.fullmatch(r"\*?\d+", file["descriptor"]) or file["access"] != "r"
-            for file in files
-        ):
+        for file in files:
+            if not re.fullmatch(r"\*?\d+", file["descriptor"]):
+                return ["active_processes"]
+            if file["access"] == "r":
+                continue
+            if file["access"] not in {"w", "u"}:
+                return ["active_processes"]
+            # macOS may continue reporting the old path after the guest's
+            # disposable file has been unlinked.
+            try:
+                Path(file["path"]).lstat()
+            except FileNotFoundError:
+                continue
+            except OSError:
+                return ["process_state_unknown"]
             return ["active_processes"]
     return []
 

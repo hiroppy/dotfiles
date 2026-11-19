@@ -7,12 +7,17 @@ import worktree_cleanup
 
 
 class ProcessTests(unittest.TestCase):
+    path_error = None
+
     def blockers(self, references, executable, returncode=0, stderr=""):
         responses = [
             subprocess.CompletedProcess([], returncode, references, stderr),
             subprocess.CompletedProcess([], 0, executable + "\n", ""),
         ]
-        with patch.object(worktree_cleanup.subprocess, "run", side_effect=responses):
+        with (
+            patch.object(worktree_cleanup.subprocess, "run", side_effect=responses),
+            patch.object(Path, "lstat", side_effect=self.path_error),
+        ):
             return worktree_cleanup.process_blockers(Path("/worktree"))
 
     def test_shared_mount_read_references_do_not_block(self):
@@ -35,6 +40,17 @@ class ProcessTests(unittest.TestCase):
                         worktree_cleanup.SHARED_MOUNT_PROCESS,
                     ),
                 )
+
+    def test_vm_writes_to_unlinked_paths_do_not_block(self):
+        self.path_error = FileNotFoundError()
+        self.assertEqual(
+            [],
+            self.blockers("p123\nf5\naw\nn/worktree/removed\n", worktree_cleanup.SHARED_MOUNT_PROCESS),
+        )
+        self.assertEqual(
+            ["active_processes"],
+            self.blockers("p123\nf5\naw\nn/worktree/removed\n", "/usr/bin/node"),
+        )
 
     def test_application_read_reference_is_still_active(self):
         for executable in (
